@@ -12,15 +12,17 @@ const providerColors: Record<AIProvider, string> = {
   grok: '#3B82F6',
   mistral: '#8B5CF6',
   deepseek: '#EC4899',
+  gemini: '#06B6D4',
   ollama: '#00FF00',
 };
 
 const providerNames: Record<AIProvider, string> = {
   claude: 'Claude',
-  gpt4: 'GPT-4',
-  grok: 'Grok',
+  gpt4: 'GPT-4o',
+  grok: 'Grok 3',
   mistral: 'Mistral',
   deepseek: 'DeepSeek',
+  gemini: 'Gemini 2.0',
   ollama: 'Ollama (Locale)',
 };
 

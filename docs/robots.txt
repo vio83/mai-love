@@ -1,0 +1,27 @@
+# VIO 83 AI Orchestra — robots.txt
+# Allow all search engines to crawl everything
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://vio83.github.io/vio83-ai-orchestra/sitemap.xml
+
+# Specific crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /

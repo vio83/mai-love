@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA - Global State Management (Zustand)
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AIProvider, AIMode, Conversation, Message, AppSettings } from '../types';
+import type { AIProvider, AIMode, AppPage, Conversation, Message, AppSettings } from '../types';
 
 interface AppState {
   // Current conversation
@@ -15,6 +15,7 @@ interface AppState {
   sidebarOpen: boolean;
   settingsOpen: boolean;
   isStreaming: boolean;
+  currentPage: AppPage;
 
   // Actions
   createConversation: () => string;
@@ -29,6 +30,7 @@ interface AppState {
   setStreaming: (streaming: boolean) => void;
   deleteConversation: (id: string) => void;
   resetToLocal: () => void;
+  setCurrentPage: (page: AppPage) => void;
 }
 
 const defaultSettings: AppSettings = {
@@ -60,6 +62,7 @@ export const useAppStore = create<AppState>()(
       sidebarOpen: true,
       settingsOpen: false,
       isStreaming: false,
+      currentPage: 'chat' as AppPage,
 
       createConversation: () => {
         const id = crypto.randomUUID();
@@ -153,6 +156,8 @@ export const useAppStore = create<AppState>()(
           activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
         }));
       },
+
+      setCurrentPage: (page) => set({ currentPage: page }),
 
       resetToLocal: () => {
         set(state => ({

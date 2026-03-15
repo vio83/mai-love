@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIO 83 AI Orchestra — The World's First Multi-AI Orchestration Platform</title>
+
+    <!-- SEO -->
+    <meta name="description" content="VIO 83 AI Orchestra: One app connects Claude, GPT-4o, Gemini 2.0, Grok 3, Mistral, DeepSeek with smart routing, cross-check verification, and RAG knowledge base. Desktop-native, privacy-first, open source." />
+    <meta name="keywords" content="AI orchestration, multi-AI platform, Claude API, GPT-4o, Gemini 2.0 Flash, Grok 3, Mistral, DeepSeek, Ollama, LLM router, AI desktop app, Tauri, RAG engine, cross-check AI, verified answers, smart routing, AI workflow builder, knowledge base, ChromaDB, privacy-first AI, open source AI" />
+    <meta name="author" content="Viorica Porcu (vio83)" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://vio83.github.io/vio83-ai-orchestra/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://vio83.github.io/vio83-ai-orchestra/" />
+    <meta property="og:title" content="VIO 83 AI Orchestra — Every AI in One App" />
+    <meta property="og:description" content="The world's first intelligent multi-AI orchestration platform. 7+ AI providers, smart routing, cross-check verification, RAG knowledge base. Desktop-native, privacy-first." />
+    <meta property="og:image" content="https://vio83.github.io/vio83-ai-orchestra/assets/social-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="VIO 83 AI Orchestra" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VIO 83 AI Orchestra — Every AI in One App" />
+    <meta name="twitter:description" content="7+ AI providers, smart routing, cross-check verification, RAG knowledge base. Desktop Tauri 2.0 app. Built solo from Italy." />
+    <meta name="twitter:image" content="https://vio83.github.io/vio83-ai-orchestra/assets/social-preview.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#00FF00" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "VIO 83 AI Orchestra",
+      "alternateName": ["VIO AI Orchestra", "VIO 83", "Vio AI"],
+      "description": "The world's first intelligent multi-AI orchestration platform with smart routing, cross-check verification, and RAG knowledge base. Connects Claude, GPT-4o, Gemini 2.0, Grok 3, Mistral, DeepSeek in one desktop app.",
+      "url": "https://vio83.github.io/vio83-ai-orchestra/",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Artificial Intelligence",
+      "operatingSystem": "macOS",
+      "softwareVersion": "0.9.0-beta",
+      "datePublished": "2026-02-19",
+      "dateModified": "2026-03-15",
+      "inLanguage": ["en", "it"],
+      "author": {
+        "@type": "Person",
+        "name": "Viorica Porcu",
+        "alternateName": "vio83",
+        "url": "https://github.com/vio83",
+        "sameAs": [
+          "https://www.linkedin.com/in/viorica-porcu-637735139",
+          "https://ko-fi.com/vio83",
+          "https://github.com/vio83"
+        ]
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "featureList": [
+        "Multi-AI orchestration with 7+ providers",
+        "Intelligent task-based routing",
+        "Cross-check verification between AI models",
+        "RAG knowledge base with ChromaDB",
+        "Visual workflow builder",
+        "Real-time analytics dashboard",
+        "100% offline mode with Ollama",
+        "Desktop-native Tauri 2.0 app (2MB)",
+        "Privacy-first: macOS Keychain, no telemetry",
+        "7 full UI pages with framer-motion animations"
+      ],
+      "screenshot": "https://vio83.github.io/vio83-ai-orchestra/assets/social-preview.png",
+      "downloadUrl": "https://github.com/vio83/vio83-ai-orchestra",
+      "codeRepository": "https://github.com/vio83/vio83-ai-orchestra",
+      "programmingLanguage": ["TypeScript", "Python", "Rust"],
+      "isAccessibleForFree": true,
+      "license": "https://opensource.org/licenses/AGPL-3.0"
+    }
+    </script>
+
+    <!-- Organization Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "VIO 83 AI Orchestra",
+      "url": "https://vio83.github.io/vio83-ai-orchestra/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://github.com/vio83/vio83-ai-orchestra/search?q={search_term}",
+        "query-input": "required name=search_term"
+      }
+    }
+    </script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --green: #00FF00;
+            --green-dim: #00cc00;
+            --cyan: #00FFFF;
+            --magenta: #FF00FF;
+            --bg: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-card: #111111;
+            --text: #e0e0e0;
+            --text-dim: #888888;
+            --border: #1a1a1a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 0 60px;
+            background: radial-gradient(ellipse at center top, rgba(0,255,0,0.06) 0%, transparent 60%);
+        }
+        .hero-badge {
+            display: inline-block;
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(0,255,0,0.3);
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+        }
+        .hero h1 {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 16px;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+        }
+        .hero h1 span { color: var(--green); }
+        .hero p {
+            font-size: 18px;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--green);
+            color: #000;
+        }
+        .btn-primary:hover { background: var(--green-dim); transform: translateY(-2px); }
+        .btn-secondary {
+            background: transparent;
+            color: var(--green);
+            border: 1px solid rgba(0,255,0,0.3);
+        }
+        .btn-secondary:hover { background: rgba(0,255,0,0.08); transform: translateY(-2px); }
+        .btn-sponsor {
+            background: #ea4aaa;
+            color: #fff;
+        }
+        .btn-sponsor:hover { background: #d63d98; transform: translateY(-2px); }
+
+        /* Provider Badges */
+        .providers {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+        .provider-badge {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        /* Features Grid */
+        .features { padding: 80px 0; }
+        .section-title {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-bottom: 48px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+        .feature-card:hover {
+            border-color: rgba(0,255,0,0.3);
+            transform: translateY(-4px);
+        }
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 14px;
+        }
+        .feature-card h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .feature-card p {
+            color: var(--text-dim);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Stats */
+        .stats {
+            padding: 60px 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--green);
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Comparison */
+        .comparison { padding: 80px 0; }
+        .comparison table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .comparison th, .comparison td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .comparison th {
+            background: var(--bg-secondary);
+            color: var(--green);
+            font-weight: 700;
+        }
+        .comparison td:last-child { color: var(--green); font-weight: 600; }
+
+        /* CTA */
+        .cta {
+            padding: 80px 0;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(0,255,0,0.04) 0%, transparent 60%);
+        }
+        .cta h2 {
+            font-size: 36px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+        .cta p {
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-bottom: 32px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+        footer a { color: var(--green); text-decoration: none; }
+
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .hero { padding: 50px 0 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">🎵 Open Source — Multi-AI Desktop App</div>
+            <h1>Every AI.<br><span>One Orchestra.</span></h1>
+            <p>The world's first intelligent multi-AI orchestration platform. Smart routing, cross-check verification, RAG knowledge base. Desktop-native, privacy-first.</p>
+            <div class="hero-buttons">
+                <a href="https://github.com/vio83/vio83-ai-orchestra" class="btn btn-primary">⭐ Star on GitHub</a>
+                <a href="https://github.com/vio83/vio83-ai-orchestra#-quick-start" class="btn btn-secondary">🚀 Quick Start</a>
+                <a href="https://github.com/sponsors/vio83" class="btn btn-sponsor">💚 Sponsor</a>
+            </div>
+            <div class="providers">
+                <span class="provider-badge" style="color:#D97706">Claude Opus 4</span>
+                <span class="provider-badge" style="color:#10B981">GPT-4o</span>
+                <span class="provider-badge" style="color:#06B6D4">Gemini 2.0</span>
+                <span class="provider-badge" style="color:#3B82F6">Grok 3</span>
+                <span class="provider-badge" style="color:#8B5CF6">Mistral</span>
+                <span class="provider-badge" style="color:#EC4899">DeepSeek R1</span>
+                <span class="provider-badge" style="color:#00ff00">Ollama Local</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div><div class="stat-number">7+</div><div class="stat-label">AI Providers</div></div>
+                <div><div class="stat-number">7</div><div class="stat-label">Full UI Pages</div></div>
+                <div><div class="stat-number">1,082</div><div class="stat-label">Knowledge Sub-Disciplines</div></div>
+                <div><div class="stat-number">2MB</div><div class="stat-label">Desktop App Size</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Everything You Need in One App</h2>
+            <p class="section-subtitle">Stop switching between AI tabs. VIO 83 orchestrates them all intelligently.</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Smart AI Routing</h3>
+                    <p>The Orchestra analyzes your question and picks the best AI model. Code → Claude. Creative → GPT-4o. Real-time → Grok. Fast → Gemini. Math → DeepSeek.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Cross-Check Verification</h3>
+                    <p>A second AI independently verifies critical answers. See concordance scores (%), spot disagreements, and trust your results with confidence.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <h3>RAG Knowledge Base</h3>
+                    <p>Answers verified against certified sources — academic papers, official docs. ChromaDB + SQLite FTS5 for sub-50ms retrieval. Gold/Silver/Bronze quality badges.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Visual Workflow Builder</h3>
+                    <p>Design custom AI pipelines with drag-and-drop nodes. Input → Router → Models → CrossCheck → Output. Save and reuse your favorite workflows.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Analytics Dashboard</h3>
+                    <p>Track performance over 7/30/90 days. Compare quality and speed across models. Optimize your cost-per-quality ratio with real data.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>100% offline mode with Ollama. API keys in macOS Keychain. Zero telemetry. No data collection. Your data never leaves your Mac.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="comparison">
+        <div class="container">
+            <h2 class="section-title">How VIO 83 Compares</h2>
+            <p class="section-subtitle">One app to replace them all.</p>
+            <table>
+                <thead>
+                    <tr><th>Feature</th><th>ChatGPT</th><th>Claude.ai</th><th>Gemini</th><th>VIO 83 ✨</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Multiple AI models</td><td>❌</td><td>❌</td><td>❌</td><td>✅ 7+ providers</td></tr>
+                    <tr><td>Smart auto-routing</td><td>❌</td><td>❌</td><td>❌</td><td>✅ Task-based</td></tr>
+                    <tr><td>Cross-check verification</td><td>❌</td><td>❌</td><td>❌</td><td>✅ Multi-model</td></tr>
+                    <tr><td>Visual workflows</td><td>❌</td><td>❌</td><td>❌</td><td>✅ Drag & drop</td></tr>
+                    <tr><td>Works 100% offline</td><td>❌</td><td>❌</td><td>❌</td><td>✅ Ollama</td></tr>
+                    <tr><td>Desktop native</td><td>❌</td><td>❌</td><td>❌</td><td>✅ 2MB Tauri</td></tr>
+                    <tr><td>Open source</td><td>❌</td><td>❌</td><td>❌</td><td>✅ AGPL-3.0</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="container">
+            <h2>Support Independent Open Source AI</h2>
+            <p>Built by a solo developer from Italy on a MacBook Air M1. Every star, share, and sponsor helps build the future of AI orchestration.</p>
+            <div class="hero-buttons">
+                <a href="https://github.com/vio83/vio83-ai-orchestra" class="btn btn-primary">⭐ Star on GitHub</a>
+                <a href="https://github.com/sponsors/vio83" class="btn btn-sponsor">💚 Become a Sponsor</a>
+                <a href="https://ko-fi.com/vio83" class="btn btn-secondary">☕ Buy a Coffee</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>Copyright &copy; 2026 <a href="https://github.com/vio83">Viorica Porcu (vio83)</a> — Made in Italy 🇮🇹</p>
+            <p style="margin-top:8px">
+                <a href="https://github.com/vio83/vio83-ai-orchestra">GitHub</a> &nbsp;•&nbsp;
+                <a href="https://github.com/sponsors/vio83">Sponsor</a> &nbsp;•&nbsp;
+                <a href="https://ko-fi.com/vio83">Ko-fi</a> &nbsp;•&nbsp;
+                <a href="https://www.linkedin.com/in/viorica-porcu-637735139">LinkedIn</a>
+            </p>
+        </div>
+    </footer>
+
+</body>
+</html>

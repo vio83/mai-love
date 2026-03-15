@@ -1,17 +1,34 @@
-// VIO 83 AI ORCHESTRA - Sidebar Conversazioni
-import { MessageSquarePlus, Trash2, Settings, Music, ChevronLeft } from 'lucide-react';
+// VIO 83 AI ORCHESTRA - Sidebar con Navigazione Multi-Pagina
+import {
+  MessageSquarePlus, Trash2, Settings, Music, ChevronLeft,
+  LayoutDashboard, MessageSquare, GitBranch, BarChart3,
+  BookOpen, Shield, Cpu,
+} from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import type { AppPage } from '../../types';
+
+const NAV_ITEMS: { id: AppPage; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'chat', label: 'AI Chat', icon: MessageSquare },
+  { id: 'workflow', label: 'Workflow Builder', icon: GitBranch },
+  { id: 'crosscheck', label: 'Cross-Check', icon: Shield },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'rag', label: 'RAG Knowledge', icon: BookOpen },
+  { id: 'models', label: 'AI Models', icon: Cpu },
+];
 
 export default function Sidebar() {
   const {
     conversations,
     activeConversationId,
+    currentPage,
     sidebarOpen,
     createConversation,
     setActiveConversation,
     deleteConversation,
     toggleSidebar,
     toggleSettings,
+    setCurrentPage,
   } = useAppStore();
 
   if (!sidebarOpen) return null;
@@ -54,117 +71,164 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* New chat button */}
-      <div style={{ padding: '12px' }}>
-        <button
-          onClick={() => createConversation()}
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: 'var(--vio-radius)',
-            border: '1px dashed var(--vio-green-dim)',
-            backgroundColor: 'transparent',
-            color: 'var(--vio-green)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            fontSize: '13px',
-            fontWeight: 500,
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,255,0,0.05)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          <MessageSquarePlus size={16} />
-          Nuova conversazione
-        </button>
-      </div>
-
-      {/* Conversation list */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '0 8px',
-      }}>
-        {conversations.length === 0 ? (
-          <p style={{
-            color: 'var(--vio-text-dim)',
-            fontSize: '12px',
-            textAlign: 'center',
-            padding: '20px',
-          }}>
-            Nessuna conversazione
-          </p>
-        ) : (
-          conversations.map(conv => (
-            <div
-              key={conv.id}
-              onClick={() => setActiveConversation(conv.id)}
+      {/* Navigation */}
+      <nav style={{ padding: '10px 8px', borderBottom: '1px solid var(--vio-border)' }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = currentPage === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setCurrentPage(item.id)}
               style={{
-                padding: '10px 12px',
-                borderRadius: '6px',
-                marginBottom: '2px',
-                cursor: 'pointer',
-                backgroundColor: conv.id === activeConversationId ? 'rgba(0,255,0,0.08)' : 'transparent',
-                border: conv.id === activeConversationId ? '1px solid rgba(0,255,0,0.2)' : '1px solid transparent',
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '10px',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                marginBottom: '1px',
+                background: isActive ? 'rgba(0,255,0,0.08)' : 'transparent',
+                color: isActive ? 'var(--vio-green)' : 'var(--vio-text-secondary)',
+                fontSize: '13px',
+                fontWeight: isActive ? 600 : 400,
                 transition: 'all 0.15s',
+                textAlign: 'left',
               }}
-              onMouseEnter={(e) => {
-                if (conv.id !== activeConversationId)
-                  e.currentTarget.style.backgroundColor = 'var(--vio-bg-hover)';
+              onMouseEnter={e => {
+                if (!isActive) e.currentTarget.style.background = 'var(--vio-bg-hover)';
               }}
-              onMouseLeave={(e) => {
-                if (conv.id !== activeConversationId)
-                  e.currentTarget.style.backgroundColor = 'transparent';
+              onMouseLeave={e => {
+                if (!isActive) e.currentTarget.style.background = 'transparent';
               }}
             >
-              <span style={{
-                flex: 1,
-                fontSize: '13px',
-                color: conv.id === activeConversationId ? 'var(--vio-green)' : 'var(--vio-text-secondary)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {conv.title}
-              </span>
+              <Icon size={16} />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
 
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--vio-text-dim)', padding: '2px',
-                  opacity: 0.5, transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+      {/* Conversations (only visible on chat page) */}
+      {currentPage === 'chat' && (
+        <>
+          {/* New chat button */}
+          <div style={{ padding: '10px 8px' }}>
+            <button
+              onClick={() => createConversation()}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: 'var(--vio-radius)',
+                border: '1px dashed var(--vio-green-dim)',
+                backgroundColor: 'transparent',
+                color: 'var(--vio-green)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: 500,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,255,0,0.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <MessageSquarePlus size={14} />
+              Nuova conversazione
+            </button>
+          </div>
+
+          {/* Conversation list */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '0 8px',
+          }}>
+            {conversations.length === 0 ? (
+              <p style={{
+                color: 'var(--vio-text-dim)',
+                fontSize: '12px',
+                textAlign: 'center',
+                padding: '16px',
+              }}>
+                Nessuna conversazione
+              </p>
+            ) : (
+              conversations.map(conv => (
+                <div
+                  key={conv.id}
+                  onClick={() => setActiveConversation(conv.id)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    marginBottom: '2px',
+                    cursor: 'pointer',
+                    backgroundColor: conv.id === activeConversationId ? 'rgba(0,255,0,0.08)' : 'transparent',
+                    border: conv.id === activeConversationId ? '1px solid rgba(0,255,0,0.2)' : '1px solid transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (conv.id !== activeConversationId)
+                      e.currentTarget.style.backgroundColor = 'var(--vio-bg-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (conv.id !== activeConversationId)
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span style={{
+                    flex: 1,
+                    fontSize: '12px',
+                    color: conv.id === activeConversationId ? 'var(--vio-green)' : 'var(--vio-text-secondary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {conv.title}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--vio-text-dim)', padding: '2px',
+                      opacity: 0.4, transition: 'opacity 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.4'}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Spacer if not chat page */}
+      {currentPage !== 'chat' && <div style={{ flex: 1 }} />}
 
       {/* Footer: Settings */}
       <div style={{
-        padding: '12px',
+        padding: '10px 8px',
         borderTop: '1px solid var(--vio-border)',
       }}>
         <button
-          onClick={toggleSettings}
+          onClick={() => { toggleSettings(); setCurrentPage('settings'); }}
           style={{
             width: '100%',
             padding: '8px',
             borderRadius: '6px',
             border: 'none',
-            backgroundColor: 'var(--vio-bg-tertiary)',
-            color: 'var(--vio-text-secondary)',
+            backgroundColor: currentPage === 'settings' ? 'rgba(0,255,0,0.08)' : 'var(--vio-bg-tertiary)',
+            color: currentPage === 'settings' ? 'var(--vio-green)' : 'var(--vio-text-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -178,8 +242,8 @@ export default function Sidebar() {
             e.currentTarget.style.color = 'var(--vio-green)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--vio-bg-tertiary)';
-            e.currentTarget.style.color = 'var(--vio-text-secondary)';
+            e.currentTarget.style.backgroundColor = currentPage === 'settings' ? 'rgba(0,255,0,0.08)' : 'var(--vio-bg-tertiary)';
+            e.currentTarget.style.color = currentPage === 'settings' ? 'var(--vio-green)' : 'var(--vio-text-secondary)';
           }}
         >
           <Settings size={16} />

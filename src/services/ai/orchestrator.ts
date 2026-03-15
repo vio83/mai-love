@@ -7,9 +7,10 @@ import type { AIProvider, AIMode, AIResponse, Message } from '../../types';
 const CLOUD_MODELS: Record<string, string> = {
   claude: 'anthropic/claude-sonnet-4-20250514',
   gpt4: 'openai/gpt-4o',
-  grok: 'xai/grok-2',
+  grok: 'xai/grok-3',
   mistral: 'mistral/mistral-large-latest',
   deepseek: 'deepseek/deepseek-chat',
+  gemini: 'google/gemini-2.0-flash',
 };
 
 const LOCAL_MODELS: Record<string, string> = {
@@ -147,6 +148,7 @@ async function callCloud(
     grok: apiKeys.XAI_API_KEY || '',
     mistral: apiKeys.MISTRAL_API_KEY || '',
     deepseek: apiKeys.DEEPSEEK_API_KEY || '',
+    gemini: apiKeys.GOOGLE_API_KEY || '',
   };
   const apiKey = keyMap[provider];
   if (!apiKey) throw new Error(`API key mancante per ${provider}. Configurala nelle Impostazioni.`);
@@ -157,6 +159,7 @@ async function callCloud(
     grok: 'https://api.x.ai/v1',
     mistral: 'https://api.mistral.ai/v1',
     deepseek: 'https://api.deepseek.com/v1',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
   };
 
   const headers: Record<string, string> = {

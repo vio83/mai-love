@@ -1,0 +1,85 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#000000"/>
+
+  <!-- Subtle grid pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#0a0a0a" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Green glow top -->
+  <ellipse cx="600" cy="100" rx="500" ry="200" fill="#00FF00" opacity="0.04"/>
+
+  <!-- Title -->
+  <text x="600" y="180" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="72" font-weight="800" fill="white" letter-spacing="-2">
+    VIO 83
+  </text>
+  <text x="600" y="240" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="36" font-weight="600" fill="#00FF00" letter-spacing="4">
+    AI ORCHESTRA
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="310" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" fill="#888888">
+    The World's First Multi-AI Orchestration Platform
+  </text>
+
+  <!-- AI Provider badges -->
+  <g transform="translate(600, 380)">
+    <!-- Claude -->
+    <rect x="-390" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#D97706" stroke-width="1.5"/>
+    <text x="-340" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#D97706">Claude</text>
+
+    <!-- GPT-4o -->
+    <rect x="-270" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#10B981" stroke-width="1.5"/>
+    <text x="-220" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#10B981">GPT-4o</text>
+
+    <!-- Gemini -->
+    <rect x="-150" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#06B6D4" stroke-width="1.5"/>
+    <text x="-100" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#06B6D4">Gemini</text>
+
+    <!-- Grok -->
+    <rect x="-30" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="20" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#3B82F6">Grok 3</text>
+
+    <!-- Mistral -->
+    <rect x="90" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#8B5CF6" stroke-width="1.5"/>
+    <text x="140" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#8B5CF6">Mistral</text>
+
+    <!-- DeepSeek -->
+    <rect x="210" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#EC4899" stroke-width="1.5"/>
+    <text x="260" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#EC4899">DeepSeek</text>
+
+    <!-- Ollama -->
+    <rect x="330" y="-18" width="100" height="36" rx="8" fill="#111" stroke="#00FF00" stroke-width="1.5"/>
+    <text x="380" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#00FF00">Ollama</text>
+  </g>
+
+  <!-- Feature highlights -->
+  <text x="600" y="460" text-anchor="middle" font-family="Inter, sans-serif" font-size="16" fill="#555">
+    Smart Routing • Cross-Check • RAG Knowledge • Visual Workflows • Analytics • Privacy-First
+  </text>
+
+  <!-- Stats bar -->
+  <g transform="translate(600, 520)">
+    <text x="-300" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#00FF00">7+</text>
+    <text x="-300" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#666">AI Providers</text>
+
+    <text x="-100" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#00FFFF">7</text>
+    <text x="-100" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#666">Full Pages</text>
+
+    <text x="100" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#FF00FF">2MB</text>
+    <text x="100" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#666">Desktop App</text>
+
+    <text x="300" y="0" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#FBB924">100%</text>
+    <text x="300" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#666">Offline Mode</text>
+  </g>
+
+  <!-- Bottom bar -->
+  <rect y="610" width="1200" height="20" fill="#00FF00" opacity="0.8"/>
+  <text x="600" y="624" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#000">
+    github.com/vio83/vio83-ai-orchestra • Built in Italy 🇮🇹 by Viorica Porcu • Open Source AGPL-3.0
+  </text>
+</svg>

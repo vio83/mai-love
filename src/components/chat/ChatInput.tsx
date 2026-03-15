@@ -14,8 +14,9 @@ const OLLAMA_MODELS = [
 
 const cloudProviders: { id: AIProvider; name: string; icon: string }[] = [
   { id: 'claude', name: 'Claude', icon: '🟠' },
-  { id: 'gpt4', name: 'GPT-4', icon: '🟢' },
-  { id: 'grok', name: 'Grok', icon: '🔵' },
+  { id: 'gpt4', name: 'GPT-4o', icon: '🟢' },
+  { id: 'grok', name: 'Grok 3', icon: '🔵' },
+  { id: 'gemini', name: 'Gemini', icon: '💎' },
   { id: 'mistral', name: 'Mistral', icon: '🟣' },
   { id: 'deepseek', name: 'DeepSeek', icon: '🩷' },
 ];

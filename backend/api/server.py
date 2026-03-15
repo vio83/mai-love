@@ -32,7 +32,9 @@ from backend.models.schemas import (
     HealthResponse, RAGAddRequest, RAGSearchRequest, ErrorResponse
 )
 from backend.config.providers import (
-    CLOUD_PROVIDERS, LOCAL_PROVIDERS, get_available_cloud_providers
+    CLOUD_PROVIDERS, LOCAL_PROVIDERS, FREE_CLOUD_PROVIDERS,
+    ALL_CLOUD_PROVIDERS, get_available_cloud_providers,
+    get_free_cloud_providers, get_all_providers_ordered,
 )
 from backend.database.db import (
     init_database, create_conversation, list_conversations,
@@ -45,33 +47,71 @@ from backend.orchestrator.direct_router import (
     check_ollama_status,
 )
 
-# RAG è opzionale — ChromaDB non supporta Python 3.14
+# RAG è disabilitato per compatibilità Python 3.14
 RAG_AVAILABLE = False
-try:
-    from backend.rag.engine import get_rag_engine, RAGSource
-    RAG_AVAILABLE = True
-except Exception as e:
-    print(f"⚠️  RAG Engine legacy non disponibile: {e}")
+# try:
+#     from backend.rag.engine import get_rag_engine, RAGSource
+#     RAG_AVAILABLE = True
+# except Exception as e:
+#     print(f"⚠️  RAG Engine legacy non disponibile: {e}")
 
 # Knowledge Base v2 — sempre disponibile (fallback a SQLite FTS5)
 KB_AVAILABLE = False
-try:
-    from backend.rag.knowledge_base import get_knowledge_base, KnowledgeBase
-    KB_AVAILABLE = True
-except Exception as e:
-    print(f"⚠️  Knowledge Base non disponibile: {e}")
+# try:
+#     from backend.rag.knowledge_base import get_knowledge_base, KnowledgeBase
+#     KB_AVAILABLE = True
+# except Exception as e:
+#     print(f"⚠️  Knowledge Base non disponibile: {e}")
 
 load_dotenv()
 START_TIME = time.time()
+
+# === CORE INFRASTRUCTURE ===
+from backend.core.cache import get_cache, CacheEngine
+from backend.core.network import get_connection_pool, ConnectionPoolManager
+from backend.core.parallel import TaskPool, ParallelQueryEngine
+from backend.core.errors import get_error_handler, ErrorHandler, OrchestraException
+from backend.core.security import get_vault, EnvironmentValidator
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Inizializzazione e shutdown del server."""
     print("🎵 VIO 83 AI ORCHESTRA — Server v2 avviato")
+    print("🔧 Inizializzazione Core Infrastructure...")
 
     # Inizializza database
     init_database()
+
+    # === SECURITY: Validazione ambiente ===
+    validator = EnvironmentValidator()
+    env_check = validator.validate()
+    if env_check["errors"]:
+        for err in env_check["errors"]:
+            print(f"  ❌ {err}")
+    for warn in env_check["warnings"]:
+        print(f"  ⚠️  {warn}")
+
+    # === SECURITY: API Key Vault ===
+    vault = get_vault()
+    print(f"🔐 API Keys: {vault.stats['valid_keys']}/{vault.stats['total_keys']} valide "
+          f"→ Provider: {vault.available_providers or 'solo locale'}")
+
+    # === CACHE: Multi-layer cache ===
+    cache = get_cache()
+    expired = cache.cleanup()
+    print(f"💾 Cache Engine: L1 memory + L2 disk | Pulizia: {expired} entry scadute")
+
+    # === NETWORK: Connection Pool + Circuit Breakers ===
+    pool = get_connection_pool()
+    pool.register_provider("ollama", base_url="http://localhost:11434", timeout=120.0, rate_limit=100)
+    for provider_name in vault.available_providers:
+        pool.register_provider(provider_name, timeout=60.0, rate_limit=30)
+    print(f"🌐 Network Pool: {pool.stats['total_pools']} provider registrati")
+
+    # === ERROR HANDLER ===
+    error_handler = get_error_handler()
+    print(f"🛡️  Error Handler: attivo")
 
     # Knowledge Base v2 (sempre disponibile — SQLite FTS5 fallback)
     if KB_AVAILABLE:
@@ -105,10 +145,24 @@ async def lifespan(app: FastAPI):
     else:
         print(f"⚠️  Ollama: non raggiungibile ({ollama_status.get('error', 'unknown')})")
 
+    free_cloud = get_free_cloud_providers()
+    if free_cloud:
+        print(f"🆓 Provider cloud gratuiti: {list(free_cloud.keys())}")
     available = get_available_cloud_providers()
-    print(f"☁️  Provider cloud: {list(available.keys()) if available else 'nessuno (configura .env)'}")
+    paid_only = {k: v for k, v in available.items() if k not in free_cloud}
+    if paid_only:
+        print(f"☁️  Provider cloud a pagamento: {list(paid_only.keys())}")
+    if not available:
+        print("☁️  Provider cloud: nessuno (configura .env)")
 
     yield
+
+    # === SHUTDOWN ===
+    print("🎵 VIO 83 AI ORCHESTRA — Shutdown in corso...")
+    pool = get_connection_pool()
+    await pool.close_all()
+    cache = get_cache()
+    cache.cleanup()
     print("🎵 VIO 83 AI ORCHESTRA — Server arrestato")
 
 
@@ -144,11 +198,12 @@ async def health_check():
     ollama = await check_ollama_status()
 
     providers = {}
-    for key in CLOUD_PROVIDERS:
+    for key in ALL_CLOUD_PROVIDERS:
         providers[key] = {
             "available": key in available,
             "mode": "cloud",
-            "name": CLOUD_PROVIDERS[key]["name"],
+            "name": ALL_CLOUD_PROVIDERS[key]["name"],
+            "cost": ALL_CLOUD_PROVIDERS[key].get("cost", "paid"),
         }
     providers["ollama"] = {
         "available": ollama["available"],
@@ -437,29 +492,49 @@ async def api_ollama_models():
 
 @app.get("/providers")
 async def list_providers():
-    """Lista tutti i provider disponibili."""
+    """Lista tutti i provider disponibili — 3 tier: locale, gratis, pagamento."""
     available = get_available_cloud_providers()
+    free_available = get_free_cloud_providers()
     ollama = await check_ollama_status()
 
     return {
-        "cloud": {
-            key: {
-                "name": CLOUD_PROVIDERS[key]["name"],
-                "available": key in available,
-                "default_model": CLOUD_PROVIDERS[key]["default_model"],
-                "models": list(CLOUD_PROVIDERS[key]["models"].keys()),
-            }
-            for key in CLOUD_PROVIDERS
-        },
         "local": {
             "ollama": {
                 "name": "Ollama (Locale)",
                 "available": ollama["available"],
+                "cost": "free",
                 "default_model": LOCAL_PROVIDERS["ollama"]["default_model"],
                 "models": ollama.get("models", []),
                 "installed_models": [m["name"] for m in ollama.get("models", [])],
             }
         },
+        "free_cloud": {
+            key: {
+                "name": FREE_CLOUD_PROVIDERS[key]["name"],
+                "available": key in free_available,
+                "cost": "free",
+                "free_tier": FREE_CLOUD_PROVIDERS[key].get("free_tier", ""),
+                "signup_url": FREE_CLOUD_PROVIDERS[key].get("signup_url", ""),
+                "default_model": FREE_CLOUD_PROVIDERS[key]["default_model"],
+                "models": list(FREE_CLOUD_PROVIDERS[key]["models"].keys()),
+            }
+            for key in FREE_CLOUD_PROVIDERS
+        },
+        "paid_cloud": {
+            key: {
+                "name": CLOUD_PROVIDERS[key]["name"],
+                "available": key in available,
+                "cost": CLOUD_PROVIDERS[key].get("cost", "paid"),
+                "default_model": CLOUD_PROVIDERS[key]["default_model"],
+                "models": list(CLOUD_PROVIDERS[key]["models"].keys()),
+            }
+            for key in CLOUD_PROVIDERS
+        },
+        "all_ordered": [
+            {"id": p["id"], "name": p["name"], "tier": p["tier"],
+             "available": p.get("available", True)}
+            for p in get_all_providers_ordered()
+        ],
     }
 
 
@@ -654,6 +729,91 @@ async def kb_build_context(
         max_context_tokens=max_context_tokens,
         n_results=n_results,
     )
+
+
+# ═══════════════════════════════════════════════
+# CORE INFRASTRUCTURE — Cache, Network, Security
+# ═══════════════════════════════════════════════
+
+@app.get("/core/cache/stats")
+async def api_cache_stats():
+    """Statistiche del multi-layer cache engine."""
+    cache = get_cache()
+    return cache.stats
+
+
+@app.post("/core/cache/clear")
+async def api_cache_clear():
+    """Svuota tutta la cache."""
+    cache = get_cache()
+    cache.clear()
+    return {"status": "ok", "message": "Cache svuotata"}
+
+
+@app.post("/core/cache/cleanup")
+async def api_cache_cleanup():
+    """Rimuovi entry scadute dalla cache disco."""
+    cache = get_cache()
+    removed = cache.cleanup()
+    return {"status": "ok", "expired_removed": removed}
+
+
+@app.get("/core/network/stats")
+async def api_network_stats():
+    """Statistiche di rete: connection pool, circuit breaker, latenze."""
+    pool = get_connection_pool()
+    return pool.stats
+
+
+@app.get("/core/network/health/{provider}")
+async def api_provider_health(provider: str):
+    """Health check specifico per un provider."""
+    pool = get_connection_pool()
+    return pool.get_provider_health(provider)
+
+
+@app.get("/core/errors/stats")
+async def api_error_stats():
+    """Statistiche errori: conteggi, errori recenti, errori più comuni."""
+    handler = get_error_handler()
+    return handler.stats
+
+
+@app.get("/core/security/stats")
+async def api_security_stats():
+    """Stato sicurezza: chiavi API, provider disponibili."""
+    vault = get_vault()
+    return vault.stats
+
+
+@app.get("/core/security/validate")
+async def api_validate_environment():
+    """Validazione completa dell'ambiente di esecuzione."""
+    validator = EnvironmentValidator()
+    return validator.validate()
+
+
+@app.get("/core/status")
+async def api_core_status():
+    """Status completo di tutta l'infrastruttura core."""
+    cache = get_cache()
+    pool = get_connection_pool()
+    handler = get_error_handler()
+    vault = get_vault()
+
+    return {
+        "uptime_seconds": round(time.time() - START_TIME, 1),
+        "cache": cache.stats,
+        "network": pool.stats,
+        "errors": {
+            "total": handler.stats["total_errors"],
+            "most_common": handler.stats["most_common"],
+        },
+        "security": {
+            "valid_keys": vault.stats["valid_keys"],
+            "available_providers": vault.available_providers,
+        },
+    }
 
 
 # ═══════════════════════════════════════════════

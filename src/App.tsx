@@ -1,13 +1,45 @@
-// VIO 83 AI ORCHESTRA - App Principale
+// VIO 83 AI ORCHESTRA - App Principale con Navigazione Multi-Pagina
 import { Menu } from 'lucide-react';
 import { useAppStore } from './stores/appStore';
 import Sidebar from './components/sidebar/Sidebar';
 import ChatView from './components/chat/ChatView';
 import { SettingsPanel } from './components/settings/SettingsPanel';
+import DashboardPage from './pages/DashboardPage';
+import ModelsPage from './pages/ModelsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import WorkflowPage from './pages/WorkflowPage';
+import RagPage from './pages/RagPage';
+import CrossCheckPage from './pages/CrossCheckPage';
 import './styles/vio-dark.css';
 
 export default function App() {
-  const { sidebarOpen, toggleSidebar, settings, settingsOpen } = useAppStore();
+  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage } = useAppStore();
+
+  // Render the active page
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard': return <DashboardPage />;
+      case 'chat': return <ChatView />;
+      case 'workflow': return <WorkflowPage />;
+      case 'crosscheck': return <CrossCheckPage />;
+      case 'analytics': return <AnalyticsPage />;
+      case 'rag': return <RagPage />;
+      case 'models': return <ModelsPage />;
+      case 'settings': return <SettingsPanel />;
+      default: return <ChatView />;
+    }
+  };
+
+  const pageTitle: Record<string, string> = {
+    dashboard: 'Dashboard',
+    chat: 'AI Chat',
+    workflow: 'Workflow Builder',
+    crosscheck: 'Cross-Check',
+    analytics: 'Analytics',
+    rag: 'RAG Knowledge',
+    models: 'AI Models',
+    settings: 'Impostazioni',
+  };
 
   return (
     <div style={{
@@ -50,6 +82,9 @@ export default function App() {
             <span style={{ fontSize: '14px', color: 'var(--vio-green)', fontWeight: 600 }}>
               VIO 83 AI Orchestra
             </span>
+            <span style={{ fontSize: '12px', color: 'var(--vio-text-dim)' }}>
+              — {pageTitle[currentPage] || 'Chat'}
+            </span>
             <span style={{
               fontSize: '11px',
               marginLeft: 'auto',
@@ -63,12 +98,14 @@ export default function App() {
           </div>
         )}
 
-        {/* Chat view */}
-        <ChatView />
+        {/* Page content */}
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {renderPage()}
+        </div>
       </div>
 
-      {/* Settings modal */}
-      {settingsOpen && <SettingsPanel />}
+      {/* Settings modal — only as overlay when triggered from non-settings pages */}
+      {settingsOpen && currentPage !== 'settings' && <SettingsPanel />}
     </div>
   );
 }

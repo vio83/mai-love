@@ -1,8 +1,54 @@
 {
   "name": "vio83-ai-orchestra",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.9.0-beta",
   "type": "module",
+  "description": "The world's first intelligent multi-AI orchestration platform. Smart routing, cross-check verification, RAG knowledge base. Connects Claude, GPT-4o, Gemini 2.0, Grok 3, Mistral, DeepSeek in one desktop app.",
+  "author": "Viorica Porcu <porcu.v.83@gmail.com> (https://github.com/vio83)",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://vio83.github.io/vio83-ai-orchestra/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vio83/vio83-ai-orchestra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vio83/vio83-ai-orchestra/issues"
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/vio83"
+    },
+    {
+      "type": "ko-fi",
+      "url": "https://ko-fi.com/vio83"
+    }
+  ],
+  "keywords": [
+    "ai-orchestration",
+    "multi-ai",
+    "llm-router",
+    "claude-api",
+    "gpt4",
+    "gemini-api",
+    "grok-api",
+    "mistral",
+    "deepseek",
+    "ollama",
+    "rag-engine",
+    "cross-check",
+    "knowledge-base",
+    "chromadb",
+    "tauri",
+    "desktop-app",
+    "react-typescript",
+    "fastapi",
+    "ai-workflow",
+    "smart-routing",
+    "verified-answers",
+    "privacy-first",
+    "open-source-ai"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -16,8 +62,8 @@
     "framer-motion": "^12.34.2",
     "lucide-react": "^0.574.0",
     "ollama": "^0.6.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.0",
     "react-syntax-highlighter": "^16.1.0",
@@ -29,16 +75,16 @@
     "@eslint/js": "^9.39.1",
     "@tauri-apps/cli": "^2.10.0",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.1.4",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.48.0",
+    "typescript-eslint": "^7.3.1",
     "vite": "^7.3.1"
   }
 }
