@@ -4,9 +4,6 @@ on:
   # Runs every day at 06:00 UTC (08:00 Italy)
   schedule:
     - cron: '0 6 * * *'
-  # Also runs on every push to main
-  push:
-    branches: ["main"]
   # Manual trigger
   workflow_dispatch:
 
@@ -14,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  seo-ping:
+  seo-ping-and-stats:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,8 +39,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{
               "host": "vio83.github.io",
-              "key": "${{ secrets.INDEXNOW_KEY }}",
-              "keyLocation": "https://vio83.github.io/vio83-ai-orchestra/${{ secrets.INDEXNOW_KEY }}.txt",
+              "key": "3e6f9ffe76d0f756d7492ec16fd4d501",
+              "keyLocation": "https://vio83.github.io/vio83-ai-orchestra/3e6f9ffe76d0f756d7492ec16fd4d501.txt",
               "urlList": [
                 "https://vio83.github.io/vio83-ai-orchestra/",
                 "https://vio83.github.io/vio83-ai-orchestra/sitemap.xml"
@@ -51,43 +48,26 @@ jobs:
             }' || true
           echo "Pinged IndexNow"
 
-      - name: Commit sitemap update
-        run: |
-          git config user.name "VIO 83 SEO Bot"
-          git config user.email "porcu.v.83@gmail.com"
-          git add docs/sitemap.xml
-          git diff --cached --quiet || git commit -m "chore(seo): auto-update sitemap lastmod [skip ci]"
-          git push || true
-
-  sponsor-stats:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Fetch GitHub repo stats
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          STARS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.stargazers_count')
-          FORKS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.forks_count')
-          WATCHERS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.subscribers_count')
-          ISSUES=$(gh api repos/vio83/vio83-ai-orchestra --jq '.open_issues_count')
+          STARS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.stargazers_count' 2>/dev/null || echo "0")
+          FORKS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.forks_count' 2>/dev/null || echo "0")
+          WATCHERS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.subscribers_count' 2>/dev/null || echo "0")
+          ISSUES=$(gh api repos/vio83/vio83-ai-orchestra --jq '.open_issues_count' 2>/dev/null || echo "0")
           TODAY=$(date +%Y-%m-%d)
 
           mkdir -p data
           echo "{\"date\":\"$TODAY\",\"stars\":$STARS,\"forks\":$FORKS,\"watchers\":$WATCHERS,\"issues\":$ISSUES}" >> data/growth-stats.jsonl
 
           echo "=== VIO 83 Daily Stats ($TODAY) ==="
-          echo "Stars: $STARS"
-          echo "Forks: $FORKS"
-          echo "Watchers: $WATCHERS"
-          echo "Issues: $ISSUES"
+          echo "Stars: $STARS | Forks: $FORKS | Watchers: $WATCHERS | Issues: $ISSUES"
 
-      - name: Commit stats
+      - name: Commit changes
         run: |
-          git config user.name "VIO 83 Stats Bot"
+          git config user.name "VIO 83 SEO Bot"
           git config user.email "porcu.v.83@gmail.com"
-          git add data/growth-stats.jsonl
-          git diff --cached --quiet || git commit -m "chore(stats): daily growth tracking [skip ci]"
+          git add docs/sitemap.xml data/growth-stats.jsonl 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore(seo): daily sitemap update + stats tracking [skip ci]"
           git push || true
