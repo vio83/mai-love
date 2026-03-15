@@ -1,0 +1,134 @@
+{
+  "name": "VIO83 — GitHub Growth Tracker (Daily)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "id": "trigger-daily",
+      "name": "Daily at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-repo-data",
+      "name": "Get Repo Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra/traffic/views",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-traffic",
+      "name": "Get Traffic Views",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra/traffic/clones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-clones",
+      "name": "Get Clone Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 700]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra/traffic/popular/referrers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-referrers",
+      "name": "Get Top Referrers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 900]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "Merge All Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "daily_report",
+              "value": "=📊 VIO 83 Daily Growth Report — {{ $now.format('yyyy-MM-dd') }}\n\n⭐ Stars: {{ $('Get Repo Stats').item.json.stargazers_count }}\n🔀 Forks: {{ $('Get Repo Stats').item.json.forks_count }}\n👁 Watchers: {{ $('Get Repo Stats').item.json.subscribers_count }}\n📢 Issues: {{ $('Get Repo Stats').item.json.open_issues_count }}\n👀 Views (14d): {{ $('Get Traffic Views').item.json.count }}\n📥 Clones (14d): {{ $('Get Clone Stats').item.json.count }}\n\n🎯 Target: 50 stars, 10 sponsors in 30 days\n💚 Sponsor: github.com/sponsors/vio83"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-daily",
+      "name": "Format Daily Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [950, 500]
+    }
+  ],
+  "connections": {
+    "Daily at 08:00": {
+      "main": [
+        [
+          { "node": "Get Repo Stats", "type": "main", "index": 0 },
+          { "node": "Get Traffic Views", "type": "main", "index": 0 },
+          { "node": "Get Clone Stats", "type": "main", "index": 0 },
+          { "node": "Get Top Referrers", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Repo Stats": {
+      "main": [
+        [{ "node": "Merge All Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Traffic Views": {
+      "main": [
+        [{ "node": "Merge All Data", "type": "main", "index": 1 }]
+      ]
+    },
+    "Merge All Data": {
+      "main": [
+        [{ "node": "Format Daily Report", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "Growth" },
+    { "name": "VIO83" },
+    { "name": "Analytics" }
+  ]
+}

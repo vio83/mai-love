@@ -1,0 +1,113 @@
+{
+  "name": "VIO83 — Sponsor Outreach & Visibility Automation (Weekly)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "days", "daysInterval": 7 }]
+        }
+      },
+      "id": "trigger-weekly",
+      "name": "Every Monday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra",
+        "options": {}
+      },
+      "id": "get-stats",
+      "name": "Get Current Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra/traffic/views",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-views",
+      "name": "Get Weekly Views",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "linkedin_post",
+              "value": "=🎵 Weekly update from VIO 83 AI Orchestra!\n\n📊 This week's numbers:\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} GitHub Stars\n🔀 {{ $('Get Current Stats').item.json.forks_count }} Forks\n👀 {{ $('Get Weekly Views').item.json.count }} Page Views\n\nStill building the world's first multi-AI orchestration platform. 7 AI providers. Cross-check verification. RAG knowledge base.\n\nEvery star helps! ⭐\n\n💚 github.com/sponsors/vio83\n⭐ github.com/vio83/vio83-ai-orchestra\n\n#AI #OpenSource #MultiAI #IndieHacker #MadeInItaly"
+            },
+            {
+              "name": "kofi_post",
+              "value": "=📊 Weekly Progress Update!\n\nGitHub Stars: {{ $('Get Current Stats').item.json.stargazers_count }}\nForks: {{ $('Get Current Stats').item.json.forks_count }}\nPage Views: {{ $('Get Weekly Views').item.json.count }}\n\nStill building solo. Your coffee keeps the Orchestra playing! ☕💚"
+            },
+            {
+              "name": "tweet_content",
+              "value": "=🎵 VIO 83 AI Orchestra — weekly update\n\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} stars | 🔀 {{ $('Get Current Stats').item.json.forks_count }} forks\n\n7 AI providers. Cross-check verification. Smart routing.\n\nStar it → github.com/vio83/vio83-ai-orchestra\n\n#AI #OpenSource #LLM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-posts",
+      "name": "Generate Social Posts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "action_items",
+              "value": "=📋 WEEKLY ACTION ITEMS — {{ $now.format('yyyy-MM-dd') }}\n\n1. ✏️ Post the LinkedIn update (content generated above)\n2. ✏️ Post the Ko-fi update\n3. ✏️ Post on X/Twitter\n4. ⭐ Star 5 related repositories\n5. 👥 Follow 10 AI developers on GitHub\n6. 💬 Comment on 3 AI LinkedIn posts\n7. 📧 Send 2 sponsor outreach DMs\n8. 📝 Update README stats if significant changes\n9. 🔍 Check Google Search Console for new queries\n10. 📊 Review Bing Webmaster Tools for indexing status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "action-items",
+      "name": "Generate Action Items",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [950, 400]
+    }
+  ],
+  "connections": {
+    "Every Monday": {
+      "main": [
+        [
+          { "node": "Get Current Stats", "type": "main", "index": 0 },
+          { "node": "Get Weekly Views", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Current Stats": {
+      "main": [
+        [{ "node": "Generate Social Posts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Social Posts": {
+      "main": [
+        [{ "node": "Generate Action Items", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "Sponsor" },
+    { "name": "VIO83" },
+    { "name": "Outreach" }
+  ]
+}

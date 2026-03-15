@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vio83.seo-ping</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/mac-scripts/seo-ping.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <!-- 21600 seconds = 6 hours -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/seo-launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/seo-launchd-error.log</string>
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

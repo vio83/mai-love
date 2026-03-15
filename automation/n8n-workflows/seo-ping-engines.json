@@ -1,0 +1,112 @@
+{
+  "name": "VIO83 — SEO Ping Search Engines (Every 6 Hours)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "trigger-6h",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.google.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml",
+        "options": {}
+      },
+      "id": "ping-google",
+      "name": "Ping Google Sitemap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://www.bing.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml",
+        "options": {}
+      },
+      "id": "ping-bing",
+      "name": "Ping Bing Sitemap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.indexnow.org/indexnow",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"host\": \"vio83.github.io\",\n  \"key\": \"3e6f9ffe76d0f756d7492ec16fd4d501\",\n  \"keyLocation\": \"https://vio83.github.io/vio83-ai-orchestra/3e6f9ffe76d0f756d7492ec16fd4d501.txt\",\n  \"urlList\": [\n    \"https://vio83.github.io/vio83-ai-orchestra/\",\n    \"https://vio83.github.io/vio83-ai-orchestra/sitemap.xml\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "ping-indexnow",
+      "name": "Ping IndexNow (Bing+Yandex+DuckDuckGo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/vio83/vio83-ai-orchestra",
+        "options": {}
+      },
+      "id": "get-github-stats",
+      "name": "Get GitHub Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "report",
+              "value": "=SEO Ping Report — {{ $now.format('yyyy-MM-dd HH:mm') }}\n\n✅ Google: Pinged\n✅ Bing: Pinged\n✅ IndexNow: Pinged (Bing+Yandex+DuckDuckGo)\n\nGitHub Stars: {{ $json.stargazers_count }}\nGitHub Forks: {{ $json.forks_count }}\nWatchers: {{ $json.subscribers_count }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-report",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [950, 300]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          { "node": "Ping Google Sitemap", "type": "main", "index": 0 },
+          { "node": "Ping Bing Sitemap", "type": "main", "index": 0 },
+          { "node": "Ping IndexNow (Bing+Yandex+DuckDuckGo)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Ping Bing Sitemap": {
+      "main": [
+        [{ "node": "Get GitHub Stats", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get GitHub Stats": {
+      "main": [
+        [{ "node": "Format Report", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "SEO" },
+    { "name": "VIO83" },
+    { "name": "Automation" }
+  ]
+}

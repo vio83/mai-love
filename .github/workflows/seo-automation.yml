@@ -1,0 +1,93 @@
+name: SEO Automation — Ping Search Engines & Update Sitemap
+
+on:
+  # Runs every day at 06:00 UTC (08:00 Italy)
+  schedule:
+    - cron: '0 6 * * *'
+  # Also runs on every push to main
+  push:
+    branches: ["main"]
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  seo-ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update sitemap lastmod date
+        run: |
+          TODAY=$(date +%Y-%m-%d)
+          sed -i "s|<lastmod>.*</lastmod>|<lastmod>${TODAY}</lastmod>|g" docs/sitemap.xml
+          echo "Updated sitemap.xml with date: $TODAY"
+
+      - name: Ping Google with sitemap
+        run: |
+          curl -s "https://www.google.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || true
+          echo "Pinged Google"
+
+      - name: Ping Bing with sitemap
+        run: |
+          curl -s "https://www.bing.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || true
+          echo "Pinged Bing"
+
+      - name: Ping IndexNow (Bing/Yandex/DuckDuckGo instant indexing)
+        run: |
+          curl -s -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "host": "vio83.github.io",
+              "key": "${{ secrets.INDEXNOW_KEY }}",
+              "keyLocation": "https://vio83.github.io/vio83-ai-orchestra/${{ secrets.INDEXNOW_KEY }}.txt",
+              "urlList": [
+                "https://vio83.github.io/vio83-ai-orchestra/",
+                "https://vio83.github.io/vio83-ai-orchestra/sitemap.xml"
+              ]
+            }' || true
+          echo "Pinged IndexNow"
+
+      - name: Commit sitemap update
+        run: |
+          git config user.name "VIO 83 SEO Bot"
+          git config user.email "porcu.v.83@gmail.com"
+          git add docs/sitemap.xml
+          git diff --cached --quiet || git commit -m "chore(seo): auto-update sitemap lastmod [skip ci]"
+          git push || true
+
+  sponsor-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch GitHub repo stats
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STARS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.stargazers_count')
+          FORKS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.forks_count')
+          WATCHERS=$(gh api repos/vio83/vio83-ai-orchestra --jq '.subscribers_count')
+          ISSUES=$(gh api repos/vio83/vio83-ai-orchestra --jq '.open_issues_count')
+          TODAY=$(date +%Y-%m-%d)
+
+          mkdir -p data
+          echo "{\"date\":\"$TODAY\",\"stars\":$STARS,\"forks\":$FORKS,\"watchers\":$WATCHERS,\"issues\":$ISSUES}" >> data/growth-stats.jsonl
+
+          echo "=== VIO 83 Daily Stats ($TODAY) ==="
+          echo "Stars: $STARS"
+          echo "Forks: $FORKS"
+          echo "Watchers: $WATCHERS"
+          echo "Issues: $ISSUES"
+
+      - name: Commit stats
+        run: |
+          git config user.name "VIO 83 Stats Bot"
+          git config user.email "porcu.v.83@gmail.com"
+          git add data/growth-stats.jsonl
+          git diff --cached --quiet || git commit -m "chore(stats): daily growth tracking [skip ci]"
+          git push || true
