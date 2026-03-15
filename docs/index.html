@@ -115,12 +115,13 @@
             --green-dim: #00cc00;
             --cyan: #00FFFF;
             --magenta: #FF00FF;
-            --bg: #000000;
-            --bg-secondary: #0a0a0a;
-            --bg-card: #111111;
+            --purple: #8B5CF6;
+            --bg: #050510;
+            --bg-secondary: #0a0a1a;
+            --bg-card: rgba(15, 15, 40, 0.85);
             --text: #e0e0e0;
-            --text-dim: #888888;
-            --border: #1a1a1a;
+            --text-dim: #a0a0c0;
+            --border: rgba(139, 92, 246, 0.2);
         }
 
         body {
@@ -129,6 +130,39 @@
             color: var(--text);
             line-height: 1.6;
             overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Cyber-Vio Background Theme */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('assets/cyber-vio.jpg') center center / cover no-repeat;
+            opacity: 0.12;
+            z-index: -2;
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                180deg,
+                rgba(5,5,16,0.7) 0%,
+                rgba(10,10,30,0.5) 30%,
+                rgba(139,92,246,0.08) 50%,
+                rgba(0,255,255,0.05) 70%,
+                rgba(5,5,16,0.9) 100%
+            );
+            z-index: -1;
+            pointer-events: none;
         }
 
         .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
@@ -137,18 +171,20 @@
         .hero {
             text-align: center;
             padding: 80px 0 60px;
-            background: radial-gradient(ellipse at center top, rgba(0,255,0,0.06) 0%, transparent 60%);
+            background: radial-gradient(ellipse at center top, rgba(139,92,246,0.1) 0%, rgba(0,255,255,0.04) 40%, transparent 70%);
         }
         .hero-badge {
             display: inline-block;
             padding: 6px 18px;
             border-radius: 20px;
-            border: 1px solid rgba(0,255,0,0.3);
-            color: var(--green);
+            border: 1px solid rgba(139,92,246,0.4);
+            color: var(--cyan);
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 24px;
             letter-spacing: 0.5px;
+            background: rgba(139,92,246,0.08);
+            backdrop-filter: blur(10px);
         }
         .hero h1 {
             font-size: clamp(36px, 6vw, 64px);
@@ -237,10 +273,12 @@
             border-radius: 16px;
             padding: 28px;
             transition: all 0.3s;
+            backdrop-filter: blur(12px);
         }
         .feature-card:hover {
-            border-color: rgba(0,255,0,0.3);
+            border-color: rgba(0,255,255,0.4);
             transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(139,92,246,0.15), 0 0 16px rgba(0,255,255,0.08);
         }
         .feature-icon {
             font-size: 32px;
@@ -261,9 +299,10 @@
         /* Stats */
         .stats {
             padding: 60px 0;
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
+            background: rgba(10,10,30,0.6);
+            border-top: 1px solid rgba(139,92,246,0.15);
+            border-bottom: 1px solid rgba(0,255,255,0.1);
+            backdrop-filter: blur(8px);
         }
         .stats-grid {
             display: grid;
@@ -274,7 +313,8 @@
         .stat-number {
             font-size: 36px;
             font-weight: 800;
-            color: var(--green);
+            color: var(--cyan);
+            text-shadow: 0 0 20px rgba(0,255,255,0.3);
         }
         .stat-label {
             font-size: 13px;
@@ -298,17 +338,42 @@
             font-size: 14px;
         }
         .comparison th {
-            background: var(--bg-secondary);
-            color: var(--green);
+            background: rgba(139,92,246,0.12);
+            color: var(--cyan);
             font-weight: 700;
         }
-        .comparison td:last-child { color: var(--green); font-weight: 600; }
+        .comparison td:last-child { color: var(--cyan); font-weight: 600; }
 
         /* CTA */
         .cta {
             padding: 80px 0;
             text-align: center;
-            background: radial-gradient(ellipse at center, rgba(0,255,0,0.04) 0%, transparent 60%);
+            background: radial-gradient(ellipse at center, rgba(139,92,246,0.08) 0%, rgba(0,255,255,0.03) 40%, transparent 70%);
+        }
+
+        /* Cyber-Vio Founder Section */
+        .founder-section {
+            padding: 60px 0;
+            text-align: center;
+        }
+        .founder-img {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(0,255,255,0.4);
+            box-shadow: 0 0 30px rgba(139,92,246,0.3), 0 0 60px rgba(0,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        .founder-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .founder-title {
+            color: var(--cyan);
+            font-size: 14px;
+            margin-top: 4px;
         }
         .cta h2 {
             font-size: 36px;
