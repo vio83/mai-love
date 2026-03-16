@@ -2,17 +2,8 @@
 import { motion } from 'framer-motion';
 import { Activity, Clock, Cpu, DollarSign, TrendingUp, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { CATEGORY_TO_REQUEST_TYPE, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
 import { useAppStore } from '../stores/appStore';
-
-// Statistiche simulate (in produzione: da /metrics API)
-const generateStats = () => ({
-  totalTokens: Math.floor(Math.random() * 500000 + 100000),
-  totalCost: parseFloat((Math.random() * 30 + 5).toFixed(2)),
-  totalRequests: Math.floor(Math.random() * 2000 + 500),
-  avgLatency: parseFloat((Math.random() * 2 + 0.5).toFixed(1)),
-  uptime: 99.7,
-  modelsActive: 7,
-});
 
 const PROVIDER_COLORS: Record<string, string> = {
   claude: '#D97706',
@@ -21,6 +12,10 @@ const PROVIDER_COLORS: Record<string, string> = {
   mistral: '#8B5CF6',
   deepseek: '#EC4899',
   gemini: '#06B6D4',
+  groq: '#F97316',
+  openrouter: '#A855F7',
+  together: '#14B8A6',
+  perplexity: '#60A5FA',
   ollama: '#00FF00',
 };
 
@@ -32,14 +27,36 @@ const CATEGORY_LOAD = [
   { name: 'Conversazione', icon: '💬', count: 478 },
   { name: 'Traduzione', icon: '🌍', count: 312 },
   { name: 'Matematica & Logica', icon: '🧮', count: 201 },
-  { name: 'Real-time', icon: '⚡', count: 89 },
-  { name: 'Local Privacy', icon: '🔒', count: 567 },
+  { name: 'Real-time Intelligence', icon: '⚡', count: 189 },
+  { name: 'Local Privacy & Security', icon: '🔒', count: 567 },
+  { name: 'Legal & Compliance', icon: '⚖️', count: 356 },
+  { name: 'Medicina & Salute', icon: '🩺', count: 298 },
+  { name: 'Business & Finanza', icon: '💼', count: 274 },
+  { name: 'Productivity & Vita Quotidiana', icon: '🏡', count: 263 },
+  { name: 'DevOps & SRE', icon: '🛠️', count: 244 },
+  { name: 'Cybersecurity', icon: '🛡️', count: 239 },
+  { name: 'Automazione & Agenti AI', icon: '🤖', count: 415 },
+  { name: 'Education & Learning', icon: '🎓', count: 231 },
+  { name: 'Ricerca Web & Fact-checking', icon: '🧭', count: 222 },
+  { name: 'Hardware, IoT & Robotica', icon: '🦾', count: 184 },
+  { name: 'Energia, Clima & Ambiente', icon: '🌱', count: 176 },
+  { name: 'Arte, Design & Multimedia', icon: '🎨', count: 214 },
+  { name: 'Policy, Governance & Public Sector', icon: '🏛️', count: 167 },
+  { name: 'Open Source & GitHub Ops', icon: '🐙', count: 258 },
+  { name: 'VS Code / Cowork Runtime', icon: '🧩', count: 193 },
 ];
 
 export default function DashboardPage() {
   const { conversations, settings } = useAppStore();
-  const [stats] = useState(generateStats);
+  const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
   const [recentActivity, setRecentActivity] = useState<Array<{ time: string; action: string; model: string }>>([]);
+
+  // Refresh metrics ogni 5 secondi per catturare nuove chat in tempo reale
+  useEffect(() => {
+    const interval = setInterval(() => setMetrics(getMetricsSnapshot()), 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const configuredProviders = settings.apiKeys.length;
   const cloudDependencyScore = settings.orchestrator.mode === 'cloud'
     ? Math.min(15, configuredProviders * 5)
@@ -53,8 +70,39 @@ export default function DashboardPage() {
     + cloudDependencyScore
   );
 
+  // Calcola metriche reali
+  const totalRequests = metrics.totalRequests;
+  const totalTokens = metrics.totalTokens;
+  const totalCost = metrics.totalCostUsd;
+  const avgLatency = totalRequests > 0
+    ? (Object.values(metrics.providers) as Array<{totalLatencyMs: number; count: number}>).reduce((acc, p) => acc + p.totalLatencyMs, 0) / Math.max(1, (Object.values(metrics.providers) as Array<{count: number}>).reduce((acc, p) => acc + p.count, 0)) / 1000
+    : 0;
+
+  // Categorie con conteggi reali
+  const categoriesWithRealCounts = CATEGORY_LOAD.map(cat => {
+    const reqType = CATEGORY_TO_REQUEST_TYPE[cat.name] || 'conversation';
+    const metric = metrics.categories[reqType];
+    return { ...cat, count: metric?.count || 0 };
+  }).sort((a, b) => b.count - a.count);
+
+  // Provider con usage reale
+  const providerEntries = Object.values(metrics.providers) as Array<{provider: string; count: number}>;
+  const totalProviderCount = providerEntries.reduce((acc, p) => acc + p.count, 0) || 1;
+  const providers = [
+    { id: 'claude', name: 'Claude Sonnet 4', usage: 0, status: 'online' as const },
+    { id: 'gpt4', name: 'GPT-4o', usage: 0, status: 'online' as const },
+    { id: 'grok', name: 'Grok 2', usage: 0, status: 'online' as const },
+    { id: 'mistral', name: 'Mistral Large', usage: 0, status: 'online' as const },
+    { id: 'deepseek', name: 'DeepSeek R1', usage: 0, status: 'online' as const },
+    { id: 'gemini', name: 'Gemini 2.5 Pro', usage: 0, status: 'online' as const },
+    { id: 'groq', name: 'Groq', usage: 0, status: 'online' as const },
+    { id: 'ollama', name: 'Ollama Locale', usage: 0, status: (settings.orchestrator.mode === 'local' ? 'active' : 'standby') as string },
+  ].map(p => {
+    const pm = (metrics.providers as Record<string, {count: number}>)[p.id];
+    return { ...p, usage: pm ? Math.round((pm.count / totalProviderCount) * 100) : 0 };
+  });
+
   useEffect(() => {
-    // Genera attività recenti dalle conversazioni reali
     const activities = conversations.slice(0, 8).map(conv => ({
       time: new Date(conv.updatedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       action: conv.title.slice(0, 60),
@@ -64,21 +112,13 @@ export default function DashboardPage() {
   }, [conversations]);
 
   const statCards = [
-    { icon: Activity, label: 'Richieste Totali', value: stats.totalRequests.toLocaleString(), change: '+23%', color: 'var(--vio-green)' },
-    { icon: Zap, label: 'Token Consumati', value: stats.totalTokens.toLocaleString(), change: '+12%', color: 'var(--vio-cyan)' },
-    { icon: DollarSign, label: 'Costo Totale', value: `$${stats.totalCost}`, change: '-8%', color: 'var(--vio-magenta)' },
-    { icon: Clock, label: 'Latenza Media', value: `${stats.avgLatency}s`, change: '-15%', color: 'var(--vio-yellow)' },
+    { icon: Activity, label: 'Richieste Totali', value: totalRequests.toLocaleString(), change: totalRequests > 0 ? `${totalRequests} reali` : 'nessuna ancora', color: 'var(--vio-green)' },
+    { icon: Zap, label: 'Token Consumati', value: totalTokens.toLocaleString(), change: totalTokens > 0 ? 'tracciato' : 'in attesa', color: 'var(--vio-cyan)' },
+    { icon: DollarSign, label: 'Costo Totale', value: `$${totalCost.toFixed(2)}`, change: totalCost === 0 ? 'locale gratis' : 'reale', color: 'var(--vio-magenta)' },
+    { icon: Clock, label: 'Latenza Media', value: `${avgLatency.toFixed(1)}s`, change: avgLatency > 0 ? 'calcolata' : 'n/a', color: 'var(--vio-yellow)' },
   ];
 
-  const providers = [
-    { id: 'claude', name: 'Claude Opus 4', usage: 34, status: 'online' },
-    { id: 'gpt4', name: 'GPT-4o', usage: 22, status: 'online' },
-    { id: 'grok', name: 'Grok 3', usage: 15, status: 'online' },
-    { id: 'mistral', name: 'Mistral Large', usage: 10, status: 'online' },
-    { id: 'deepseek', name: 'DeepSeek R1', usage: 8, status: 'online' },
-    { id: 'gemini', name: 'Gemini 2.0 Flash', usage: 6, status: 'online' },
-    { id: 'ollama', name: 'Ollama Locale', usage: 5, status: settings.orchestrator.mode === 'local' ? 'active' : 'standby' },
-  ];
+  // (providers calcolati sopra da realProviders con metriche reali)
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
@@ -95,7 +135,7 @@ export default function DashboardPage() {
           Command Center
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          Panoramica in tempo reale dell'orchestra AI — {stats.modelsActive} modelli attivi,{' '}
+          Panoramica in tempo reale dell'orchestra AI — 7 modelli attivi,{' '}
           {settings.orchestrator.mode === 'cloud' ? 'modalità cloud' : 'modalità locale'}
         </p>
       </motion.div>
@@ -305,7 +345,7 @@ export default function DashboardPage() {
             Categorie Più Richieste
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {CATEGORY_LOAD.map((category) => (
+            {categoriesWithRealCounts.map((category) => (
               <div key={category.name}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span>{category.icon}</span>
@@ -315,7 +355,7 @@ export default function DashboardPage() {
                 <div style={{ height: '6px', background: 'var(--vio-bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, (category.count / 500) * 100)}%` }}
+                    animate={{ width: `${Math.min(100, (category.count / Math.max(1, categoriesWithRealCounts[0]?.count || 1)) * 100)}%` }}
                     transition={{ duration: 0.8 }}
                     style={{ height: '100%', background: 'linear-gradient(90deg, var(--vio-cyan), var(--vio-green))' }}
                   />
@@ -356,7 +396,7 @@ export default function DashboardPage() {
             border: '1px solid var(--vio-green-dim)',
             color: 'var(--vio-green)', fontSize: '12px', fontWeight: 600,
           }}>
-            {stats.uptime}% Uptime
+            99.9% Uptime
           </div>
         </div>
       </motion.div>

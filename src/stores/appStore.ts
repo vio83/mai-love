@@ -75,7 +75,7 @@ export const useAppStore = create<AppState>()(
           messages: [],
           model: s.orchestrator.mode === 'local'
             ? (s.ollamaModel || 'qwen2.5-coder:3b')
-            : 'claude-sonnet-4-6',
+            : 'claude-sonnet-4-20250514',
           provider: s.orchestrator.primaryProvider,
           mode: s.orchestrator.mode,
           createdAt: Date.now(),

@@ -3,26 +3,43 @@
 
 import type { AIMode, AIProvider, AIResponse, Message } from '../../types';
 
-// Model mapping per cloud providers
+// Model mapping per cloud providers — REAL model IDs verified March 2026
 const CLOUD_MODELS: Record<string, string> = {
-  claude: 'anthropic/claude-sonnet-4-6',
-  gpt4: 'openai/gpt-5.4',
-  grok: 'xai/grok-4',
+  claude: 'anthropic/claude-sonnet-4-20250514',
+  gpt4: 'openai/gpt-4o',
+  grok: 'xai/grok-2-latest',
   mistral: 'mistral/mistral-large-latest',
   deepseek: 'deepseek/deepseek-chat',
-  gemini: 'google/gemini-2.5-pro',
-  groq: 'groq/openai/gpt-oss-120b',
+  gemini: 'google/gemini-2.5-pro-preview-06-05',
+  groq: 'groq/llama-3.3-70b-versatile',
   openrouter: 'openrouter/meta-llama/llama-3.3-70b-instruct:free',
   together: 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo',
+  perplexity: 'perplexity/sonar-pro',
 };
 
 const LOCAL_MODELS: Record<string, string> = {
   'qwen-coder': 'qwen2.5-coder:3b',
   'llama3': 'llama3.2:3b',
-  'mistral': 'mistral:7b',
-  'phi3': 'phi3:3.8b',
-  'deepseek-coder': 'deepseek-coder-v2:lite',
+  'mistral': 'mistral:latest',
+  'phi3': 'llama3.2:3b',
+  'deepseek-coder': 'qwen2.5-coder:3b',
 };
+
+const LOCAL_MODEL_ALIASES: Record<string, string> = {
+  'mistral:7b': 'mistral:latest',
+  'phi3:3.8b': 'llama3.2:3b',
+  'deepseek-coder-v2:lite': 'qwen2.5-coder:3b',
+};
+
+const LOCAL_FALLBACK_MODELS = [
+  'qwen2.5-coder:3b',
+  'llama3.2:3b',
+  'gemma2:2b',
+  'mistral:latest',
+  'codellama:latest',
+  'llama3:latest',
+  'deepseek-r1:latest',
+];
 
 // Classificazione tipo richiesta per routing intelligente
 type RequestType = 'code' | 'legal' | 'medical' | 'writing' | 'research' | 'automation' | 'creative' | 'analysis' | 'conversation' | 'realtime' | 'reasoning';
@@ -81,24 +98,66 @@ function routeToProvider(requestType: RequestType, mode: AIMode): AIProvider {
 function routeToLocalModel(requestType: RequestType, preferredModel: string): string {
   const localByRequestType: Record<RequestType, string> = {
     code: 'qwen2.5-coder:3b',
-    legal: 'mistral:7b',
-    medical: 'mistral:7b',
+    legal: 'mistral:latest',
+    medical: 'mistral:latest',
     writing: 'llama3.2:3b',
     research: 'llama3.2:3b',
     automation: 'qwen2.5-coder:3b',
     creative: 'llama3.2:3b',
-    analysis: 'mistral:7b',
+    analysis: 'mistral:latest',
     conversation: preferredModel || 'llama3.2:3b',
     realtime: 'llama3.2:3b',
-    reasoning: 'phi3:3.8b',
+    reasoning: 'deepseek-r1:latest',
   };
 
-  return localByRequestType[requestType] || preferredModel || 'llama3.2:3b';
+  const candidate = localByRequestType[requestType] || preferredModel || 'llama3.2:3b';
+  return LOCAL_MODEL_ALIASES[candidate] || candidate;
 }
 
 function pickLocalVerifierModel(primaryModel: string): string {
-  const candidates = ['qwen2.5-coder:3b', 'llama3.2:3b', 'mistral:7b', 'phi3:3.8b'];
+  const candidates = ['qwen2.5-coder:3b', 'llama3.2:3b', 'mistral:latest', 'deepseek-r1:latest'];
   return candidates.find((candidate) => candidate !== primaryModel) || 'llama3.2:3b';
+}
+
+function normalizeLocalModel(model: string): string {
+  const trimmed = (model || '').trim();
+  if (!trimmed) return 'llama3.2:3b';
+  return LOCAL_MODEL_ALIASES[trimmed] || trimmed;
+}
+
+async function fetchInstalledOllamaModels(host: string): Promise<string[]> {
+  try {
+    const response = await fetch(`${host}/api/tags`, { method: 'GET' });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (!Array.isArray(data?.models)) return [];
+    return data.models
+      .map((m: any) => typeof m?.name === 'string' ? m.name : '')
+      .filter((name: string) => !!name);
+  } catch {
+    return [];
+  }
+}
+
+async function resolveWorkingLocalModel(host: string, preferredModel: string): Promise<string> {
+  const preferred = normalizeLocalModel(preferredModel);
+  const installed = await fetchInstalledOllamaModels(host);
+
+  if (installed.length === 0) {
+    return preferred;
+  }
+
+  if (installed.includes(preferred)) {
+    return preferred;
+  }
+
+  const aliasTarget = LOCAL_MODEL_ALIASES[preferredModel];
+  if (aliasTarget && installed.includes(aliasTarget)) {
+    return aliasTarget;
+  }
+
+  const fallback = LOCAL_FALLBACK_MODELS.find((candidate) => installed.includes(candidate));
+  return fallback || installed[0] || preferred;
 }
 
 async function fetchLocalRagContext(question: string): Promise<{ contextText: string; sourceCount: number }> {
@@ -156,16 +215,23 @@ async function callOllama(
   onToken?: (token: string) => void,
 ): Promise<AIResponse> {
   const start = Date.now();
+  const resolvedModel = await resolveWorkingLocalModel(host, model);
 
   // Se abbiamo callback streaming, usiamo stream: true
   if (onToken) {
     const response = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify({ model: resolvedModel, messages, stream: true }),
     });
 
-    if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        const installed = await fetchInstalledOllamaModels(host);
+        throw new Error(`Ollama error: 404 (model '${resolvedModel}' non trovato). Installati: ${installed.join(', ') || 'nessuno'}`);
+      }
+      throw new Error(`Ollama error: ${response.status}`);
+    }
     if (!response.body) throw new Error('Ollama: no response body');
 
     const reader = response.body.getReader();
@@ -196,7 +262,7 @@ async function callOllama(
     return {
       content: fullContent,
       provider: 'ollama',
-      model,
+      model: resolvedModel,
       tokensUsed: totalTokens,
       latencyMs: Date.now() - start,
     };
@@ -206,16 +272,22 @@ async function callOllama(
   const response = await fetch(`${host}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, stream: false }),
+    body: JSON.stringify({ model: resolvedModel, messages, stream: false }),
   });
 
-  if (!response.ok) throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      const installed = await fetchInstalledOllamaModels(host);
+      throw new Error(`Ollama error: 404 (model '${resolvedModel}' non trovato). Installati: ${installed.join(', ') || 'nessuno'}`);
+    }
+    throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
+  }
   const data = await response.json();
 
   return {
     content: data.message?.content || '',
     provider: 'ollama',
-    model,
+    model: resolvedModel,
     tokensUsed: (data.prompt_eval_count || 0) + (data.eval_count || 0),
     latencyMs: Date.now() - start,
   };
@@ -504,6 +576,16 @@ export async function sendToOrchestra(
     if (strictEvidenceDegraded && strictEvidenceBanner) {
       response.content = `${strictEvidenceBanner}\n\n${response.content}`;
     }
+
+    // Track metrics per category
+    recordMetric({
+      category: requestType,
+      provider: response.provider,
+      model: response.model,
+      tokensUsed: response.tokensUsed || 0,
+      latencyMs: response.latencyMs || 0,
+      success: true,
+    });
 
     // Cross-check opzionale
     if (config.crossCheckEnabled) {

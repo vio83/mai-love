@@ -1,35 +1,39 @@
 // VIO 83 AI ORCHESTRA — Analytics: Performance Intelligence
 import { motion } from 'framer-motion';
 import { BarChart3, Brain, Coins, Gauge, Star, TrendingUp, Zap } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CATEGORY_TO_REQUEST_TYPE, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
 
 const PROVIDER_COLORS: Record<string, string> = {
   claude: '#D97706', gpt4: '#10B981', grok: '#3B82F6',
   mistral: '#8B5CF6', deepseek: '#EC4899', gemini: '#06B6D4', ollama: '#00FF00',
 };
 
-// Dati mock — in produzione da /metrics API
-const modelStats = [
-  { name: 'Claude Opus 4', id: 'claude', quality: 99, speed: 92, cost: 0.075, requests: 892, tokens: 234000 },
-  { name: 'Claude Sonnet 4', id: 'claude', quality: 96, speed: 97, cost: 0.015, requests: 1456, tokens: 567000 },
-  { name: 'GPT-4o', id: 'gpt4', quality: 94, speed: 95, cost: 0.015, requests: 723, tokens: 189000 },
-  { name: 'Grok 3', id: 'grok', quality: 91, speed: 93, cost: 0.015, requests: 412, tokens: 98000 },
-  { name: 'Gemini 2.0 Flash', id: 'gemini', quality: 92, speed: 96, cost: 0.008, requests: 334, tokens: 156000 },
-  { name: 'Mistral Large', id: 'mistral', quality: 90, speed: 94, cost: 0.012, requests: 278, tokens: 67000 },
-  { name: 'DeepSeek R1', id: 'deepseek', quality: 93, speed: 88, cost: 0.002, requests: 198, tokens: 45000 },
-  { name: 'Ollama Locale', id: 'ollama', quality: 82, speed: 75, cost: 0, requests: 156, tokens: 89000 },
+// Capability scores statici (qualità/velocità sono benchmark, non metriche runtime)
+const MODEL_CAPABILITIES = [
+  { name: 'Claude Sonnet 4', id: 'claude', quality: 96, speed: 97, cost: 0.003 },
+  { name: 'GPT-4o', id: 'gpt4', quality: 94, speed: 95, cost: 0.005 },
+  { name: 'Grok 2', id: 'grok', quality: 91, speed: 93, cost: 0.005 },
+  { name: 'Gemini 2.5 Pro', id: 'gemini', quality: 92, speed: 96, cost: 0.00125 },
+  { name: 'Mistral Large', id: 'mistral', quality: 90, speed: 94, cost: 0.002 },
+  { name: 'DeepSeek R1', id: 'deepseek', quality: 93, speed: 88, cost: 0.0014 },
+  { name: 'Groq (Llama 3.3)', id: 'groq', quality: 85, speed: 99, cost: 0 },
+  { name: 'Ollama Locale', id: 'ollama', quality: 82, speed: 75, cost: 0 },
 ];
 
-const categoryStats = [
-  { name: 'Code & Engineering', icon: '💻', count: 1234, percentage: 28 },
-  { name: 'Analisi Dati', icon: '📊', count: 867, percentage: 20 },
-  { name: 'Ricerca Scientifica', icon: '🔬', count: 645, percentage: 15 },
-  { name: 'Scrittura Creativa', icon: '✍️', count: 534, percentage: 12 },
-  { name: 'Conversazione', icon: '💬', count: 478, percentage: 11 },
-  { name: 'Traduzione', icon: '🌍', count: 312, percentage: 7 },
-  { name: 'Matematica & Logica', icon: '🧮', count: 201, percentage: 5 },
-  { name: 'Real-time', icon: '⚡', count: 89, percentage: 2 },
-];
+const CATEGORY_ICONS: Record<string, string> = {
+  'Code & Engineering': '💻', 'Analisi Dati': '📊', 'Ricerca Scientifica': '🔬',
+  'Scrittura Creativa': '✍️', 'Conversazione': '💬', 'Traduzione': '🌍',
+  'Matematica & Logica': '🧮', 'Real-time Intelligence': '⚡',
+  'Local Privacy & Security': '🔒', 'Legal & Compliance': '⚖️',
+  'Medicina & Salute': '🩺', 'Business & Finanza': '💼',
+  'Productivity & Vita Quotidiana': '🏡', 'DevOps & SRE': '🛠️',
+  'Cybersecurity': '🛡️', 'Automazione & Agenti AI': '🤖',
+  'Education & Learning': '🎓', 'Ricerca Web & Fact-checking': '🧭',
+  'Hardware, IoT & Robotica': '🦾', 'Energia, Clima & Ambiente': '🌱',
+  'Arte, Design & Multimedia': '🎨', 'Policy, Governance & Public Sector': '🏛️',
+  'Open Source & GitHub Ops': '🐙', 'VS Code / Cowork Runtime': '🧩',
+};
 
 function Bar({ value, maxValue, color, label }: { value: number; maxValue: number; color: string; label: string }) {
   const pct = (value / maxValue) * 100;
@@ -51,11 +55,48 @@ function Bar({ value, maxValue, color, label }: { value: number; maxValue: numbe
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
 
-  const totalRequests = modelStats.reduce((a, b) => a + b.requests, 0);
-  const totalTokens = modelStats.reduce((a, b) => a + b.tokens, 0);
-  const totalCost = modelStats.reduce((a, b) => a + (b.tokens / 1000) * b.cost, 0);
-  const avgLatency = 1.4;
+  useEffect(() => {
+    const interval = setInterval(() => setMetrics(getMetricsSnapshot()), 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Model stats con dati reali da metriche + capability statiche
+  const modelStats = MODEL_CAPABILITIES.map(m => {
+    const pm = (metrics.providers as Record<string, { count: number; totalTokens: number }>)[m.id];
+    return {
+      ...m,
+      requests: pm?.count || 0,
+      tokens: pm?.totalTokens || 0,
+    };
+  });
+
+  const totalRequests = metrics.totalRequests;
+  const totalTokens = metrics.totalTokens;
+  const totalCost = metrics.totalCostUsd;
+
+  // Categorie reali dalle 24 macro-categorie
+  const categoryNames = Object.keys(CATEGORY_TO_REQUEST_TYPE);
+  const categoryStats = categoryNames.map(name => {
+    const reqType = CATEGORY_TO_REQUEST_TYPE[name] || 'conversation';
+    const metric = metrics.categories[reqType];
+    return { name, icon: CATEGORY_ICONS[name] || '📂', count: metric?.count || 0 };
+  });
+  const totalCategoryCount = categoryStats.reduce((acc, cat) => acc + cat.count, 0);
+  const categoryStatsWithPct = categoryStats
+    .map((cat) => ({
+      ...cat,
+      percentage: totalCategoryCount > 0
+        ? Math.max(1, Math.round((cat.count / totalCategoryCount) * 100))
+        : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const providerEntries = Object.values(metrics.providers) as Array<{ totalLatencyMs: number; count: number }>;
+  const avgLatency = totalRequests > 0
+    ? providerEntries.reduce((a, p) => a + p.totalLatencyMs, 0) / Math.max(1, providerEntries.reduce((a, p) => a + p.count, 0)) / 1000
+    : 0;
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
@@ -143,10 +184,10 @@ export default function AnalyticsPage() {
       >
         <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
           <TrendingUp size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-magenta)' }} />
-          Distribuzione per Categoria (1,082 sotto-discipline)
+          Distribuzione Macro-Categorie (espansa 2026)
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
-          {categoryStats.map((cat, i) => (
+          {categoryStatsWithPct.map((cat, i) => (
             <div key={cat.name} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
               padding: '10px 12px', borderRadius: '8px', background: 'var(--vio-bg-tertiary)',

@@ -20,9 +20,9 @@ const PROVIDER_INFO: Record<string, { name: string; color: string; placeholder: 
 const LOCAL_MODELS = [
   { id: 'qwen2.5-coder:3b', name: 'Qwen 2.5 Coder 3B', ram: '2.5 GB', best: 'Codice' },
   { id: 'llama3.2:3b', name: 'Llama 3.2 3B', ram: '2.5 GB', best: 'Generale' },
-  { id: 'mistral:7b', name: 'Mistral 7B', ram: '5 GB', best: 'Ragionamento' },
-  { id: 'phi3:3.8b', name: 'Phi-3 3.8B', ram: '3 GB', best: 'Efficienza' },
-  { id: 'deepseek-coder-v2:lite', name: 'DeepSeek Coder V2', ram: '3.5 GB', best: 'Codice' },
+  { id: 'mistral:latest', name: 'Mistral (latest)', ram: '5 GB', best: 'Ragionamento' },
+  { id: 'deepseek-r1:latest', name: 'DeepSeek R1 (latest)', ram: '5+ GB', best: 'Reasoning avanzato' },
+  { id: 'codellama:latest', name: 'CodeLlama (latest)', ram: '4+ GB', best: 'Codice specialistico' },
   { id: 'gemma2:2b', name: 'Gemma 2 2B', ram: '2 GB', best: 'Velocità' },
 ];
 
