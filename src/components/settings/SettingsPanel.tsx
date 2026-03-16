@@ -390,8 +390,9 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                   <div>
                     <p className="text-white text-sm font-medium mb-2">Strict Evidence Policy</p>
                     <p className="text-gray-500 text-xs">
-                      Se attiva, l'orchestratore risponde solo con evidenze certificate via RAG; in assenza di fonti,
-                      restituisce fallback esplicito invece di inventare contenuti.
+                      Se attiva, l'orchestratore privilegia evidenze certificate via RAG. In assenza di fonti,
+                      passa automaticamente a modalità degradato-controllata: non inventa dati, segnala i limiti,
+                      ma continua a produrre output (niente blocchi duri).
                     </p>
                   </div>
                   <button

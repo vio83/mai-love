@@ -421,6 +421,8 @@ export async function sendToOrchestra(
   // Prepara messaggi con system prompt SPECIALIZZATO per tipo di richiesta
   let systemPrompt = buildSystemPrompt(requestType);
   const strictEvidenceMode = Boolean(config.strictEvidenceMode);
+  let strictEvidenceDegraded = false;
+  let strictEvidenceBanner = '';
   let ragContext: { contextText: string; sourceCount: number } = { contextText: '', sourceCount: 0 };
 
   if (config.ragEnabled) {
@@ -429,40 +431,45 @@ export async function sendToOrchestra(
 
   if (strictEvidenceMode) {
     if (!config.ragEnabled) {
-      return {
-        content:
-          '⚠️ **Fallback esplicito (Strict Evidence Mode)**\n\n' +
-          'La modalità evidenza rigorosa è attiva, ma RAG è disattivato. ' +
-          'Per policy non posso fornire una risposta non supportata da fonti certificate.\n\n' +
-          'Abilita RAG e riprova, oppure disattiva la modalità "strict evidence" se vuoi una risposta generativa standard.',
-        provider: effectiveMode === 'local' ? 'ollama' : provider,
-        model: effectiveMode === 'local' ? activeOllamaModel : (CLOUD_MODELS[provider] ? extractProviderModelId(CLOUD_MODELS[provider]) : provider),
-        tokensUsed: 0,
-        latencyMs: 0,
-      };
+      strictEvidenceDegraded = true;
+      strictEvidenceBanner =
+        '⚠️ **Strict Evidence degradato (continuità operativa attiva)**\n\n' +
+        'RAG è disattivato: procedo comunque con risposta best-effort per evitare blocchi. ' +
+        'I dettagli non verificabili verranno segnalati esplicitamente.';
+
+      systemPrompt +=
+        '\n\n=== STRICT EVIDENCE DEGRADATO (RAG OFF) ===\n' +
+        '- Mantieni massima accuratezza possibile con conoscenza generale consolidata.\n' +
+        '- Etichetta chiaramente ciò che NON può essere verificato in questa sessione.\n' +
+        '- Non inventare fonti, date o citazioni.\n' +
+        '- Produci comunque una risposta completa e utile (mai bloccare output).\n' +
+        '=== FINE POLICY ===';
     }
 
-    if (!ragContext.contextText || ragContext.sourceCount === 0) {
-      return {
-        content:
-          '⚠️ **Fallback esplicito (Strict Evidence Mode)**\n\n' +
-          'Non ho trovato evidenze certificate sufficienti nelle fonti RAG locali per rispondere in modo verificabile.\n\n' +
-          'Per rispettare la policy di affidabilità, interrompo la generazione libera e ti invito a:\n' +
-          '1) aggiungere fonti certificate nella Knowledge Base;\n' +
-          '2) rifare la domanda con maggiore specificità (paese, data, norma, disciplina).',
-        provider: effectiveMode === 'local' ? 'ollama' : provider,
-        model: effectiveMode === 'local' ? activeOllamaModel : (CLOUD_MODELS[provider] ? extractProviderModelId(CLOUD_MODELS[provider]) : provider),
-        tokensUsed: 0,
-        latencyMs: 0,
-      };
+    if (!strictEvidenceDegraded && (!ragContext.contextText || ragContext.sourceCount === 0)) {
+      strictEvidenceDegraded = true;
+      strictEvidenceBanner =
+        '⚠️ **Strict Evidence degradato (nessuna fonte locale sufficiente)**\n\n' +
+        'Non ho trovato evidenze certificate sufficienti nella KB locale: procedo comunque per continuità operativa, ' +
+        'segnalando esplicitamente i limiti di verificabilità.';
+
+      systemPrompt +=
+        '\n\n=== STRICT EVIDENCE DEGRADATO (KB INSUFFICIENTE) ===\n' +
+        '- Fornisci risposta completa, strutturata e prudente.\n' +
+        '- Distingui chiaramente: fatti consolidati vs dettagli non verificati localmente.\n' +
+        '- Evidenzia limiti e aree dove servirebbero fonti aggiuntive.\n' +
+        '- Non interrompere mai la risposta con messaggi di blocco.\n' +
+        '=== FINE POLICY ===';
     }
 
-    systemPrompt +=
-      '\n\n=== STRICT EVIDENCE POLICY ATTIVA ===\n' +
-      '- Rispondi SOLO con elementi supportati dal contesto certificato fornito.\n' +
-      '- Se il contesto non copre un punto, dichiaralo esplicitamente come non verificato.\n' +
-      '- Evita inferenze non supportate e segnala sempre i limiti delle fonti disponibili.\n' +
-      '=== FINE POLICY ===';
+    if (!strictEvidenceDegraded) {
+      systemPrompt +=
+        '\n\n=== STRICT EVIDENCE POLICY ATTIVA ===\n' +
+        '- Rispondi SOLO con elementi supportati dal contesto certificato fornito.\n' +
+        '- Se il contesto non copre un punto, dichiaralo esplicitamente come non verificato.\n' +
+        '- Evita inferenze non supportate e segnala sempre i limiti delle fonti disponibili.\n' +
+        '=== FINE POLICY ===';
+    }
   }
 
   if (config.ragEnabled && ragContext.contextText) {
@@ -492,6 +499,10 @@ export async function sendToOrchestra(
       );
     } else {
       response = await callCloud(apiMessages, provider, config.apiKeys, onToken);
+    }
+
+    if (strictEvidenceDegraded && strictEvidenceBanner) {
+      response.content = `${strictEvidenceBanner}\n\n${response.content}`;
     }
 
     // Cross-check opzionale
@@ -557,11 +568,19 @@ export async function sendToOrchestra(
     for (const fallback of config.fallbackProviders) {
       try {
         if (fallback === 'ollama') {
-          return await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+          const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+          if (strictEvidenceDegraded && strictEvidenceBanner) {
+            fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
+          }
+          return fallbackResponse;
         }
         // Solo se abbiamo API keys per questo provider
         if (hasAnyApiKey) {
-          return await callCloud(apiMessages, fallback, config.apiKeys, onToken);
+          const fallbackResponse = await callCloud(apiMessages, fallback, config.apiKeys, onToken);
+          if (strictEvidenceDegraded && strictEvidenceBanner) {
+            fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
+          }
+          return fallbackResponse;
         }
       } catch (e) {
         console.warn(`[Orchestra] Fallback ${fallback} fallito:`, e);
@@ -572,7 +591,11 @@ export async function sendToOrchestra(
     if (provider !== 'ollama') {
       try {
         console.log('[Orchestra] Ultimo tentativo: Ollama locale');
-        return await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+        if (strictEvidenceDegraded && strictEvidenceBanner) {
+          fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
+        }
+        return fallbackResponse;
       } catch (e) {
         console.warn('[Orchestra] Anche Ollama fallito:', e);
       }
