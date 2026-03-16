@@ -15,6 +15,7 @@ interface AppState {
   sidebarOpen: boolean;
   settingsOpen: boolean;
   isStreaming: boolean;
+  abortController: AbortController | null;
   currentPage: AppPage;
 
   // Actions
@@ -28,6 +29,8 @@ interface AppState {
   toggleSidebar: () => void;
   toggleSettings: () => void;
   setStreaming: (streaming: boolean) => void;
+  stopStreaming: () => void;
+  setAbortController: (controller: AbortController | null) => void;
   deleteConversation: (id: string) => void;
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
@@ -64,6 +67,7 @@ export const useAppStore = create<AppState>()(
       sidebarOpen: true,
       settingsOpen: false,
       isStreaming: false,
+      abortController: null,
       currentPage: 'chat' as AppPage,
 
       createConversation: () => {
@@ -151,6 +155,14 @@ export const useAppStore = create<AppState>()(
       toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
       toggleSettings: () => set(state => ({ settingsOpen: !state.settingsOpen })),
       setStreaming: (streaming) => set({ isStreaming: streaming }),
+      setAbortController: (controller) => set({ abortController: controller }),
+      stopStreaming: () => {
+        const { abortController } = get();
+        if (abortController) {
+          abortController.abort();
+        }
+        set({ isStreaming: false, abortController: null });
+      },
 
       deleteConversation: (id) => {
         set(state => ({
@@ -193,6 +205,11 @@ export const useAppStore = create<AppState>()(
     {
       name: 'vio83-ai-orchestra-storage',
       version: STORE_VERSION,
+      partialize: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { abortController, isStreaming, ...rest } = state;
+        return rest;
+      },
       migrate: (persistedState: any, version: number) => {
         // Se la versione è vecchia, resetta i settings orchestrator a local
         if (version < STORE_VERSION) {

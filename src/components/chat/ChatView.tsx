@@ -16,6 +16,7 @@ export default function ChatView() {
     createConversation,
     addMessage,
     setStreaming,
+    setAbortController,
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,10 @@ export default function ChatView() {
       timestamp: Date.now(),
     };
     addMessage(convId, userMessage);
+
+    // Crea AbortController per permettere lo stop
+    const controller = new AbortController();
+    setAbortController(controller);
     setStreaming(true);
     setStreamingContent('');
     setStreamingProvider(settings.orchestrator.mode === 'local' ? 'ollama' : settings.orchestrator.primaryProvider);
@@ -115,6 +120,7 @@ export default function ChatView() {
       addMessage(convId, errorMessage);
     } finally {
       setStreaming(false);
+      setAbortController(null);
       setStreamingContent('');
     }
   };

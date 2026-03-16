@@ -17,6 +17,15 @@ export interface AIModel {
   costPer1kTokens?: number; // undefined for local models
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;        // MIME type
+  size: number;
+  dataUrl?: string;    // base64 data URL for images/small files
+  path?: string;       // local file path (desktop only)
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -28,6 +37,7 @@ export interface Message {
   tokensUsed?: number;   // Tokens consumed
   qualityScore?: number; // Cross-check quality badge
   verified?: boolean;    // RAG verification status
+  attachments?: Attachment[];
 }
 
 export interface Conversation {

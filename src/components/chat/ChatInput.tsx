@@ -1,11 +1,10 @@
-// VIO 83 AI ORCHESTRA - Input Chat con selettore modello
-import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Zap, Cloud, HardDrive, Cpu } from 'lucide-react';
+// VIO 83 AI ORCHESTRA - Input Chat con selettore modello, allegati, stop
+import { Cloud, Cpu, FileText, HardDrive, Image, Plus, Send, Square, X, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/appStore';
-import type { AIProvider } from '../../types';
+import type { AIProvider, Attachment } from '../../types';
 
 // Modelli Ollama disponibili localmente (su MacBook Air M1 8GB)
-// Ordinati per potenza: Llama 3.2 3B è il più potente per uso generale (MMLU 63.4)
 const OLLAMA_MODELS = [
   { id: 'llama3.2:3b', name: 'Llama 3.2 3B', desc: 'Più potente — generale', ram: '~2GB' },
   { id: 'qwen2.5-coder:3b', name: 'Qwen Coder 3B', desc: 'Migliore per codice', ram: '~2GB' },
@@ -21,15 +20,19 @@ const cloudProviders: { id: AIProvider; name: string; icon: string }[] = [
   { id: 'deepseek', name: 'DeepSeek', icon: '🩷' },
 ];
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments?: Attachment[]) => void;
   disabled?: boolean;
 }
 
 export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { settings, setMode, setProvider, setOllamaModel, isStreaming } = useAppStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { settings, setMode, setProvider, setOllamaModel, isStreaming, stopStreaming } = useAppStore();
   const { mode, primaryProvider } = settings.orchestrator;
   const currentOllamaModel = settings.ollamaModel || 'llama3.2:3b';
 
@@ -41,10 +44,29 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }, [input]);
 
+  // Auto-focus textarea quando non sta streamando
+  useEffect(() => {
+    if (!isStreaming && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [isStreaming]);
+
+  const canSend = (input.trim() || attachments.length > 0) && !disabled && !isStreaming;
+
   const handleSend = () => {
-    if (!input.trim() || disabled || isStreaming) return;
-    onSend(input.trim());
+    if (!canSend) return;
+    const msg = input.trim();
+    const atts = attachments.length > 0 ? [...attachments] : undefined;
+
+    // Aggiungi descrizione allegati nel messaggio se non c'è testo
+    let content = msg;
+    if (!content && atts) {
+      content = atts.map(a => `[Allegato: ${a.name}]`).join('\n');
+    }
+
+    onSend(content, atts);
     setInput('');
+    setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -53,6 +75,80 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleStop = () => {
+    stopStreaming();
+  };
+
+  // File attachment handler
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`File "${file.name}" troppo grande (max 10MB)`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const newAttachment: Attachment = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: reader.result as string,
+        };
+        setAttachments(prev => [...prev, newAttachment]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input so same file can be added again
+    e.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Paste handler (images from clipboard)
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const newAttachment: Attachment = {
+            id: crypto.randomUUID(),
+            name: `clipboard-${Date.now()}.${file.type.split('/')[1] || 'png'}`,
+            type: file.type,
+            size: file.size,
+            dataUrl: reader.result as string,
+          };
+          setAttachments(prev => [...prev, newAttachment]);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <Image size={14} />;
+    return <FileText size={14} />;
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${(bytes / 1048576).toFixed(1)}MB`;
   };
 
   const currentModelInfo = OLLAMA_MODELS.find(m => m.id === currentOllamaModel);
@@ -166,22 +262,99 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         )}
       </div>
 
+      {/* Attachments preview */}
+      {attachments.length > 0 && (
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '10px',
+          flexWrap: 'wrap',
+        }}>
+          {attachments.map(att => (
+            <div key={att.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--vio-border)',
+              backgroundColor: 'var(--vio-bg-tertiary)',
+              fontSize: '12px',
+              color: 'var(--vio-text-secondary)',
+            }}>
+              {att.type.startsWith('image/') && att.dataUrl ? (
+                <img src={att.dataUrl} alt={att.name} style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 3 }} />
+              ) : getFileIcon(att.type)}
+              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {att.name}
+              </span>
+              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{formatSize(att.size)}</span>
+              <button
+                onClick={() => removeAttachment(att.id)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'var(--vio-text-dim)', display: 'flex',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.py,.js,.ts,.tsx,.jsx,.json,.csv,.html,.css,.yaml,.yml,.xml,.sql,.sh,.rs,.go,.java,.c,.cpp,.h,.swift,.kt,.rb,.php,.r,.m,.log,.env,.toml,.ini,.cfg"
+      />
+
       {/* Input area */}
       <div style={{
         display: 'flex',
-        gap: '10px',
+        gap: '8px',
         alignItems: 'flex-end',
       }}>
+        {/* (+) Attach file button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isStreaming}
+          title="Allega file (foto, video, documenti, codice...)"
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: 'var(--vio-radius)',
+            border: '1px solid var(--vio-border)',
+            backgroundColor: 'var(--vio-bg-tertiary)',
+            color: isStreaming ? 'var(--vio-text-dim)' : 'var(--vio-text-secondary)',
+            cursor: isStreaming ? 'default' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={e => { if (!isStreaming) e.currentTarget.style.borderColor = 'var(--vio-green)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--vio-border)'; }}
+        >
+          <Plus size={20} />
+        </button>
+
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={mode === 'local'
             ? `Scrivi un messaggio... (${currentModelInfo?.name || 'Ollama'})`
             : `Scrivi un messaggio... (${cloudProviders.find(p => p.id === primaryProvider)?.name || 'Cloud'})`
           }
-          disabled={disabled || isStreaming}
+          disabled={disabled}
           rows={1}
           style={{
             flex: 1,
@@ -197,31 +370,58 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
             outline: 'none',
             transition: 'border-color 0.2s',
             maxHeight: '200px',
+            opacity: isStreaming ? 0.6 : 1,
           }}
           onFocus={(e) => e.target.style.borderColor = 'var(--vio-green)'}
           onBlur={(e) => e.target.style.borderColor = 'var(--vio-border)'}
         />
 
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || disabled || isStreaming}
-          style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: 'var(--vio-radius)',
-            border: 'none',
-            backgroundColor: input.trim() ? 'var(--vio-green)' : 'var(--vio-bg-tertiary)',
-            color: input.trim() ? '#000' : 'var(--vio-text-dim)',
-            cursor: input.trim() ? 'pointer' : 'default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s',
-            flexShrink: 0,
-          }}
-        >
-          {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-        </button>
+        {/* Send OR Stop button */}
+        {isStreaming ? (
+          <button
+            onClick={handleStop}
+            title="Ferma generazione"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: 'var(--vio-radius)',
+              border: 'none',
+              backgroundColor: '#ef4444',
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+              animation: 'pulse 1.5s infinite',
+            }}
+          >
+            <Square size={16} fill="#fff" />
+          </button>
+        ) : (
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            title="Invia messaggio"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: 'var(--vio-radius)',
+              border: 'none',
+              backgroundColor: canSend ? 'var(--vio-green)' : 'var(--vio-bg-tertiary)',
+              color: canSend ? '#000' : 'var(--vio-text-dim)',
+              cursor: canSend ? 'pointer' : 'default',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
+          >
+            <Send size={18} />
+          </button>
+        )}
       </div>
     </div>
   );
