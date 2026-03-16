@@ -51,6 +51,7 @@ from backend.orchestrator.direct_router import (
     classify_request, orchestrate, call_ollama_streaming,
     check_ollama_status,
 )
+from backend.automation.autonomous_runtime import AutonomousRuntime
 
 # RAG è disabilitato per compatibilità Python 3.14
 RAG_AVAILABLE = False
@@ -87,7 +88,21 @@ RUNTIME_ENV_DEFAULTS = {
     "RUNTIME_APPS_UPDATE_POLICY": "user-approved",
     "RUNTIME_APPS_OFFLINE_MODE": "keep-last-approved",
     "RUNTIME_APPS_LAST_USER_APPROVED_AT": "",
+    "AUTONOMOUS_RUNTIME_ENABLED": "true",
+    "AUTONOMOUS_RUNTIME_HEARTBEAT_SEC": "300",
+    "AUTONOMOUS_RUNTIME_WATCH_POLL_SEC": "90",
+    "AUTONOMOUS_RUNTIME_COMPACT_EVERY_NOTES": "12",
+    "AUTONOMOUS_RUNTIME_CONTEXT_TAIL_NOTES": "12",
+    "AUTONOMOUS_RUNTIME_DEFAULT_ACCOUNT": "vio83-local",
+    "AUTONOMOUS_RUNTIME_DEFAULT_CHANNEL": "main",
+    "AUTONOMOUS_RUNTIME_CRON_UTC": "00:15,06:15,12:15,18:15",
+    "AUTONOMOUS_RUNTIME_WATCH_DIRS": "backend,src,docs,data/config",
+    "AUTONOMOUS_RUNTIME_WATCH_EXTENSIONS": ".py,.ts,.tsx,.js,.jsx,.md,.json,.yml,.yaml,.toml,.sh",
+    "AUTONOMOUS_RUNTIME_BACKGROUND_ISOLATION": "true",
+    "AUTONOMOUS_RUNTIME_MAX_FILES_PER_TICK": "20",
 }
+
+AUTONOMOUS_RUNTIME = AutonomousRuntime(PROJECT_ROOT)
 
 
 def _now_iso() -> str:
@@ -790,6 +805,10 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_auto_refresh_task = asyncio.create_task(_knowledge_auto_refresh_loop())
     print("🌍 Knowledge Watch: auto-refresh ogni 6h attivo")
 
+    await AUTONOMOUS_RUNTIME.start()
+    app.state.autonomous_runtime = AUTONOMOUS_RUNTIME
+    print("🧠 Autonomous Runtime: trigger→route→session namespace + memoria Markdown attivo")
+
     yield
 
     # === SHUTDOWN ===
@@ -802,6 +821,10 @@ async def lifespan(app: FastAPI):
             await knowledge_task
         except asyncio.CancelledError:
             pass
+
+    autonomous_runtime = getattr(app.state, "autonomous_runtime", None)
+    if autonomous_runtime:
+        await autonomous_runtime.stop()
 
     pool = get_connection_pool()
     await pool.close_all()
@@ -930,6 +953,15 @@ async def chat(request: ChatRequest):
             latency_ms=result.get("latency_ms", 0),
         )
 
+        AUTONOMOUS_RUNTIME.record_chat_turn(
+            conversation_id=conv_id,
+            user_message=request.message,
+            assistant_message=result["content"],
+            provider=result["provider"],
+            model=result["model"],
+            mode=request.mode,
+        )
+
         return ChatResponse(
             content=result["content"],
             provider=result["provider"],
@@ -1029,6 +1061,14 @@ async def chat_stream(request: ChatRequest):
                         provider="ollama", model=model,
                         latency_ms=latency)
             log_metric("ollama", model, tokens_used=0, latency_ms=latency)
+            AUTONOMOUS_RUNTIME.record_chat_turn(
+                conversation_id=conv_id,
+                user_message=request.message,
+                assistant_message=full_content,
+                provider="ollama",
+                model=model,
+                mode=request.mode,
+            )
 
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
@@ -1780,6 +1820,105 @@ async def api_runtime_apps_action(payload: dict[str, Any] = Body(...)):
         raise HTTPException(status_code=500, detail=result)
 
     return result
+
+
+# ═══════════════════════════════════════════════
+# AUTONOMOUS RUNTIME — Trigger, Memory, Session Namespace
+# ═══════════════════════════════════════════════
+
+@app.get("/autonomy/status")
+async def api_autonomy_status():
+    """Status del runtime autonomo: scheduler, memoria persistente, session namespaces."""
+    return AUTONOMOUS_RUNTIME.status()
+
+
+@app.get("/autonomy/sessions")
+async def api_autonomy_sessions():
+    """Lista namespace persistenti con contatori note/eventi."""
+    return AUTONOMOUS_RUNTIME.list_sessions()
+
+
+@app.get("/autonomy/sessions/{namespace}/memory")
+async def api_autonomy_memory(namespace: str, query: str = Query("")):
+    """Recupera memoria persistente da Markdown con summary + snippets."""
+    return AUTONOMOUS_RUNTIME.retrieve_context(namespace, query=query)
+
+
+@app.post("/autonomy/compact")
+async def api_autonomy_compact(namespace: str = Query(...)):
+    """Compatta esplicitamente una sessione, trattando il contesto come cache."""
+    return {
+        "status": "ok",
+        "result": AUTONOMOUS_RUNTIME.compact_namespace(namespace),
+    }
+
+
+@app.post("/autonomy/trigger")
+async def api_autonomy_trigger(payload: dict[str, Any] = Body(...)):
+    """Trigger manuale/API: webhook, messaggio esterno, job, heartbeat simulato."""
+    return AUTONOMOUS_RUNTIME.trigger_from_payload(payload)
+
+
+@app.post("/autonomy/webhook/{account}/{channel}/{session_id}")
+async def api_autonomy_webhook(
+    account: str,
+    channel: str,
+    session_id: str,
+    payload: dict[str, Any] = Body(...),
+):
+    """Trigger esterno stile webhook instradato nel namespace corretto."""
+    merged = {
+        **payload,
+        "account": account,
+        "channel": channel,
+        "session_id": session_id,
+        "trigger_type": payload.get("trigger_type", "webhook"),
+        "source": payload.get("source", "webhook-endpoint"),
+    }
+    return AUTONOMOUS_RUNTIME.trigger_from_payload(merged)
+
+
+@app.put("/autonomy/config")
+async def api_autonomy_config(payload: dict[str, Any] = Body(...)):
+    """Aggiorna la configurazione persistente del runtime autonomo nel .env."""
+    field_map = {
+        "enabled": "AUTONOMOUS_RUNTIME_ENABLED",
+        "heartbeat_sec": "AUTONOMOUS_RUNTIME_HEARTBEAT_SEC",
+        "watch_poll_sec": "AUTONOMOUS_RUNTIME_WATCH_POLL_SEC",
+        "compact_every_notes": "AUTONOMOUS_RUNTIME_COMPACT_EVERY_NOTES",
+        "context_tail_notes": "AUTONOMOUS_RUNTIME_CONTEXT_TAIL_NOTES",
+        "default_account": "AUTONOMOUS_RUNTIME_DEFAULT_ACCOUNT",
+        "default_channel": "AUTONOMOUS_RUNTIME_DEFAULT_CHANNEL",
+        "cron_utc": "AUTONOMOUS_RUNTIME_CRON_UTC",
+        "watch_dirs": "AUTONOMOUS_RUNTIME_WATCH_DIRS",
+        "watch_extensions": "AUTONOMOUS_RUNTIME_WATCH_EXTENSIONS",
+        "background_isolation": "AUTONOMOUS_RUNTIME_BACKGROUND_ISOLATION",
+        "max_files_per_tick": "AUTONOMOUS_RUNTIME_MAX_FILES_PER_TICK",
+    }
+
+    updates: dict[str, str] = {}
+    for incoming_key, env_key in field_map.items():
+        if incoming_key not in payload:
+            continue
+        value = payload.get(incoming_key)
+        if isinstance(value, bool):
+            updates[env_key] = "true" if value else "false"
+        elif isinstance(value, list):
+            updates[env_key] = ",".join(str(item).strip() for item in value if str(item).strip())
+        else:
+            updates[env_key] = str(value).strip()
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nessun campo autonomia valido da aggiornare")
+
+    _write_project_env_updates(updates)
+    load_dotenv(PROJECT_ENV_PATH, override=True)
+    config = AUTONOMOUS_RUNTIME.reload_config()
+    return {
+        "status": "ok",
+        "updated_keys": list(updates.keys()),
+        "config": config,
+    }
 
 
 # ═══════════════════════════════════════════════
