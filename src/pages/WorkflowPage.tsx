@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA — Workflow Builder: Pipeline Visuale
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Play, Pause, RotateCcw, GitBranch } from 'lucide-react';
+import { GitBranch, Play, Plus, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
 
 interface WFNode {
   id: string;
@@ -29,10 +29,10 @@ const CONNECTIONS: [string, string][] = [
 const savedWorkflows = [
   { id: 1, name: 'Smart Auto-Route', desc: 'Routing intelligente basato su analisi task', active: true, runs: 2341, lastRun: '2 min fa' },
   { id: 2, name: 'Code Review Pipeline', desc: 'Claude + DeepSeek validazione duale codice', active: true, runs: 892, lastRun: '15 min fa' },
-  { id: 3, name: 'Research Deep Dive', desc: 'Grok real-time + Claude analisi + RAG verifica', active: false, runs: 456, lastRun: '2 ore fa' },
+  { id: 3, name: 'Research Deep Dive', desc: 'Grok real-time + Claude analisi + RAG verifica', active: true, runs: 456, lastRun: '2 ore fa' },
   { id: 4, name: 'Translation Pro', desc: 'Mistral primario + GPT-4o validazione pipeline', active: true, runs: 1023, lastRun: '8 min fa' },
   { id: 5, name: 'Privacy Local', desc: 'Solo Ollama — zero dati trasmessi', active: true, runs: 567, lastRun: '1 min fa' },
-  { id: 6, name: 'Math & Reasoning', desc: 'DeepSeek R1 + Claude cross-check per matematica', active: false, runs: 234, lastRun: '1 giorno fa' },
+  { id: 6, name: 'Math & Reasoning', desc: 'DeepSeek R1 + Claude cross-check per matematica', active: true, runs: 234, lastRun: '1 giorno fa' },
 ];
 
 export default function WorkflowPage() {
@@ -161,17 +161,17 @@ export default function WorkflowPage() {
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <span style={{
                   padding: '3px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: 600,
-                  background: wf.active ? 'rgba(0,255,0,0.1)' : 'rgba(255,50,50,0.1)',
-                  color: wf.active ? 'var(--vio-green)' : 'var(--vio-red)',
-                  border: `1px solid ${wf.active ? 'var(--vio-green-dim)' : 'var(--vio-red)'}40`,
+                  background: 'rgba(0,255,0,0.1)',
+                  color: 'var(--vio-green)',
+                  border: '1px solid var(--vio-green-dim)40',
                 }}>
-                  {wf.active ? 'Attivo' : 'In Pausa'}
+                  Attivo
                 </span>
                 <button style={{
                   background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
-                  color: wf.active ? 'var(--vio-yellow)' : 'var(--vio-green)',
+                  color: 'var(--vio-green)',
                 }}>
-                  {wf.active ? <Pause size={14} /> : <Play size={14} />}
+                  <Play size={14} />
                 </button>
               </div>
             </div>

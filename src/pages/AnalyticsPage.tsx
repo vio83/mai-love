@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA — Analytics: Performance Intelligence
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Clock, Coins, Brain, Gauge, Star, Zap } from 'lucide-react';
+import { BarChart3, Brain, Coins, Gauge, Star, TrendingUp, Zap } from 'lucide-react';
+import { useState } from 'react';
 
 const PROVIDER_COLORS: Record<string, string> = {
   claude: '#D97706', gpt4: '#10B981', grok: '#3B82F6',
@@ -171,4 +171,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-

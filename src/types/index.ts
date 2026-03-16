@@ -1,9 +1,9 @@
 // VIO 83 AI ORCHESTRA - Type Definitions
 
-export type AIProvider = 'claude' | 'gpt4' | 'grok' | 'mistral' | 'deepseek' | 'gemini' | 'ollama';
+export type AIProvider = 'claude' | 'gpt4' | 'grok' | 'mistral' | 'deepseek' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'perplexity' | 'ollama';
 
 // Pagine disponibili nell'app
-export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'settings';
+export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'settings';
 
 export type AIMode = 'cloud' | 'local';
 
@@ -54,6 +54,7 @@ export interface OrchestratorConfig {
   fallbackProviders: AIProvider[];
   crossCheckEnabled: boolean;
   ragEnabled: boolean;
+  strictEvidenceMode: boolean;
   autoRouting: boolean; // Smart routing based on request type
 }
 

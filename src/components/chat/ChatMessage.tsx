@@ -1,10 +1,26 @@
 // VIO 83 AI ORCHESTRA - Componente Messaggio Chat
+import { AlertCircle, Bot, CheckCircle, Clock, User, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
+import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Bot, User, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
-import type { Message, AIProvider } from '../../types';
+import remarkGfm from 'remark-gfm';
+import type { AIProvider, Message } from '../../types';
+
+SyntaxHighlighter.registerLanguage('ts', typescript);
+SyntaxHighlighter.registerLanguage('tsx', typescript);
+SyntaxHighlighter.registerLanguage('typescript', typescript);
+SyntaxHighlighter.registerLanguage('js', javascript);
+SyntaxHighlighter.registerLanguage('javascript', javascript);
+SyntaxHighlighter.registerLanguage('json', json);
+SyntaxHighlighter.registerLanguage('py', python);
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('bash', bash);
+SyntaxHighlighter.registerLanguage('sh', bash);
 
 const providerColors: Record<AIProvider, string> = {
   claude: '#D97706',
@@ -13,16 +29,24 @@ const providerColors: Record<AIProvider, string> = {
   mistral: '#8B5CF6',
   deepseek: '#EC4899',
   gemini: '#06B6D4',
+  groq: '#F97316',
+  openrouter: '#A855F7',
+  together: '#14B8A6',
+  perplexity: '#60A5FA',
   ollama: '#00FF00',
 };
 
 const providerNames: Record<AIProvider, string> = {
   claude: 'Claude',
-  gpt4: 'GPT-4o',
-  grok: 'Grok 3',
+  gpt4: 'OpenAI',
+  grok: 'Grok 4',
   mistral: 'Mistral',
   deepseek: 'DeepSeek',
-  gemini: 'Gemini 2.0',
+  gemini: 'Gemini 2.5',
+  groq: 'Groq',
+  openrouter: 'OpenRouter',
+  together: 'Together',
+  perplexity: 'Perplexity',
   ollama: 'Ollama (Locale)',
 };
 

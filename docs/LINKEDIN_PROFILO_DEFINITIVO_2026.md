@@ -12,6 +12,44 @@ AI Engineer & Founder VIO 83 AI Orchestra | 18+ Anni Healthcare & HR Leadership 
 
 ---
 
+## ABOUT (VERSIONE LINKEDIN PRONTA-INCOLLA — ENTRO LIMITE PIATTAFORMA)
+
+```
+From leading 50+ healthcare professionals across Sardinia’s hospital network to building a multi-AI orchestration platform, my career is a data-driven reinvention.
+
+For 18+ years (2008–2025) I worked in Italy’s National Healthcare System (SSN/SSR Sardegna), from administrative operations to HR leadership and multi-site coordination.
+
+Career peak (2013–2020): Direttrice Risorse Umane / Team Leader Multi-Sedi in a regional healthcare context (ASL 2, ASL 7, ASL 8, AOU Sardegna, Brotzu).
+Key outcomes:
+• Coordinated 50+ professionals across 5 facilities
+• Reduced patient waiting times by 60%
+• Managed CUP booking operations across multiple ASL
+• Led process optimization, stakeholder alignment, and crisis recovery
+
+In 2025 I completed 18 certifications across AI, digital skills, project management, HR and coaching, including:
+• ACCREDIA DigComp 2.2 Level 6/6 (IDCERT)
+• Elements of AI (University of Helsinki / MinnaLearn)
+• AI/LLM courses (Dicolab MOOC)
+• Project Manager + Wellness Coach (OPES)
+• HR Specialist 140h + IT HR Specialist 40h (Talenti/Forma.Temp)
+
+In Feb 2026 I founded VIO 83 AI Orchestra, a desktop platform that orchestrates 50+ AI models and tools with smart routing, cross-check verification, RAG workflows, and privacy-first local AI via Ollama.
+
+Core stack: Tauri, React, TypeScript, FastAPI, Python, Rust, SQLite, ChromaDB, n8n.
+
+What differentiates me: I build AI systems for real people, with operational rigor from healthcare environments where quality and reliability are non-negotiable.
+
+Open to:
+AI Engineer | Full-Stack Developer | Software Engineer | Healthcare IT | AI Architect | Project/Operations roles.
+
+Location: Italy / Remote / EU | Availability: Immediate
+
+GitHub: github.com/vio83/vio83-ai-orchestra
+Website: vio83.github.io/vio83-ai-orchestra
+```
+
+---
+
 ## ABOUT / INFORMAZIONI
 
 ```
@@ -412,6 +450,22 @@ Tipo: Full-time, Contratto, Freelance
 ```
 Open to Work: SÌ
 Creator Mode: SÌ — Topics: #AI #OpenSource #HealthcareIT #CareerPivot #HRTech
+```
+
+---
+
+## CHECKLIST ESECUZIONE FINALE LINKEDIN (100% OPERATIVA)
+
+```
+1) Headline: incollare versione da 177 caratteri (già conforme limite 220)
+2) About: usare la versione "PRONTA-INCOLLA" sopra (più sicura per limiti piattaforma)
+3) Esperienze: inserire Posizione 1 in cima + mantenere ordine cronologico inverso
+4) Licenze/Certificazioni: caricare 18 voci, una per certificazione
+5) Featured: aggiungere 3 link (GitHub, Landing Page, Ko-fi)
+6) Settore: impostare "Tecnologia, informazioni e internet"
+7) Open to Work: ON (ruoli + località + disponibilità immediata)
+8) Creator Mode: ON con topic #AI #OpenSource #HealthcareIT #HRTech
+9) Verifica finale: coerenza date, ruoli, lingua e numeri prima della pubblicazione
 ```
 
 ---

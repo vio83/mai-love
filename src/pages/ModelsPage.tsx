@@ -1,57 +1,115 @@
 // VIO 83 AI ORCHESTRA — Models Registry: Tutti i modelli AI
 import { motion } from 'framer-motion';
-import { Cpu, Zap, Star, Eye, Wrench, Wifi, WifiOff } from 'lucide-react';
+import { Cpu, Eye, Star, Wifi, WifiOff, Wrench, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { AIModelInfo } from '../types';
+
+type EliteStacksPayload = {
+  status: string;
+  generated_at: string;
+  stacks: Record<string, {
+    exact_replica_possible?: boolean;
+    reason?: string;
+    what_is_possible_now?: string;
+    primary?: string[];
+    secondary?: string[];
+    local?: string[];
+    best_for?: string[];
+  }>;
+  notes?: string[];
+};
 
 const ALL_MODELS: AIModelInfo[] = [
   {
-    id: 'claude-opus-4', name: 'Claude Opus 4', provider: 'claude', mode: 'cloud',
-    description: 'Il modello più potente di Anthropic. Eccelle in analisi profonda, codice complesso, ragionamento multi-step e ricerca scientifica.',
-    maxTokens: 32000, contextWindow: 200000, costPer1kInput: 0.015, costPer1kOutput: 0.075,
-    speedScore: 92, qualityScore: 99, specialties: ['Deep Analysis', 'Code', 'Research', 'Math'],
+    id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'claude', mode: 'cloud',
+    description: 'Flagship Anthropic per agenti, coding avanzato, ricerca multi-step e reasoning ad altissima affidabilità.',
+    maxTokens: 128000, contextWindow: 1000000, costPer1kInput: 0.005, costPer1kOutput: 0.025,
+    speedScore: 92, qualityScore: 99, specialties: ['Agents', 'Code', 'Research', 'Legal', 'Medical'],
     supportsVision: true, supportsTools: true, status: 'online',
   },
   {
-    id: 'claude-sonnet-4', name: 'Claude Sonnet 4', provider: 'claude', mode: 'cloud',
-    description: 'Veloce e potente. Ideale per coding quotidiano, chat rapida e task generali ad alta qualità.',
-    maxTokens: 16000, contextWindow: 200000, costPer1kInput: 0.003, costPer1kOutput: 0.015,
-    speedScore: 97, qualityScore: 96, specialties: ['Fast Code', 'Chat', 'General'],
+    id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'claude', mode: 'cloud',
+    description: 'Bilanciamento top fra velocità, tool use, scrittura professionale e sviluppo software serio.',
+    maxTokens: 64000, contextWindow: 1000000, costPer1kInput: 0.003, costPer1kOutput: 0.015,
+    speedScore: 97, qualityScore: 97, specialties: ['Fast Code', 'Writing', 'Analysis', 'Agents'],
     supportsVision: true, supportsTools: true, status: 'online',
   },
   {
-    id: 'gpt-4o', name: 'GPT-4o', provider: 'gpt4', mode: 'cloud',
-    description: 'Modello multimodale di OpenAI. Eccellente per creatività, traduzione e contenuti multimediali.',
-    maxTokens: 16384, contextWindow: 128000, costPer1kInput: 0.005, costPer1kOutput: 0.015,
-    speedScore: 95, qualityScore: 94, specialties: ['Creative', 'Multimodal', 'Translation'],
+    id: 'gpt-5.4', name: 'GPT-5.4', provider: 'gpt4', mode: 'cloud',
+    description: 'Flagship OpenAI per reasoning complesso, coding professionale, strumenti, MCP e workflow agentici.',
+    maxTokens: 128000, contextWindow: 1000000, costPer1kInput: 0.0025, costPer1kOutput: 0.015,
+    speedScore: 95, qualityScore: 98, specialties: ['Reasoning', 'Coding', 'Agents', 'Tools'],
     supportsVision: true, supportsTools: true, status: 'online',
   },
   {
-    id: 'grok-3', name: 'Grok 3', provider: 'grok', mode: 'cloud',
-    description: 'Modello xAI con accesso real-time ai dati. Perfetto per ricerche attuali e analisi in tempo reale.',
-    maxTokens: 16384, contextWindow: 131072, costPer1kInput: 0.005, costPer1kOutput: 0.015,
-    speedScore: 93, qualityScore: 91, specialties: ['Real-time', 'Research', 'Current Events'],
+    id: 'gpt-5-mini', name: 'GPT-5 mini', provider: 'gpt4', mode: 'cloud',
+    description: 'Variante OpenAI veloce e più economica per task ad alto volume senza scendere troppo di qualità.',
+    maxTokens: 128000, contextWindow: 400000, costPer1kInput: 0.00025, costPer1kOutput: 0.002,
+    speedScore: 98, qualityScore: 92, specialties: ['Fast General', 'Automation', 'Bulk Tasks'],
     supportsVision: true, supportsTools: true, status: 'online',
   },
   {
-    id: 'gemini-2-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', mode: 'cloud',
-    description: 'Modello Google con contesto da 1M token. Eccezionale per documenti lunghi, ricerca e analisi su larga scala.',
-    maxTokens: 8192, contextWindow: 1000000, costPer1kInput: 0.002, costPer1kOutput: 0.008,
-    speedScore: 96, qualityScore: 92, specialties: ['Long Context', 'Search', 'Analysis'],
+    id: 'grok-4', name: 'Grok 4', provider: 'grok', mode: 'cloud',
+    description: 'xAI punta su reasoning + tool use + contesto enorme. Molto forte per realtime se abbini ricerca server-side.',
+    maxTokens: 8192, contextWindow: 2000000, costPer1kInput: 0.002, costPer1kOutput: 0.01,
+    speedScore: 94, qualityScore: 94, specialties: ['Realtime', 'Research', 'Tool Use', 'Long Context'],
     supportsVision: true, supportsTools: true, status: 'online',
   },
   {
-    id: 'mistral-large-2', name: 'Mistral Large 2', provider: 'mistral', mode: 'cloud',
-    description: 'Modello europeo con eccellente supporto multilingue. Ottimo per traduzioni e contenuti UE.',
-    maxTokens: 8192, contextWindow: 128000, costPer1kInput: 0.004, costPer1kOutput: 0.012,
-    speedScore: 94, qualityScore: 90, specialties: ['Multilingual', 'EU', 'Translation'],
+    id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', mode: 'cloud',
+    description: 'Google top model per ragionamento, coding, multimodalità e documenti lunghissimi.',
+    maxTokens: 8192, contextWindow: 1000000, costPer1kInput: 0.00125, costPer1kOutput: 0.01,
+    speedScore: 93, qualityScore: 96, specialties: ['Long Context', 'Coding', 'Research', 'Multimodal'],
+    supportsVision: true, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'gemini-2-5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', mode: 'cloud',
+    description: 'Versione Google ad alto rapporto prezzo/prestazioni per workload rapidi, continui e multimodali.',
+    maxTokens: 8192, contextWindow: 1000000, costPer1kInput: 0.000075, costPer1kOutput: 0.0003,
+    speedScore: 98, qualityScore: 91, specialties: ['Fast Search', 'Long Context', 'High Volume'],
+    supportsVision: true, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'mistral-large-latest', name: 'Mistral Large (latest)', provider: 'mistral', mode: 'cloud',
+    description: 'Stack Mistral top-tier per multilingua, enterprise EU, document understanding e contenuti complessi.',
+    maxTokens: 8192, contextWindow: 128000, costPer1kInput: 0.002, costPer1kOutput: 0.006,
+    speedScore: 94, qualityScore: 92, specialties: ['Multilingual', 'EU', 'Translation', 'Enterprise'],
+    supportsVision: true, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'deepseek-reasoner', name: 'DeepSeek R1 / Reasoner', provider: 'deepseek', mode: 'cloud',
+    description: 'Molto forte per matematica, logica, coding e reasoning strutturato con costo aggressivo.',
+    maxTokens: 64000, contextWindow: 128000, costPer1kInput: 0.00055, costPer1kOutput: 0.00219,
+    speedScore: 88, qualityScore: 94, specialties: ['Math', 'Reasoning', 'Logic', 'Code'],
     supportsVision: false, supportsTools: true, status: 'online',
   },
   {
-    id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'deepseek', mode: 'cloud',
-    description: 'Specializzato in ragionamento e matematica. Costo ultra-basso con qualità eccellente su task logici.',
-    maxTokens: 8192, contextWindow: 64000, costPer1kInput: 0.001, costPer1kOutput: 0.002,
-    speedScore: 88, qualityScore: 93, specialties: ['Math', 'Reasoning', 'Logic', 'Code'],
-    supportsVision: false, supportsTools: false, status: 'online',
+    id: 'groq-gpt-oss-120b', name: 'Groq + GPT-OSS 120B', provider: 'groq', mode: 'cloud',
+    description: 'Integrazione ultra-rapida per task agentici, reasoning e automazioni ad alta velocità.',
+    maxTokens: 65536, contextWindow: 131072, costPer1kInput: 0.00015, costPer1kOutput: 0.0006,
+    speedScore: 99, qualityScore: 90, specialties: ['Speed', 'Automation', 'Agents', 'Code'],
+    supportsVision: false, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'perplexity-pro-search', name: 'Perplexity Pro Search', provider: 'perplexity', mode: 'cloud',
+    description: 'Ricerca web grounded, citazioni e analisi orientata a fact-finding e investigative workflows.',
+    maxTokens: 32768, contextWindow: 262144, costPer1kInput: 0, costPer1kOutput: 0,
+    speedScore: 93, qualityScore: 91, specialties: ['Web Research', 'Citations', 'Current Events'],
+    supportsVision: false, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'openrouter-llama-3-3-free', name: 'OpenRouter Llama 3.3 70B Free', provider: 'openrouter', mode: 'cloud',
+    description: 'Ottimo canale elastico per fallback, testing multi-provider e accesso rapido a modelli community/partner.',
+    maxTokens: 8192, contextWindow: 131072, costPer1kInput: 0, costPer1kOutput: 0,
+    speedScore: 90, qualityScore: 87, specialties: ['Fallback', 'Multi-provider', 'Experiments'],
+    supportsVision: false, supportsTools: true, status: 'online',
+  },
+  {
+    id: 'together-llama-3-3-70b', name: 'Together Llama 3.3 70B', provider: 'together', mode: 'cloud',
+    description: 'Buona opzione economica per reasoning generalista e throughput cloud indipendente.',
+    maxTokens: 8192, contextWindow: 131072, costPer1kInput: 0.00088, costPer1kOutput: 0.00088,
+    speedScore: 89, qualityScore: 88, specialties: ['Budget Cloud', 'Generalist', 'Reasoning'],
+    supportsVision: false, supportsTools: true, status: 'online',
   },
   {
     id: 'ollama-local', name: 'Ollama Locale', provider: 'ollama', mode: 'local',
@@ -64,11 +122,11 @@ const ALL_MODELS: AIModelInfo[] = [
 
 const PROVIDER_COLORS: Record<string, string> = {
   claude: '#D97706', gpt4: '#10B981', grok: '#3B82F6',
-  mistral: '#8B5CF6', deepseek: '#EC4899', gemini: '#06B6D4', ollama: '#00FF00',
+  mistral: '#8B5CF6', deepseek: '#EC4899', gemini: '#06B6D4', groq: '#F97316', openrouter: '#A855F7', together: '#14B8A6', perplexity: '#60A5FA', ollama: '#00FF00',
 };
 
 const PROVIDER_ICONS: Record<string, string> = {
-  claude: '🧠', gpt4: '🌀', grok: '🔮', mistral: '🌊', deepseek: '🔬', gemini: '💎', ollama: '🏠',
+  claude: '🧠', gpt4: '🌀', grok: '🔮', mistral: '🌊', deepseek: '🔬', gemini: '💎', groq: '⚡', openrouter: '🛣️', together: '🤝', perplexity: '🧭', ollama: '🏠',
 };
 
 function ProgressBar({ value, color, height = 5 }: { value: number; color: string; height?: number }) {
@@ -84,7 +142,53 @@ function ProgressBar({ value, color, height = 5 }: { value: number; color: strin
   );
 }
 
+function prettyStackKey(raw: string): string {
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function ModelsPage() {
+  const [eliteStacks, setEliteStacks] = useState<EliteStacksPayload | null>(null);
+  const [eliteLoading, setEliteLoading] = useState(true);
+  const [eliteError, setEliteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadEliteStacks = async () => {
+      setEliteLoading(true);
+      setEliteError(null);
+
+      try {
+        const response = await fetch('http://localhost:4000/orchestration/elite-stacks');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json() as EliteStacksPayload;
+        if (!cancelled) {
+          setEliteStacks(data);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setEliteError(error?.message || 'Errore sconosciuto');
+        }
+      } finally {
+        if (!cancelled) {
+          setEliteLoading(false);
+        }
+      }
+    };
+
+    void loadEliteStacks();
+    return () => { cancelled = true; };
+  }, []);
+
+  const eliteEntries = eliteStacks?.stacks
+    ? Object.entries(eliteStacks.stacks).filter(([k]) => k !== 'replica_honesty')
+    : [];
+
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -92,8 +196,117 @@ export default function ModelsPage() {
           AI Models Registry
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          8 modelli — 7 cloud + 1 locale — unificati via LiteLLM gateway
+          13 modelli/stacks — cloud + locale — allineati a routing specialistico e ricerca ad alta affidabilità
         </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{
+          background: 'var(--vio-bg-secondary)',
+          borderRadius: 'var(--vio-radius-lg)',
+          padding: '18px',
+          border: '1px solid var(--vio-border)',
+          marginBottom: '18px',
+        }}
+      >
+        <h2 style={{ color: 'var(--vio-text-primary)', fontSize: '16px', margin: '0 0 8px', fontWeight: 700 }}>
+          Elite Stacks · Best by Task
+        </h2>
+        <p style={{ color: 'var(--vio-text-dim)', fontSize: '12px', margin: '0 0 14px' }}>
+          Fonte live: <code style={{ color: 'var(--vio-cyan)' }}>/orchestration/elite-stacks</code>
+        </p>
+
+        {eliteLoading && (
+          <div style={{ color: 'var(--vio-cyan)', fontSize: '12px' }}>Caricamento stack elite…</div>
+        )}
+
+        {!eliteLoading && eliteError && (
+          <div style={{ color: 'var(--vio-red)', fontSize: '12px' }}>
+            Impossibile caricare gli elite stacks: {eliteError}
+          </div>
+        )}
+
+        {!eliteLoading && !eliteError && eliteEntries.length > 0 && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
+              {eliteEntries.map(([stackKey, stack]) => (
+                <div
+                  key={stackKey}
+                  style={{
+                    background: 'var(--vio-bg-tertiary)',
+                    border: '1px solid var(--vio-border)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                  }}
+                >
+                  <div style={{ color: 'var(--vio-text-primary)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+                    {prettyStackKey(stackKey)}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {stack.primary && stack.primary.length > 0 && (
+                      <div>
+                        <div style={{ color: 'var(--vio-green)', fontSize: '10px', marginBottom: '4px', fontWeight: 600 }}>PRIMARY</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {stack.primary.map((item) => (
+                            <span key={item} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'rgba(0,255,0,0.09)', color: 'var(--vio-green)', border: '1px solid rgba(0,255,0,0.25)' }}>
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {stack.secondary && stack.secondary.length > 0 && (
+                      <div>
+                        <div style={{ color: 'var(--vio-cyan)', fontSize: '10px', marginBottom: '4px', fontWeight: 600 }}>SECONDARY</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {stack.secondary.map((item) => (
+                            <span key={item} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'rgba(0,255,255,0.09)', color: 'var(--vio-cyan)', border: '1px solid rgba(0,255,255,0.25)' }}>
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {stack.local && stack.local.length > 0 && (
+                      <div>
+                        <div style={{ color: 'var(--vio-yellow)', fontSize: '10px', marginBottom: '4px', fontWeight: 600 }}>LOCAL</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {stack.local.map((item) => (
+                            <span key={item} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'rgba(255,255,0,0.09)', color: 'var(--vio-yellow)', border: '1px solid rgba(255,255,0,0.25)' }}>
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {stack.best_for && stack.best_for.length > 0 && (
+                      <div>
+                        <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px', marginBottom: '4px', fontWeight: 600 }}>BEST FOR</div>
+                        <div style={{ color: 'var(--vio-text-secondary)', fontSize: '11px', lineHeight: 1.5 }}>
+                          {stack.best_for.join(' · ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {eliteStacks?.notes && eliteStacks.notes.length > 0 && (
+              <div style={{ marginTop: '12px', color: 'var(--vio-text-dim)', fontSize: '11px', lineHeight: 1.5 }}>
+                {eliteStacks.notes.map((note, idx) => (
+                  <div key={`${note}-${idx}`}>• {note}</div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
@@ -182,9 +395,11 @@ export default function ModelsPage() {
                     <Cpu size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />
                     {m.contextWindow >= 1000000 ? `${(m.contextWindow / 1000000).toFixed(0)}M` : `${(m.contextWindow / 1000).toFixed(0)}K`} ctx
                   </span>
-                  {m.supportsVision && <Eye size={12} color="var(--vio-cyan)" title="Supporta visione" />}
-                  {m.supportsTools && <Wrench size={12} color="var(--vio-magenta)" title="Supporta tool" />}
-                  {m.mode === 'local' ? <WifiOff size={12} color="var(--vio-green)" title="Locale" /> : <Wifi size={12} color="var(--vio-cyan)" title="Cloud" />}
+                  {m.supportsVision && <span title="Supporta visione"><Eye size={12} color="var(--vio-cyan)" /></span>}
+                  {m.supportsTools && <span title="Supporta tool"><Wrench size={12} color="var(--vio-magenta)" /></span>}
+                  {m.mode === 'local'
+                    ? <span title="Locale"><WifiOff size={12} color="var(--vio-green)" /></span>
+                    : <span title="Cloud"><Wifi size={12} color="var(--vio-cyan)" /></span>}
                 </div>
                 <span style={{
                   color: m.costPer1kOutput === 0 ? 'var(--vio-green)' : 'var(--vio-text-dim)',

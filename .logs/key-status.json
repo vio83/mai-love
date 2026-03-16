@@ -1,0 +1,30 @@
+{
+  "ANTHROPIC_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "OPENAI_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "PERPLEXITY_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "GEMINI_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "XAI_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "MISTRAL_API_KEY": {
+    "set": false,
+    "len": 0
+  },
+  "DEEPSEEK_API_KEY": {
+    "set": false,
+    "len": 0
+  }
+}

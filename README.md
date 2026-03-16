@@ -191,6 +191,33 @@ npm run tauri dev
 
 Open `http://localhost:5173` — your Orchestra is ready. 🎵
 
+### Local Runtime Services Autostart (OpenClaw / LegalRoom / n8n)
+
+To keep Runtime 360 Health panel stable, run the local supervisor and install launchd autostart:
+
+```bash
+# 1) Configure real service start commands in .env
+#    OPENCLAW_START_CMD=...
+#    LEGALROOM_START_CMD=...
+#    N8N_START_CMD=... (optional: empty = automatic fallback)
+
+# 2) Start supervisor now
+bash scripts/runtime/start_runtime_services.sh
+
+# 3) Install macOS LaunchAgents (login autostart + KeepAlive)
+bash install_autostart.sh
+```
+
+Logs and state:
+
+- `.logs/runtime-supervisor.log`
+- `.logs/runtime-openclaw.log`
+- `.logs/runtime-legalroom.log`
+- `.logs/runtime-n8n.log`
+- `.pids/runtime-supervisor-state.json`
+
+Note: OpenClaw and LegalRoom require real local start commands; no fake health service is used.
+
 ---
 
 ## 🏗 Architecture

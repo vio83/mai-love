@@ -1,0 +1,5 @@
+{
+  "ok": true,
+  "status": 200,
+  "body": "{\"content\":\"OK\",\"provider\":\"ollama\",\"model\":\"qwen2.5-coder:3b\",\"tokens_used\":3181,\"latency_ms\":2118,\"request_type\":\"creative\",\"cross_check\":null,\"rag_verification\":null,\"timestamp\":\"2026-03-16T15:04:26.052737\"}"
+}

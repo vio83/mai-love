@@ -19,10 +19,15 @@ import os
 import time
 import json
 import asyncio
+import shutil
+import signal
+import subprocess
+import shlex
 from contextlib import asynccontextmanager
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -34,7 +39,7 @@ from backend.models.schemas import (
 from backend.config.providers import (
     CLOUD_PROVIDERS, LOCAL_PROVIDERS, FREE_CLOUD_PROVIDERS,
     ALL_CLOUD_PROVIDERS, get_available_cloud_providers,
-    get_free_cloud_providers, get_all_providers_ordered,
+    get_free_cloud_providers, get_all_providers_ordered, get_elite_task_stacks,
 )
 from backend.database.db import (
     init_database, create_conversation, list_conversations,
@@ -65,6 +70,633 @@ KB_AVAILABLE = False
 
 load_dotenv()
 START_TIME = time.time()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ENV_PATH = PROJECT_ROOT / ".env"
+RUNTIME_SUPERVISOR_STATE_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor-state.json"
+RUNTIME_SUPERVISOR_PID_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor.pid"
+RUNTIME_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio83.runtime-services.plist"
+ORCHESTRA_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio83.ai-orchestra.plist"
+
+RUNTIME_ENV_DEFAULTS = {
+    "OPENCLAW_START_CMD": "",
+    "LEGALROOM_START_CMD": "",
+    "N8N_START_CMD": "",
+    "OPENCLAW_HEALTH_URLS": "http://127.0.0.1:4111/health,http://127.0.0.1:4111/",
+    "LEGALROOM_HEALTH_URLS": "http://127.0.0.1:4222/health,http://127.0.0.1:4222/",
+    "N8N_HEALTH_URLS": "http://127.0.0.1:5678/healthz,http://127.0.0.1:5678/rest/healthz,http://127.0.0.1:5678/",
+    "RUNTIME_APPS_UPDATE_POLICY": "user-approved",
+    "RUNTIME_APPS_OFFLINE_MODE": "keep-last-approved",
+    "RUNTIME_APPS_LAST_USER_APPROVED_AT": "",
+}
+
+
+def _now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _iso_from_epoch(epoch_s: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch_s))
+
+
+def _read_project_env_map() -> dict[str, str]:
+    env_map: dict[str, str] = {}
+
+    if not PROJECT_ENV_PATH.exists():
+        return env_map
+
+    try:
+        for raw_line in PROJECT_ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            env_map[key.strip()] = value.strip().strip('"').strip("'")
+    except Exception:
+        return env_map
+
+    return env_map
+
+
+def _write_project_env_updates(updates: dict[str, str]) -> dict[str, str]:
+    existing_lines = PROJECT_ENV_PATH.read_text(encoding="utf-8").splitlines() if PROJECT_ENV_PATH.exists() else []
+    updated_keys: set[str] = set()
+    next_lines: list[str] = []
+
+    for raw_line in existing_lines:
+        stripped = raw_line.strip()
+        replaced = False
+
+        if stripped and not stripped.startswith("#") and "=" in raw_line:
+            key = raw_line.split("=", 1)[0].strip()
+            if key in updates:
+                next_lines.append(f"{key}={updates[key]}")
+                updated_keys.add(key)
+                replaced = True
+
+        if not replaced:
+            next_lines.append(raw_line)
+
+    if next_lines and next_lines[-1].strip() != "":
+        next_lines.append("")
+
+    for key, value in updates.items():
+        if key not in updated_keys:
+            next_lines.append(f"{key}={value}")
+
+    PROJECT_ENV_PATH.write_text("\n".join(next_lines).rstrip() + "\n", encoding="utf-8")
+    return _read_project_env_map()
+
+
+def _runtime_env_value(env_map: dict[str, str], key: str) -> str:
+    return env_map.get(key, os.environ.get(key, RUNTIME_ENV_DEFAULTS.get(key, "")))
+
+
+def _command_status(command: str) -> dict[str, Any]:
+    normalized = (command or "").strip()
+    if not normalized:
+        return {"configured": False, "binary_ok": False, "command_type": "missing", "entry": None}
+
+    if any(token in normalized for token in ["&&", ";", "|", "source ", "export "]):
+        return {"configured": True, "binary_ok": True, "command_type": "shell-composite", "entry": "shell"}
+
+    try:
+        parts = shlex.split(normalized)
+    except Exception:
+        return {"configured": True, "binary_ok": True, "command_type": "shell-raw", "entry": normalized.split(" ", 1)[0]}
+
+    if not parts:
+        return {"configured": False, "binary_ok": False, "command_type": "missing", "entry": None}
+
+    entry = parts[0]
+    if entry.startswith("/") or entry.startswith("~"):
+        expanded = str(Path(entry).expanduser())
+        return {
+            "configured": True,
+            "binary_ok": Path(expanded).exists(),
+            "command_type": "absolute-path",
+            "entry": expanded,
+        }
+
+    found = shutil.which(entry)
+    return {
+        "configured": True,
+        "binary_ok": bool(found),
+        "command_type": "binary",
+        "entry": found or entry,
+    }
+
+
+def _probe_runtime_urls(urls: list[str], timeout_s: float = 1.4) -> dict[str, Any]:
+    import urllib.request
+    import urllib.error
+
+    last_error = None
+    for url in urls:
+        started = time.time()
+        try:
+            req = urllib.request.Request(url, method="GET", headers={"User-Agent": "VIO83-Runtime-Analysis/1.0"})
+            with urllib.request.urlopen(req, timeout=timeout_s) as response:
+                latency_ms = max(1, int((time.time() - started) * 1000))
+                status_code = int(getattr(response, "status", 200))
+                return {
+                    "reachable": status_code < 500,
+                    "url": url,
+                    "status_code": status_code,
+                    "latency_ms": latency_ms,
+                    "error": None,
+                }
+        except urllib.error.HTTPError as http_exc:
+            latency_ms = max(1, int((time.time() - started) * 1000))
+            if int(http_exc.code) < 500:
+                return {
+                    "reachable": True,
+                    "url": url,
+                    "status_code": int(http_exc.code),
+                    "latency_ms": latency_ms,
+                    "error": str(http_exc),
+                }
+            last_error = str(http_exc)
+        except Exception as exc:
+            last_error = str(exc)
+
+    return {
+        "reachable": False,
+        "url": urls[0] if urls else None,
+        "status_code": None,
+        "latency_ms": None,
+        "error": last_error,
+    }
+
+
+def _launch_agent_loaded(label: str) -> bool:
+    try:
+        result = subprocess.run(["launchctl", "list"], capture_output=True, text=True, timeout=6)
+        return label in (result.stdout or "")
+    except Exception:
+        return False
+
+
+def _safe_version_output(command: list[str]) -> Optional[str]:
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=6)
+        output = (result.stdout or result.stderr or "").strip()
+        return output.splitlines()[0] if output else None
+    except Exception:
+        return None
+
+
+def _read_json_file(path: Path) -> Optional[dict[str, Any]]:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _claude_desktop_snapshot() -> dict[str, Any]:
+    base_path = Path.home() / "Library" / "Application Support" / "Claude"
+    ext_path = base_path / "extensions-installations.json"
+    cfg_path = base_path / "claude_desktop_config.json"
+    ext_data = _read_json_file(ext_path) or {}
+    cfg_data = _read_json_file(cfg_path) or {}
+    ext_map = ext_data.get("extensions", {}) if isinstance(ext_data, dict) else {}
+    preferences = cfg_data.get("preferences", {}) if isinstance(cfg_data, dict) else {}
+
+    return {
+        "installed": base_path.exists(),
+        "base_path": str(base_path),
+        "extensions_count": len(ext_map) if isinstance(ext_map, dict) else 0,
+        "preferences": {
+            "coworkScheduledTasksEnabled": preferences.get("coworkScheduledTasksEnabled", False),
+            "coworkWebSearchEnabled": preferences.get("coworkWebSearchEnabled", False),
+            "keepAwakeEnabled": preferences.get("keepAwakeEnabled", False),
+            "sidebarMode": preferences.get("sidebarMode", ""),
+        },
+    }
+
+
+def _runtime_apps_snapshot() -> dict[str, Any]:
+    env_map = _read_project_env_map()
+    supervisor_state = _read_json_file(RUNTIME_SUPERVISOR_STATE_PATH) or {}
+    supervisor_pid_raw = None
+    if RUNTIME_SUPERVISOR_PID_PATH.exists():
+        try:
+            supervisor_pid_raw = int(RUNTIME_SUPERVISOR_PID_PATH.read_text(encoding="utf-8").strip())
+        except Exception:
+            supervisor_pid_raw = None
+
+    dependencies = {
+        "python3": {"available": shutil.which("python3") is not None, "version": _safe_version_output(["python3", "--version"])},
+        "node": {"available": shutil.which("node") is not None, "version": _safe_version_output(["node", "--version"])},
+        "npm": {"available": shutil.which("npm") is not None, "version": _safe_version_output(["npm", "--version"])},
+        "ollama": {"available": shutil.which("ollama") is not None, "version": _safe_version_output(["ollama", "--version"])},
+        "docker": {"available": shutil.which("docker") is not None, "version": _safe_version_output(["docker", "--version"])},
+        "nvm": {"available": (Path.home() / ".nvm" / "nvm.sh").exists(), "version": None},
+    }
+
+    app_specs = [
+        {
+            "id": "openclaw",
+            "name": "OpenClaw",
+            "env_key": "OPENCLAW_START_CMD",
+            "health_env_key": "OPENCLAW_HEALTH_URLS",
+            "health_default": RUNTIME_ENV_DEFAULTS["OPENCLAW_HEALTH_URLS"],
+            "port": 4111,
+            "stack": ["Agent runtime", "Tools bridge", "Task ops"],
+            "required_dependencies": ["python3 or node", "local source/repo", "health endpoint 4111"],
+            "notes": [
+                "Richiede comando reale di avvio configurato dall'utente.",
+                "Nessun fake service viene generato automaticamente.",
+            ],
+        },
+        {
+            "id": "legalroom",
+            "name": "LegalRoom",
+            "env_key": "LEGALROOM_START_CMD",
+            "health_env_key": "LEGALROOM_HEALTH_URLS",
+            "health_default": RUNTIME_ENV_DEFAULTS["LEGALROOM_HEALTH_URLS"],
+            "port": 4222,
+            "stack": ["Legal workflow engine", "Context memory", "Document pipeline"],
+            "required_dependencies": ["python3 or node", "local source/repo", "health endpoint 4222"],
+            "notes": [
+                "Per stare verde deve esistere un server reale in ascolto su 4222.",
+                "La configurazione può essere Python, Node, Docker o shell custom.",
+            ],
+        },
+        {
+            "id": "n8n",
+            "name": "n8n",
+            "env_key": "N8N_START_CMD",
+            "health_env_key": "N8N_HEALTH_URLS",
+            "health_default": RUNTIME_ENV_DEFAULTS["N8N_HEALTH_URLS"],
+            "port": 5678,
+            "stack": ["Workflow automation", "Webhooks", "Cron orchestration"],
+            "required_dependencies": ["node 18/20/22 or docker", "n8n runtime"],
+            "notes": [
+                "Se N8N_START_CMD è vuoto, il runner usa fallback Docker -> nvm node22 -> npx.",
+                "Node 24 non è supportato da n8n nelle verifiche attuali.",
+            ],
+        },
+    ]
+
+    supervisor_services = {
+        item.get("id"): item
+        for item in (supervisor_state.get("services") or [])
+        if isinstance(item, dict) and item.get("id")
+    }
+
+    apps: list[dict[str, Any]] = []
+    for spec in app_specs:
+        command = _runtime_env_value(env_map, spec["env_key"])
+        health_urls_str = _runtime_env_value(env_map, spec["health_env_key"]) or spec["health_default"]
+        health_urls = [url.strip() for url in health_urls_str.split(",") if url.strip()]
+        health = _probe_runtime_urls(health_urls)
+        command_state = _command_status(command)
+        supervisor_info = supervisor_services.get(spec["id"], {})
+
+        apps.append({
+            "id": spec["id"],
+            "name": spec["name"],
+            "configured": command_state["configured"] or spec["id"] == "n8n",
+            "command": command,
+            "command_status": command_state,
+            "health_urls": health_urls,
+            "health": health,
+            "port": spec["port"],
+            "stack": spec["stack"],
+            "required_dependencies": spec["required_dependencies"],
+            "notes": spec["notes"],
+            "supervisor": supervisor_info,
+            "recommended_actions": [
+                f"Configura {spec['env_key']}" if not command_state["configured"] and spec["id"] != "n8n" else None,
+                "Installa/abilita LaunchAgent runtime" if not _launch_agent_loaded("com.vio83.runtime-services") else None,
+                f"Verifica endpoint health sulla porta {spec['port']}" if not health.get("reachable") else None,
+            ],
+        })
+
+    return {
+        "status": "ok",
+        "detected_at": _now_iso(),
+        "preferences": {
+            "update_policy": _runtime_env_value(env_map, "RUNTIME_APPS_UPDATE_POLICY") or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_UPDATE_POLICY"],
+            "offline_mode": _runtime_env_value(env_map, "RUNTIME_APPS_OFFLINE_MODE") or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_OFFLINE_MODE"],
+            "last_user_approved_at": _runtime_env_value(env_map, "RUNTIME_APPS_LAST_USER_APPROVED_AT") or None,
+        },
+        "controls": {
+            "project_root": str(PROJECT_ROOT),
+            "env_path": str(PROJECT_ENV_PATH),
+            "runtime_launch_agent_installed": RUNTIME_LAUNCH_AGENT_PATH.exists(),
+            "runtime_launch_agent_loaded": _launch_agent_loaded("com.vio83.runtime-services"),
+            "orchestra_launch_agent_installed": ORCHESTRA_LAUNCH_AGENT_PATH.exists(),
+            "orchestra_launch_agent_loaded": _launch_agent_loaded("com.vio83.ai-orchestra"),
+            "supervisor_pid": supervisor_pid_raw,
+            "supervisor_state_path": str(RUNTIME_SUPERVISOR_STATE_PATH),
+        },
+        "dependencies": dependencies,
+        "claude_desktop": _claude_desktop_snapshot(),
+        "apps": apps,
+        "honesty_notes": [
+            "OpenClaw e LegalRoom non possono diventare verdi senza un comando reale di avvio.",
+            "La policy di update controlla la configurazione approvata dall'utente, non aggiorna magicamente binari esterni.",
+            "n8n risulta operativo solo se il runtime reale risponde sugli endpoint configurati.",
+        ],
+    }
+
+
+def _run_local_script(script_path: Path, timeout_s: int = 45) -> dict[str, Any]:
+    if not script_path.exists():
+        return {"ok": False, "output": f"Script non trovato: {script_path}"}
+
+    try:
+        result = subprocess.run(
+            ["/bin/bash", str(script_path)],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            env={**os.environ, "PROJECT_DIR": str(PROJECT_ROOT)},
+        )
+        output = "\n".join(filter(None, [(result.stdout or "").strip(), (result.stderr or "").strip()])).strip()
+        return {"ok": result.returncode == 0, "exit_code": result.returncode, "output": output}
+    except Exception as exc:
+        return {"ok": False, "exit_code": None, "output": str(exc)}
+
+
+GLOBAL_KNOWLEDGE_DOMAINS = [
+    {
+        "id": "medicine-health",
+        "name": "Medicina e Salute",
+        "subdomains": [
+            "medicina generale", "oncologia", "cardiologia", "neurologia", "psichiatria",
+            "epidemiologia", "sanità pubblica", "farmacologia", "genetica clinica",
+        ],
+        "trusted_sources": ["WHO", "CDC", "EMA", "AIFA", "PubMed", "Cochrane"],
+    },
+    {
+        "id": "law-policy",
+        "name": "Diritto, Regolazione e Policy",
+        "subdomains": [
+            "diritto civile", "diritto penale", "diritto amministrativo", "privacy", "compliance",
+            "diritto internazionale", "ai act", "diritto del lavoro", "fisco",
+        ],
+        "trusted_sources": ["EUR-Lex", "Gazzetta Ufficiale", "UN", "OECD", "WIPO"],
+    },
+    {
+        "id": "math-logic",
+        "name": "Matematica e Logica",
+        "subdomains": [
+            "algebra", "analisi", "statistica", "probabilità", "logica formale", "ottimizzazione",
+        ],
+        "trusted_sources": ["arXiv", "Springer", "IEEE", "ACM", "SIAM"],
+    },
+    {
+        "id": "computer-ai",
+        "name": "Informatica, AI e Sistemi",
+        "subdomains": [
+            "machine learning", "llm engineering", "security", "sistemi distribuiti", "database",
+            "rete", "hci", "software engineering",
+        ],
+        "trusted_sources": ["NIST", "CISA", "IEEE", "IETF", "W3C", "ACM"],
+    },
+    {
+        "id": "physics-space",
+        "name": "Fisica, Astrofisica e Astronomia",
+        "subdomains": [
+            "fisica teorica", "astrofisica", "cosmologia", "strumentazione", "missioni spaziali",
+        ],
+        "trusted_sources": ["NASA", "ESA", "CERN", "arXiv", "Nature"],
+    },
+    {
+        "id": "engineering",
+        "name": "Ingegneria e Tecnologia Applicata",
+        "subdomains": [
+            "ingegneria civile", "elettronica", "robotica", "materiali", "automazione", "energia",
+        ],
+        "trusted_sources": ["ISO", "IEC", "IEEE", "ASTM", "ASME"],
+    },
+    {
+        "id": "history-humanities",
+        "name": "Storia, Filosofia e Scienze Umane",
+        "subdomains": [
+            "storia moderna", "storia antica", "filosofia", "etica", "antropologia", "sociologia",
+        ],
+        "trusted_sources": ["UNESCO", "Europeana", "WorldCat", "Britannica", "JSTOR"],
+    },
+    {
+        "id": "psychology-cognition",
+        "name": "Psicologia e Scienze Cognitive",
+        "subdomains": [
+            "psicologia clinica", "neuroscienze cognitive", "psicometria", "comportamento", "educazione",
+        ],
+        "trusted_sources": ["APA", "NIH", "WHO", "PubMed", "PsycNet"],
+    },
+    {
+        "id": "economics-politics-journalism",
+        "name": "Economia, Politica e Giornalismo Dati",
+        "subdomains": [
+            "macroeconomia", "microeconomia", "mercati", "policy pubbliche", "fact-checking", "data journalism",
+        ],
+        "trusted_sources": ["World Bank", "IMF", "OECD", "Eurostat", "UNData"],
+    },
+]
+
+
+GLOBAL_LEGAL_WATCH = {
+    "global": [
+        {"name": "UN Treaty Collection", "url": "https://treaties.un.org/", "scope": "international"},
+        {"name": "WIPO Lex", "url": "https://www.wipo.int/wipolex/", "scope": "ip-law"},
+    ],
+    "eu": [
+        {"name": "EUR-Lex", "url": "https://eur-lex.europa.eu/", "scope": "eu-law"},
+        {"name": "EDPB", "url": "https://edpb.europa.eu/", "scope": "privacy"},
+    ],
+    "it": [
+        {"name": "Normattiva", "url": "https://www.normattiva.it/", "scope": "italian-law"},
+        {"name": "Gazzetta Ufficiale", "url": "https://www.gazzettaufficiale.it/", "scope": "italian-law"},
+    ],
+    "us": [
+        {"name": "Federal Register", "url": "https://www.federalregister.gov/", "scope": "us-law"},
+        {"name": "Congress.gov", "url": "https://www.congress.gov/", "scope": "us-law"},
+    ],
+}
+
+
+KNOWLEDGE_REFRESH_STATE = {
+    "last_refresh_at": None,
+    "jurisdiction": None,
+    "source_count": 0,
+    "reachable_count": 0,
+    "fail_count": 0,
+    "results": [],
+}
+
+
+KNOWLEDGE_POLICY_STATE = {
+    "strict_evidence_mode": True,
+    "refresh_interval_hours": 6,
+    "minimum_domain_score": 70.0,
+    "last_policy_update_at": _now_iso(),
+    "next_scheduled_refresh_at": None,
+}
+
+
+def _compute_domain_scores():
+    last_refresh_iso = KNOWLEDGE_REFRESH_STATE.get("last_refresh_at")
+    source_count = max(1, int(KNOWLEDGE_REFRESH_STATE.get("source_count", 0) or 0))
+    reachable_count = int(KNOWLEDGE_REFRESH_STATE.get("reachable_count", 0) or 0)
+
+    if source_count > 0:
+        watch_health_score = max(0.0, min(100.0, (reachable_count / source_count) * 100.0))
+    else:
+        watch_health_score = 60.0
+
+    if last_refresh_iso:
+        try:
+            last_refresh_ts = time.mktime(time.strptime(last_refresh_iso, "%Y-%m-%dT%H:%M:%SZ"))
+            age_h = max(0.0, (time.time() - last_refresh_ts) / 3600.0)
+            freshness_score = max(30.0, min(100.0, 100.0 - age_h * 8.0))
+        except Exception:
+            freshness_score = 55.0
+    else:
+        freshness_score = 45.0
+
+    scored_domains = []
+    for domain in GLOBAL_KNOWLEDGE_DOMAINS:
+        coverage_score = max(
+            0.0,
+            min(
+                100.0,
+                35.0
+                + len(domain.get("subdomains", [])) * 4.0
+                + len(domain.get("trusted_sources", [])) * 3.5,
+            ),
+        )
+
+        reliability_score = round(
+            coverage_score * 0.45 + freshness_score * 0.25 + watch_health_score * 0.30,
+            1,
+        )
+
+        scored_domains.append({
+            "id": domain["id"],
+            "name": domain["name"],
+            "coverage_score": round(coverage_score, 1),
+            "freshness_score": round(freshness_score, 1),
+            "watch_health_score": round(watch_health_score, 1),
+            "reliability_score": reliability_score,
+            "status": "high" if reliability_score >= 85 else "medium" if reliability_score >= 70 else "low",
+        })
+
+    return scored_domains
+
+
+def _build_knowledge_registry_payload():
+    total_domains = len(GLOBAL_KNOWLEDGE_DOMAINS)
+    total_subdomains = sum(len(d["subdomains"]) for d in GLOBAL_KNOWLEDGE_DOMAINS)
+    unique_sources = sorted({source for d in GLOBAL_KNOWLEDGE_DOMAINS for source in d["trusted_sources"]})
+    scores = _compute_domain_scores()
+    score_by_id = {score["id"]: score for score in scores}
+
+    return {
+        "status": "ok",
+        "version": "2026.03-verified-knowledge-stack-v1",
+        "domains": [
+            {
+                **domain,
+                "reliability": score_by_id.get(domain["id"]),
+            }
+            for domain in GLOBAL_KNOWLEDGE_DOMAINS
+        ],
+        "coverage": {
+            "domain_count": total_domains,
+            "subdomain_count": total_subdomains,
+            "trusted_source_count": len(unique_sources),
+            "trusted_sources": unique_sources,
+        },
+        "scores": {
+            "domains": scores,
+            "average_reliability": round(sum(item["reliability_score"] for item in scores) / max(1, len(scores)), 1),
+            "minimum_required": KNOWLEDGE_POLICY_STATE["minimum_domain_score"],
+        },
+        "policy": KNOWLEDGE_POLICY_STATE,
+        "legal_watch_jurisdictions": list(GLOBAL_LEGAL_WATCH.keys()),
+        "last_generated_at": _now_iso(),
+    }
+
+
+async def _probe_watch_source(source: dict, timeout_s: float = 4.5):
+    import urllib.request
+
+    started = time.time()
+
+    def _run_request():
+        req = urllib.request.Request(source["url"], method="GET", headers={"User-Agent": "VIO83-HealthProbe/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout_s) as response:
+            return int(getattr(response, "status", 200))
+
+    try:
+        status_code = await asyncio.to_thread(_run_request)
+        latency_ms = int((time.time() - started) * 1000)
+        return {
+            "name": source["name"],
+            "url": source["url"],
+            "scope": source.get("scope", "generic"),
+            "ok": 200 <= status_code < 400,
+            "status_code": status_code,
+            "latency_ms": latency_ms,
+        }
+    except Exception as e:
+        latency_ms = int((time.time() - started) * 1000)
+        return {
+            "name": source["name"],
+            "url": source["url"],
+            "scope": source.get("scope", "generic"),
+            "ok": False,
+            "status_code": None,
+            "latency_ms": latency_ms,
+            "error": str(e),
+        }
+
+
+async def _refresh_knowledge_watch(jurisdiction: str = "global"):
+    if jurisdiction == "all":
+        sources = [source for group in GLOBAL_LEGAL_WATCH.values() for source in group]
+    else:
+        sources = GLOBAL_LEGAL_WATCH.get(jurisdiction)
+        if sources is None:
+            raise ValueError(f"Jurisdiction non supportata: {jurisdiction}")
+
+    results = await asyncio.gather(*[_probe_watch_source(source) for source in sources])
+    reachable_count = sum(1 for item in results if item.get("ok"))
+
+    summary = {
+        "last_refresh_at": _now_iso(),
+        "jurisdiction": jurisdiction,
+        "source_count": len(results),
+        "reachable_count": reachable_count,
+        "fail_count": len(results) - reachable_count,
+        "results": results,
+    }
+
+    KNOWLEDGE_REFRESH_STATE.update(summary)
+    next_h = float(KNOWLEDGE_POLICY_STATE.get("refresh_interval_hours", 6))
+    KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(time.time() + next_h * 3600.0)
+    return summary
+
+
+async def _knowledge_auto_refresh_loop():
+    while True:
+        try:
+            await _refresh_knowledge_watch("all")
+            print("🌍 Knowledge Watch auto-refresh completato")
+        except Exception as e:
+            print(f"⚠️ Knowledge Watch auto-refresh fallito: {e}")
+
+        next_h = max(1.0, float(KNOWLEDGE_POLICY_STATE.get("refresh_interval_hours", 6)))
+        KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(time.time() + next_h * 3600.0)
+        await asyncio.sleep(next_h * 60 * 60)
 
 # === CORE INFRASTRUCTURE ===
 from backend.core.cache import get_cache, CacheEngine
@@ -155,10 +787,22 @@ async def lifespan(app: FastAPI):
     if not available:
         print("☁️  Provider cloud: nessuno (configura .env)")
 
+    app.state.knowledge_auto_refresh_task = asyncio.create_task(_knowledge_auto_refresh_loop())
+    print("🌍 Knowledge Watch: auto-refresh ogni 6h attivo")
+
     yield
 
     # === SHUTDOWN ===
     print("🎵 VIO 83 AI ORCHESTRA — Shutdown in corso...")
+
+    knowledge_task = getattr(app.state, "knowledge_auto_refresh_task", None)
+    if knowledge_task:
+        knowledge_task.cancel()
+        try:
+            await knowledge_task
+        except asyncio.CancelledError:
+            pass
+
     pool = get_connection_pool()
     await pool.close_all()
     cache = get_cache()
@@ -257,7 +901,8 @@ async def chat(request: ChatRequest):
         result = await orchestrate(
             messages=messages,
             mode=request.mode,
-            provider=request.provider or "ollama",
+            provider=request.provider or ("claude" if request.mode == "cloud" else "ollama"),
+            model=request.model,
             ollama_model=request.model or "qwen2.5-coder:3b",
             auto_routing=True,
             temperature=request.temperature,
@@ -538,6 +1183,22 @@ async def list_providers():
     }
 
 
+@app.get("/orchestration/elite-stacks")
+async def api_orchestration_elite_stacks():
+    """Stack consigliati ad alta specializzazione per task complessi e replica locale/proxy."""
+    payload = get_elite_task_stacks()
+    return {
+        "status": "ok",
+        "generated_at": _now_iso(),
+        "stacks": payload,
+        "notes": [
+            "Replica 100% identica di LegalRoom/OpenClaw non onestamente garantibile senza codice e workflow originali.",
+            "Replica ad alta fedeltà di capacità, orchestrazione e runtime locale/proxy è invece implementabile e già parzialmente presente nel progetto.",
+            "Per task medico-legali è consigliata la strict evidence policy con knowledge base e fonti certificate.",
+        ],
+    }
+
+
 # ═══════════════════════════════════════════════
 # METRICHE
 # ═══════════════════════════════════════════════
@@ -732,6 +1393,241 @@ async def kb_build_context(
 
 
 # ═══════════════════════════════════════════════
+# CLAUDE DESKTOP INTEGRATION
+# ═══════════════════════════════════════════════
+
+@app.get("/claude/extensions")
+async def api_claude_extensions():
+    """Rileva estensioni MCP installate in Claude Desktop (macOS)."""
+    import pathlib
+
+    ext_path = pathlib.Path.home() / "Library" / "Application Support" / "Claude" / "extensions-installations.json"
+    cfg_path = pathlib.Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+
+    extensions = []
+    preferences: dict = {}
+
+    if ext_path.exists():
+        try:
+            raw = json.loads(ext_path.read_text())
+            for _ext_id, data in raw.get("extensions", {}).items():
+                manifest = data.get("manifest", {})
+                tools = manifest.get("tools", [])
+                extensions.append({
+                    "id": data.get("id", _ext_id),
+                    "name": manifest.get("display_name") or manifest.get("name") or _ext_id,
+                    "version": data.get("version"),
+                    "description": manifest.get("description", ""),
+                    "tool_count": len(tools),
+                    "tools": [t.get("name") for t in tools[:12]],
+                    "installed_at": data.get("installedAt"),
+                    "source": data.get("source", "registry"),
+                })
+        except Exception as e:
+            return {"status": "error", "error": str(e), "extensions": [], "preferences": {}}
+
+    if cfg_path.exists():
+        try:
+            cfg = json.loads(cfg_path.read_text())
+            prefs = cfg.get("preferences", {})
+            preferences = {
+                "coworkEnabled": prefs.get("coworkScheduledTasksEnabled", False),
+                "webSearchEnabled": prefs.get("coworkWebSearchEnabled", False),
+                "keepAwake": prefs.get("keepAwakeEnabled", False),
+                "sidebarMode": prefs.get("sidebarMode", ""),
+            }
+        except Exception:
+            pass
+
+    return {
+        "status": "ok",
+        "extensions": extensions,
+        "count": len(extensions),
+        "preferences": preferences,
+        "detected_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+@app.get("/claude/activity-summary")
+async def api_claude_activity_summary():
+    """Sintesi attività locale di Claude Desktop per audit tecnico (macOS)."""
+    import pathlib
+
+    base_path = pathlib.Path.home() / "Library" / "Application Support" / "Claude"
+    sessions_root = base_path / "local-agent-mode-sessions"
+    sessions_index_path = sessions_root / "sessions-index.json"
+
+    workspace_count = 0
+    session_count = 0
+    audit_files_count = 0
+    latest_session_id: Optional[str] = None
+    latest_session_updated_at: Optional[str] = None
+    latest_session_mtime = 0.0
+
+    if sessions_root.exists() and sessions_root.is_dir():
+        for workspace_dir in sessions_root.iterdir():
+            if not workspace_dir.is_dir():
+                continue
+            workspace_count += 1
+
+            for session_dir in workspace_dir.iterdir():
+                if not session_dir.is_dir():
+                    continue
+
+                session_count += 1
+                try:
+                    st = session_dir.stat()
+                    if st.st_mtime > latest_session_mtime:
+                        latest_session_mtime = st.st_mtime
+                        latest_session_id = session_dir.name
+                        latest_session_updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(st.st_mtime))
+                except Exception:
+                    pass
+
+                try:
+                    audit_files_count += sum(1 for _ in session_dir.glob("local_*/audit.jsonl"))
+                except Exception:
+                    pass
+
+    indexed_sessions = 0
+    if sessions_index_path.exists():
+        try:
+            raw = json.loads(sessions_index_path.read_text())
+            if isinstance(raw, dict):
+                sessions_val = raw.get("sessions")
+                if isinstance(sessions_val, list):
+                    indexed_sessions = len(sessions_val)
+                elif isinstance(sessions_val, dict):
+                    indexed_sessions = len(sessions_val.keys())
+        except Exception:
+            pass
+
+    return {
+        "status": "ok",
+        "sessions": {
+            "workspace_count": workspace_count,
+            "session_count": session_count,
+            "indexed_sessions": indexed_sessions,
+            "audit_files": audit_files_count,
+            "latest_session_id": latest_session_id,
+            "latest_session_updated_at": latest_session_updated_at,
+        },
+        "paths": {
+            "base": str(base_path),
+            "sessions_root": str(sessions_root),
+            "sessions_index": str(sessions_index_path),
+        },
+        "detected_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+# ═══════════════════════════════════════════════
+# GLOBAL VERIFIED KNOWLEDGE STACK
+# ═══════════════════════════════════════════════
+
+@app.get("/knowledge/registry")
+async def api_knowledge_registry():
+    """Catalogo domini ultra-specializzati con fonti certificate e tracciamento globale."""
+    return _build_knowledge_registry_payload()
+
+
+@app.get("/knowledge/legal-watch")
+async def api_knowledge_legal_watch(jurisdiction: str = Query("global")):
+    """Fonti legali monitorate per giurisdizione (global/eu/it/us/all)."""
+    if jurisdiction != "all" and jurisdiction not in GLOBAL_LEGAL_WATCH:
+        raise HTTPException(status_code=404, detail=f"Giurisdizione non supportata: {jurisdiction}")
+
+    if jurisdiction == "all":
+        sources = [source for group in GLOBAL_LEGAL_WATCH.values() for source in group]
+    else:
+        sources = GLOBAL_LEGAL_WATCH[jurisdiction]
+
+    return {
+        "status": "ok",
+        "jurisdiction": jurisdiction,
+        "sources": sources,
+        "refresh_state": KNOWLEDGE_REFRESH_STATE,
+        "detected_at": _now_iso(),
+    }
+
+
+@app.post("/knowledge/refresh")
+async def api_knowledge_refresh(jurisdiction: str = Query("all")):
+    """Aggiorna lo stato raggiungibilità delle fonti certificate monitorate."""
+    if jurisdiction != "all" and jurisdiction not in GLOBAL_LEGAL_WATCH:
+        raise HTTPException(status_code=404, detail=f"Giurisdizione non supportata: {jurisdiction}")
+
+    summary = await _refresh_knowledge_watch(jurisdiction)
+    return {
+        "status": "ok",
+        "summary": summary,
+    }
+
+
+@app.get("/knowledge/domain-scores")
+async def api_knowledge_domain_scores():
+    """Restituisce score affidabilità per dominio specializzato."""
+    scores = _compute_domain_scores()
+    average = round(sum(item["reliability_score"] for item in scores) / max(1, len(scores)), 1)
+    return {
+        "status": "ok",
+        "scores": scores,
+        "average_reliability": average,
+        "minimum_required": KNOWLEDGE_POLICY_STATE["minimum_domain_score"],
+        "strict_evidence_mode": KNOWLEDGE_POLICY_STATE["strict_evidence_mode"],
+        "detected_at": _now_iso(),
+    }
+
+
+@app.get("/knowledge/scheduler")
+async def api_knowledge_scheduler():
+    """Configurazione scheduler knowledge auto-refresh."""
+    return {
+        "status": "ok",
+        "scheduler": {
+            "refresh_interval_hours": KNOWLEDGE_POLICY_STATE["refresh_interval_hours"],
+            "next_scheduled_refresh_at": KNOWLEDGE_POLICY_STATE.get("next_scheduled_refresh_at"),
+            "last_refresh_at": KNOWLEDGE_REFRESH_STATE.get("last_refresh_at"),
+        },
+        "policy": {
+            "strict_evidence_mode": KNOWLEDGE_POLICY_STATE["strict_evidence_mode"],
+            "minimum_domain_score": KNOWLEDGE_POLICY_STATE["minimum_domain_score"],
+            "last_policy_update_at": KNOWLEDGE_POLICY_STATE.get("last_policy_update_at"),
+        },
+    }
+
+
+@app.put("/knowledge/scheduler")
+async def api_set_knowledge_scheduler(
+    refresh_interval_hours: int = Query(6, ge=1, le=168),
+):
+    """Aggiorna intervallo scheduler auto-refresh (in ore)."""
+    KNOWLEDGE_POLICY_STATE["refresh_interval_hours"] = int(refresh_interval_hours)
+    KNOWLEDGE_POLICY_STATE["last_policy_update_at"] = _now_iso()
+    KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(time.time() + int(refresh_interval_hours) * 3600.0)
+    return {
+        "status": "ok",
+        "refresh_interval_hours": KNOWLEDGE_POLICY_STATE["refresh_interval_hours"],
+        "next_scheduled_refresh_at": KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"],
+    }
+
+
+@app.put("/knowledge/policy")
+async def api_set_knowledge_policy(
+    strict_evidence_mode: bool = Query(True),
+    minimum_domain_score: float = Query(70.0, ge=0.0, le=100.0),
+):
+    """Aggiorna policy qualità: strict evidence + soglia minima dominio."""
+    KNOWLEDGE_POLICY_STATE["strict_evidence_mode"] = bool(strict_evidence_mode)
+    KNOWLEDGE_POLICY_STATE["minimum_domain_score"] = float(minimum_domain_score)
+    KNOWLEDGE_POLICY_STATE["last_policy_update_at"] = _now_iso()
+    return {
+        "status": "ok",
+        "policy": KNOWLEDGE_POLICY_STATE,
+    }
+
+
+# ═══════════════════════════════════════════════
 # CORE INFRASTRUCTURE — Cache, Network, Security
 # ═══════════════════════════════════════════════
 
@@ -814,6 +1710,76 @@ async def api_core_status():
             "available_providers": vault.available_providers,
         },
     }
+
+
+# ═══════════════════════════════════════════════
+# RUNTIME APPS — ANALYSIS / CONFIG / ACTIONS
+# ═══════════════════════════════════════════════
+
+@app.get("/runtime/apps/analysis")
+async def api_runtime_apps_analysis():
+    """Analisi reale di app runtime esterne, dipendenze, stack e configurazione utente."""
+    return _runtime_apps_snapshot()
+
+
+@app.put("/runtime/apps/config")
+async def api_runtime_apps_config(payload: dict[str, Any] = Body(...)):
+    """Salva configurazione runtime apps nel .env del progetto."""
+    updates: dict[str, str] = {}
+
+    field_map = {
+        "openclaw_start_cmd": "OPENCLAW_START_CMD",
+        "legalroom_start_cmd": "LEGALROOM_START_CMD",
+        "n8n_start_cmd": "N8N_START_CMD",
+        "openclaw_health_urls": "OPENCLAW_HEALTH_URLS",
+        "legalroom_health_urls": "LEGALROOM_HEALTH_URLS",
+        "n8n_health_urls": "N8N_HEALTH_URLS",
+        "update_policy": "RUNTIME_APPS_UPDATE_POLICY",
+        "offline_mode": "RUNTIME_APPS_OFFLINE_MODE",
+    }
+
+    for incoming_key, env_key in field_map.items():
+        if incoming_key in payload:
+            value = payload.get(incoming_key)
+            updates[env_key] = "" if value is None else str(value).strip()
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nessun campo valido da aggiornare")
+
+    if "RUNTIME_APPS_UPDATE_POLICY" in updates or "RUNTIME_APPS_OFFLINE_MODE" in updates:
+        updates["RUNTIME_APPS_LAST_USER_APPROVED_AT"] = _now_iso()
+
+    _write_project_env_updates(updates)
+
+    return {
+        "status": "ok",
+        "updated_keys": list(updates.keys()),
+        "snapshot": _runtime_apps_snapshot(),
+    }
+
+
+@app.post("/runtime/apps/action")
+async def api_runtime_apps_action(payload: dict[str, Any] = Body(...)):
+    """Esegue azioni locali controllate per supervisor/autostart runtime."""
+    action = str(payload.get("action", "")).strip()
+
+    actions = {
+        "start-supervisor": PROJECT_ROOT / "scripts" / "runtime" / "start_runtime_services.sh",
+        "stop-supervisor": PROJECT_ROOT / "scripts" / "runtime" / "stop_runtime_services.sh",
+        "install-autostart": PROJECT_ROOT / "install_autostart.sh",
+    }
+
+    if action not in actions:
+        raise HTTPException(status_code=400, detail=f"Azione non supportata: {action}")
+
+    result = _run_local_script(actions[action], timeout_s=90 if action == "install-autostart" else 45)
+    result["snapshot"] = _runtime_apps_snapshot()
+    result["action"] = action
+
+    if not result.get("ok"):
+        raise HTTPException(status_code=500, detail=result)
+
+    return result
 
 
 # ═══════════════════════════════════════════════

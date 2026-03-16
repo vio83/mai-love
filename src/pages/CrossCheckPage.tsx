@@ -1,7 +1,6 @@
 // VIO 83 AI ORCHESTRA — Cross-Check: Verifica Multi-Modello
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, AlertTriangle, XCircle, Shield, Brain, Percent } from 'lucide-react';
+import { AlertTriangle, Brain, CheckCircle, Percent, Shield, XCircle } from 'lucide-react';
 
 const crossChecks = [
   {

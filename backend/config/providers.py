@@ -260,33 +260,33 @@ CLOUD_PROVIDERS = {
         "priority": 3,
         "cost": "paid_standard",
         "models": {
-            "claude-haiku-3-5-20241022": {
-                "name": "Claude Haiku 3.5",
+            "claude-haiku-4-5": {
+                "name": "Claude Haiku 4.5",
                 "context_window": 200000,
-                "max_output": 8192,
-                "strengths": ["speed", "simple_tasks", "classification"],
-                "cost_per_1m_input": 0.25,
-                "cost_per_1m_output": 1.25,
+                "max_output": 64000,
+                "strengths": ["speed", "simple_tasks", "classification", "fast_reasoning"],
+                "cost_per_1m_input": 1.0,
+                "cost_per_1m_output": 5.0,
             },
-            "claude-sonnet-4-20250514": {
-                "name": "Claude Sonnet 4",
-                "context_window": 200000,
-                "max_output": 8192,
-                "strengths": ["code", "analysis", "reasoning", "writing"],
+            "claude-sonnet-4-6": {
+                "name": "Claude Sonnet 4.6",
+                "context_window": 1000000,
+                "max_output": 64000,
+                "strengths": ["code", "analysis", "reasoning", "writing", "agents"],
                 "cost_per_1m_input": 3.0,
                 "cost_per_1m_output": 15.0,
             },
-            "claude-opus-4-20250514": {
-                "name": "Claude Opus 4",
-                "context_window": 200000,
-                "max_output": 8192,
-                "strengths": ["complex_reasoning", "research", "creative"],
-                "cost_per_1m_input": 15.0,
-                "cost_per_1m_output": 75.0,
+            "claude-opus-4-6": {
+                "name": "Claude Opus 4.6",
+                "context_window": 1000000,
+                "max_output": 128000,
+                "strengths": ["complex_reasoning", "research", "creative", "agents", "coding"],
+                "cost_per_1m_input": 5.0,
+                "cost_per_1m_output": 25.0,
             },
         },
         "env_key": "ANTHROPIC_API_KEY",
-        "default_model": "claude-sonnet-4-20250514",
+        "default_model": "claude-sonnet-4-6",
     },
     "gpt4": {
         "name": "OpenAI GPT-4",
@@ -294,25 +294,25 @@ CLOUD_PROVIDERS = {
         "priority": 3,
         "cost": "paid_standard",
         "models": {
-            "gpt-4o-mini": {
-                "name": "GPT-4o Mini",
-                "context_window": 128000,
-                "max_output": 16384,
-                "strengths": ["speed", "cost_effective"],
-                "cost_per_1m_input": 0.15,
-                "cost_per_1m_output": 0.60,
+            "gpt-5-mini": {
+                "name": "GPT-5 mini",
+                "context_window": 400000,
+                "max_output": 128000,
+                "strengths": ["speed", "cost_effective", "tools", "reasoning"],
+                "cost_per_1m_input": 0.25,
+                "cost_per_1m_output": 2.0,
             },
-            "gpt-4o": {
-                "name": "GPT-4o",
-                "context_window": 128000,
-                "max_output": 16384,
-                "strengths": ["creative", "multimodal", "general"],
+            "gpt-5.4": {
+                "name": "GPT-5.4",
+                "context_window": 1000000,
+                "max_output": 128000,
+                "strengths": ["creative", "multimodal", "general", "coding", "agents"],
                 "cost_per_1m_input": 2.50,
-                "cost_per_1m_output": 10.0,
+                "cost_per_1m_output": 15.0,
             },
         },
         "env_key": "OPENAI_API_KEY",
-        "default_model": "gpt-4o",
+        "default_model": "gpt-5.4",
     },
     "grok": {
         "name": "xAI Grok",
@@ -320,17 +320,17 @@ CLOUD_PROVIDERS = {
         "priority": 3,
         "cost": "paid_standard",
         "models": {
-            "grok-2": {
-                "name": "Grok 2",
-                "context_window": 131072,
+            "grok-4": {
+                "name": "Grok 4",
+                "context_window": 2000000,
                 "max_output": 8192,
-                "strengths": ["realtime", "news", "humor", "unfiltered"],
+                "strengths": ["realtime", "news", "tool_use", "reasoning", "agentic"],
                 "cost_per_1m_input": 2.0,
                 "cost_per_1m_output": 10.0,
             },
         },
         "env_key": "XAI_API_KEY",
-        "default_model": "grok-2",
+        "default_model": "grok-4",
     },
     "google": {
         "name": "Google Gemini",
@@ -338,11 +338,11 @@ CLOUD_PROVIDERS = {
         "priority": 3,
         "cost": "paid_standard",
         "models": {
-            "gemini-2.0-flash": {
-                "name": "Gemini 2.0 Flash",
+            "gemini-2.5-flash": {
+                "name": "Gemini 2.5 Flash",
                 "context_window": 1000000,
                 "max_output": 8192,
-                "strengths": ["speed", "multimodal", "long_context"],
+                "strengths": ["speed", "multimodal", "long_context", "reasoning"],
                 "cost_per_1m_input": 0.075,
                 "cost_per_1m_output": 0.30,
             },
@@ -350,13 +350,39 @@ CLOUD_PROVIDERS = {
                 "name": "Gemini 2.5 Pro",
                 "context_window": 1000000,
                 "max_output": 8192,
-                "strengths": ["reasoning", "multimodal", "long_context"],
+                "strengths": ["reasoning", "multimodal", "long_context", "coding", "agents"],
                 "cost_per_1m_input": 1.25,
                 "cost_per_1m_output": 10.0,
             },
         },
         "env_key": "GEMINI_API_KEY",
-        "default_model": "gemini-2.0-flash",
+        "default_model": "gemini-2.5-pro",
+    },
+    "perplexity": {
+        "name": "Perplexity Agent API",
+        "litellm_prefix": "perplexity",
+        "priority": 3,
+        "cost": "paid_standard",
+        "models": {
+            "pro-search": {
+                "name": "Perplexity Pro Search",
+                "context_window": 262144,
+                "max_output": 32768,
+                "strengths": ["realtime", "web_search", "citations", "research"],
+                "cost_per_1m_input": 0.0,
+                "cost_per_1m_output": 0.0,
+            },
+            "deep-research": {
+                "name": "Perplexity Deep Research",
+                "context_window": 262144,
+                "max_output": 32768,
+                "strengths": ["deep_research", "citations", "multi_step", "web_search"],
+                "cost_per_1m_input": 0.0,
+                "cost_per_1m_output": 0.0,
+            },
+        },
+        "env_key": "PERPLEXITY_API_KEY",
+        "default_model": "pro-search",
     },
 }
 
@@ -379,6 +405,41 @@ REQUEST_TYPE_ROUTING = {
         "free_cloud": "groq",
         "cloud_primary": "claude",
         "cloud_fallback": "deepseek",
+    },
+    "legal": {
+        "local_primary": "mistral:latest",
+        "local_fallback": "llama3:latest",
+        "free_cloud": "openrouter",
+        "cloud_primary": "claude",
+        "cloud_fallback": "perplexity",
+    },
+    "medical": {
+        "local_primary": "mistral:latest",
+        "local_fallback": "llama3:latest",
+        "free_cloud": "openrouter",
+        "cloud_primary": "claude",
+        "cloud_fallback": "google",
+    },
+    "writing": {
+        "local_primary": "llama3:latest",
+        "local_fallback": "mistral:latest",
+        "free_cloud": "openrouter",
+        "cloud_primary": "claude",
+        "cloud_fallback": "gpt4",
+    },
+    "research": {
+        "local_primary": "llama3:latest",
+        "local_fallback": "mistral:latest",
+        "free_cloud": "openrouter",
+        "cloud_primary": "perplexity",
+        "cloud_fallback": "claude",
+    },
+    "automation": {
+        "local_primary": "qwen2.5-coder:3b",
+        "local_fallback": "llama3.2:3b",
+        "free_cloud": "groq",
+        "cloud_primary": "claude",
+        "cloud_fallback": "gpt4",
     },
     "creative": {
         "local_primary": "llama3:latest",
@@ -423,6 +484,50 @@ REQUEST_TYPE_ROUTING = {
         "cloud_fallback": "claude",
     },
 }
+
+
+ELITE_TASK_STACKS = {
+    "replica_honesty": {
+        "exact_replica_possible": False,
+        "reason": "Senza il codice sorgente reale, i workflow proprietari, i prompt interni, i dati e le integrazioni originali di LegalRoom/OpenClaw non esiste una replica 100% bit-identica onesta.",
+        "what_is_possible_now": "Replica locale/proxy ad alta fedeltà di capacità, UX operativa, orchestrazione modelli, runtime health, supervisor e task stack specialistici.",
+    },
+    "coding_agent_max": {
+        "primary": ["claude-opus-4-6", "claude-sonnet-4-6"],
+        "secondary": ["gpt-5.4", "deepseek-reasoner", "openai/gpt-oss-120b"],
+        "local": ["qwen2.5-coder:3b", "deepseek-coder-v2:lite", "codellama:latest"],
+        "best_for": ["codebase surgery", "tool-using agents", "refactor complessi", "debug profondo"],
+    },
+    "legal_research_max": {
+        "primary": ["claude-opus-4-6", "pro-search", "deep-research"],
+        "secondary": ["gemini-2.5-pro", "mistral-large-latest"],
+        "local": ["mistral:latest", "llama3:latest"],
+        "best_for": ["analisi norme", "comparazione giurisdizioni", "memo legali", "due diligence documentale"],
+    },
+    "medicine_evidence_max": {
+        "primary": ["claude-opus-4-6", "gemini-2.5-pro", "deep-research"],
+        "secondary": ["deepseek-reasoner", "gpt-5.4"],
+        "local": ["mistral:latest"],
+        "best_for": ["letteratura clinica", "sintesi linee guida", "triage informativo", "patient education con citazioni"],
+    },
+    "writing_editorial_max": {
+        "primary": ["claude-sonnet-4-6", "gpt-5.4"],
+        "secondary": ["mistral-large-latest", "gemini-2.5-flash"],
+        "local": ["llama3:latest"],
+        "best_for": ["copywriting", "ghostwriting", "long-form", "editing strutturale", "tone control"],
+    },
+    "realtime_deep_research_max": {
+        "primary": ["deep-research", "pro-search", "grok-4"],
+        "secondary": ["gemini-2.5-pro", "claude-opus-4-6"],
+        "local": ["llama3.2:3b"],
+        "best_for": ["news intelligence", "trend live", "market scan", "research multi-step con web"],
+    },
+}
+
+
+def get_elite_task_stacks() -> dict:
+    """Restituisce gli stack raccomandati ad alte prestazioni per task complessi."""
+    return ELITE_TASK_STACKS
 
 
 # ═══════════════════════════════════════════════════════════

@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA - Global State Management (Zustand)
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AIProvider, AIMode, AppPage, Conversation, Message, AppSettings } from '../types';
+import type { AIMode, AIProvider, AppPage, AppSettings, Conversation, Message } from '../types';
 
 interface AppState {
   // Current conversation
@@ -31,6 +31,7 @@ interface AppState {
   deleteConversation: (id: string) => void;
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
+  activateFullOrchestration: () => void;
 }
 
 const defaultSettings: AppSettings = {
@@ -39,10 +40,11 @@ const defaultSettings: AppSettings = {
   orchestrator: {
     mode: 'local',
     primaryProvider: 'ollama',
-    fallbackProviders: [],
-    crossCheckEnabled: false,
-    ragEnabled: false,
-    autoRouting: false,
+    fallbackProviders: ['ollama'],
+    crossCheckEnabled: true,
+    ragEnabled: true,
+    strictEvidenceMode: true,
+    autoRouting: true,
   },
   apiKeys: [],
   ollamaHost: 'http://localhost:11434',
@@ -51,7 +53,7 @@ const defaultSettings: AppSettings = {
 };
 
 // Versione dello schema — incrementa per forzare reset dei settings corrotti
-const STORE_VERSION = 2;
+const STORE_VERSION = 4;
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -73,7 +75,7 @@ export const useAppStore = create<AppState>()(
           messages: [],
           model: s.orchestrator.mode === 'local'
             ? (s.ollamaModel || 'qwen2.5-coder:3b')
-            : 'claude-sonnet-4-20250514',
+            : 'claude-sonnet-4-6',
           provider: s.orchestrator.primaryProvider,
           mode: s.orchestrator.mode,
           createdAt: Date.now(),
@@ -119,7 +121,7 @@ export const useAppStore = create<AppState>()(
               ...state.settings.orchestrator,
               mode,
               primaryProvider: mode === 'local' ? 'ollama' : 'claude',
-              autoRouting: mode === 'cloud',
+              autoRouting: true,
             },
           },
         }));
@@ -158,6 +160,23 @@ export const useAppStore = create<AppState>()(
       },
 
       setCurrentPage: (page) => set({ currentPage: page }),
+
+      activateFullOrchestration: () => {
+        set(state => ({
+          settings: {
+            ...state.settings,
+            orchestrator: {
+              mode: 'local',
+              primaryProvider: 'ollama',
+              fallbackProviders: ['ollama', ...state.settings.orchestrator.fallbackProviders.filter((p) => p !== 'ollama')],
+              autoRouting: true,
+              crossCheckEnabled: true,
+              ragEnabled: true,
+              strictEvidenceMode: true,
+            },
+          },
+        }));
+      },
 
       resetToLocal: () => {
         set(state => ({

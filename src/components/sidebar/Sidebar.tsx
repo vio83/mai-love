@@ -1,8 +1,17 @@
 // VIO 83 AI ORCHESTRA - Sidebar con Navigazione Multi-Pagina
 import {
-  MessageSquarePlus, Trash2, Settings, Music, ChevronLeft,
-  LayoutDashboard, MessageSquare, GitBranch, BarChart3,
-  BookOpen, Shield, Cpu,
+    BarChart3,
+    BookOpen,
+    ChevronLeft,
+    Cpu,
+    GitBranch,
+    LayoutDashboard, MessageSquare,
+    MessageSquarePlus,
+    Music,
+    Orbit,
+    Settings,
+    Shield,
+    Trash2,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import type { AppPage } from '../../types';
@@ -15,6 +24,7 @@ const NAV_ITEMS: { id: AppPage; label: string; icon: typeof LayoutDashboard }[] 
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'rag', label: 'RAG Knowledge', icon: BookOpen },
   { id: 'models', label: 'AI Models', icon: Cpu },
+  { id: 'runtime', label: 'Runtime 360', icon: Orbit },
 ];
 
 export default function Sidebar() {
@@ -27,7 +37,6 @@ export default function Sidebar() {
     setActiveConversation,
     deleteConversation,
     toggleSidebar,
-    toggleSettings,
     setCurrentPage,
   } = useAppStore();
 
@@ -221,7 +230,7 @@ export default function Sidebar() {
         borderTop: '1px solid var(--vio-border)',
       }}>
         <button
-          onClick={() => { toggleSettings(); setCurrentPage('settings'); }}
+          onClick={() => setCurrentPage('settings')}
           style={{
             width: '100%',
             padding: '8px',

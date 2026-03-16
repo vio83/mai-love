@@ -1,19 +1,37 @@
 // VIO 83 AI ORCHESTRA - App Principale con Navigazione Multi-Pagina
 import { Menu } from 'lucide-react';
-import { useAppStore } from './stores/appStore';
-import Sidebar from './components/sidebar/Sidebar';
-import ChatView from './components/chat/ChatView';
+import { lazy, Suspense } from 'react';
+import ParticleBackground from './components/layout/ParticleBackground';
 import { SettingsPanel } from './components/settings/SettingsPanel';
-import DashboardPage from './pages/DashboardPage';
-import ModelsPage from './pages/ModelsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import WorkflowPage from './pages/WorkflowPage';
-import RagPage from './pages/RagPage';
-import CrossCheckPage from './pages/CrossCheckPage';
+import Sidebar from './components/sidebar/Sidebar';
+import { useAppStore } from './stores/appStore';
 import './styles/vio-dark.css';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ChatView = lazy(() => import('./components/chat/ChatView'));
+const WorkflowPage = lazy(() => import('./pages/WorkflowPage'));
+const CrossCheckPage = lazy(() => import('./pages/CrossCheckPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const RagPage = lazy(() => import('./pages/RagPage'));
+const ModelsPage = lazy(() => import('./pages/ModelsPage'));
+const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
 
 export default function App() {
   const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage } = useAppStore();
+
+  const loadingFallback = (
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'var(--vio-text-dim)',
+      fontSize: '13px',
+      background: 'var(--vio-bg-primary)',
+    }}>
+      Caricamento runtime…
+    </div>
+  );
 
   // Render the active page
   const renderPage = () => {
@@ -25,7 +43,8 @@ export default function App() {
       case 'analytics': return <AnalyticsPage />;
       case 'rag': return <RagPage />;
       case 'models': return <ModelsPage />;
-      case 'settings': return <SettingsPanel />;
+      case 'runtime': return <OrchestraRuntimePage />;
+      case 'settings': return <SettingsPanel variant="page" />;
       default: return <ChatView />;
     }
   };
@@ -38,6 +57,7 @@ export default function App() {
     analytics: 'Analytics',
     rag: 'RAG Knowledge',
     models: 'AI Models',
+    runtime: 'Runtime 360',
     settings: 'Impostazioni',
   };
 
@@ -49,7 +69,10 @@ export default function App() {
       overflow: 'hidden',
       backgroundColor: 'var(--vio-bg-primary)',
       color: 'var(--vio-text-primary)',
+      position: 'relative',
     }}>
+      <ParticleBackground />
+
       {/* Sidebar */}
       <Sidebar />
 
@@ -100,7 +123,9 @@ export default function App() {
 
         {/* Page content */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {renderPage()}
+          <Suspense fallback={loadingFallback}>
+            {renderPage()}
+          </Suspense>
         </div>
       </div>
 

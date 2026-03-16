@@ -1,0 +1,6 @@
+{
+  "ok": false,
+  "status": 500,
+  "error": "HTTP Error 500: Internal Server Error",
+  "body": "{\"detail\":\"Cloud provider primario 'claude' fallito: HTTP 401: {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"authentication_error\\\",\\\"message\\\":\\\"invalid x-api-key\\\"},\\\"request_id\\\":\\\"req_011CZ6H8VY7QeXxbqfhMxPPq\\\"}. Fallback 'gpt4' fallito: API key mancante per provider 'gpt4'. Imposta OPENAI_API_KEY nel file .env\"}"
+}

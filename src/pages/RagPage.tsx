@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA — RAG Knowledge Base: Biblioteca Digitale
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Database, Zap, Upload, Search, Award, Clock, FolderOpen } from 'lucide-react';
+import { Award, BookOpen, Clock, Database, FolderOpen, Search, Upload, Zap } from 'lucide-react';
+import { useState } from 'react';
 
 const ragSources = [
   { id: '1', name: 'ArXiv Papers (CS & AI)', docs: 4230, status: 'indexed' as const, quality: 'gold' as const, icon: '📄', category: 'Informatica' },
@@ -34,6 +34,15 @@ export default function RagPage() {
   const totalDocs = ragSources.reduce((a, b) => a + b.docs, 0);
   const targetDocs = 100000;
   const progressPct = (totalDocs / targetDocs) * 100;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredSources = ragSources.filter(source => {
+    if (!normalizedQuery) return true;
+
+    return [source.name, source.category, source.quality, source.status]
+      .join(' ')
+      .toLowerCase()
+      .includes(normalizedQuery);
+  });
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
@@ -101,7 +110,21 @@ export default function RagPage() {
 
       {/* Sources List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-        {ragSources.map((s, i) => {
+        {filteredSources.length === 0 && (
+          <div
+            style={{
+              background: 'var(--vio-bg-secondary)',
+              borderRadius: 'var(--vio-radius)',
+              padding: '18px',
+              border: '1px solid var(--vio-border)',
+              color: 'var(--vio-text-dim)',
+              fontSize: '13px',
+            }}
+          >
+            Nessuna fonte trovata per <strong style={{ color: 'var(--vio-text-primary)' }}>{searchQuery}</strong>.
+          </div>
+        )}
+        {filteredSources.map((s, i) => {
           const qcfg = qualityConfig[s.quality];
           const scfg = statusConfig[s.status];
           return (

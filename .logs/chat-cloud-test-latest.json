@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "status": 500,
+  "body": "{\"detail\":\"Cloud provider primario 'claude' fallito: API key mancante per provider 'claude'. Imposta ANTHROPIC_API_KEY nel file .env. Fallback 'gpt4' fallito: API key mancante per provider 'gpt4'. Imposta OPENAI_API_KEY nel file .env\"}"
+}

@@ -16,6 +16,8 @@ FRONTEND_PORT=5173
 LOG_DIR="$PROJECT_DIR/.logs"
 PID_FILE="$LOG_DIR/orchestra.pids"
 MAX_RETRIES=3
+RUNTIME_START_SCRIPT="$PROJECT_DIR/scripts/runtime/start_runtime_services.sh"
+RUNTIME_STOP_SCRIPT="$PROJECT_DIR/scripts/runtime/stop_runtime_services.sh"
 
 # === COLORI TERMINALE ===
 CYAN='\033[0;36m'
@@ -32,6 +34,9 @@ log_gold()  { echo -e "${GOLD}[★]${NC} $1"; }
 
 cleanup() {
     log_info "Arresto VIO 83 AI Orchestra..."
+    if [ -f "$RUNTIME_STOP_SCRIPT" ]; then
+        bash "$RUNTIME_STOP_SCRIPT" >/dev/null 2>&1 || true
+    fi
     if [ -f "$PID_FILE" ]; then
         while read -r pid; do
             kill "$pid" 2>/dev/null && log_info "Processo $pid terminato"
@@ -181,6 +186,16 @@ log_info "Frontend PID: $FRONTEND_PID"
 log_info "Attendo avvio servizi..."
 wait_for_port $BACKEND_PORT "Backend FastAPI" 45 || true
 wait_for_port $FRONTEND_PORT "Frontend Vite" 45 || true
+
+# === AVVIO SUPERVISOR RUNTIME SERVICES (OpenClaw / LegalRoom / n8n) ===
+if [ -f "$RUNTIME_START_SCRIPT" ]; then
+    log_gold "Avvio Runtime Services Supervisor..."
+    if bash "$RUNTIME_START_SCRIPT" >> "$LOG_DIR/runtime-supervisor-launch.log" 2>&1; then
+        log_ok "Runtime Services Supervisor attivo"
+    else
+        log_err "Runtime Services Supervisor non avviato (controlla $LOG_DIR/runtime-supervisor.log)"
+    fi
+fi
 
 # === APRI ORION ===
 sleep 2

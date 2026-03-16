@@ -2,6 +2,12 @@
 # VIO 83 AI ORCHESTRA — STOP
 echo "Arresto VIO 83 AI Orchestra..."
 PID_FILE="$HOME/Projects/vio83-ai-orchestra/.logs/orchestra.pids"
+RUNTIME_STOP_SCRIPT="$HOME/Projects/vio83-ai-orchestra/scripts/runtime/stop_runtime_services.sh"
+
+if [ -f "$RUNTIME_STOP_SCRIPT" ]; then
+    bash "$RUNTIME_STOP_SCRIPT" >/dev/null 2>&1 || true
+fi
+
 if [ -f "$PID_FILE" ]; then
     while read -r pid; do
         kill "$pid" 2>/dev/null && echo "Processo $pid terminato"

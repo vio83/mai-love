@@ -1,8 +1,8 @@
 // VIO 83 AI ORCHESTRA — Dashboard: Command Center
-import { useState, useEffect } from 'react';
-import { Activity, DollarSign, Zap, Clock, TrendingUp, Cpu } from 'lucide-react';
-import { useAppStore } from '../stores/appStore';
 import { motion } from 'framer-motion';
+import { Activity, Clock, Cpu, DollarSign, TrendingUp, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useAppStore } from '../stores/appStore';
 
 // Statistiche simulate (in produzione: da /metrics API)
 const generateStats = () => ({
@@ -24,10 +24,34 @@ const PROVIDER_COLORS: Record<string, string> = {
   ollama: '#00FF00',
 };
 
+const CATEGORY_LOAD = [
+  { name: 'Code & Engineering', icon: '💻', count: 1234 },
+  { name: 'Analisi Dati', icon: '📊', count: 867 },
+  { name: 'Ricerca Scientifica', icon: '🔬', count: 645 },
+  { name: 'Scrittura Creativa', icon: '✍️', count: 534 },
+  { name: 'Conversazione', icon: '💬', count: 478 },
+  { name: 'Traduzione', icon: '🌍', count: 312 },
+  { name: 'Matematica & Logica', icon: '🧮', count: 201 },
+  { name: 'Real-time', icon: '⚡', count: 89 },
+  { name: 'Local Privacy', icon: '🔒', count: 567 },
+];
+
 export default function DashboardPage() {
   const { conversations, settings } = useAppStore();
   const [stats] = useState(generateStats);
   const [recentActivity, setRecentActivity] = useState<Array<{ time: string; action: string; model: string }>>([]);
+  const configuredProviders = settings.apiKeys.length;
+  const cloudDependencyScore = settings.orchestrator.mode === 'cloud'
+    ? Math.min(15, configuredProviders * 5)
+    : 15;
+  const orchestrationReadiness = Math.min(
+    100,
+    30
+    + (settings.orchestrator.autoRouting ? 20 : 0)
+    + (settings.orchestrator.crossCheckEnabled ? 20 : 0)
+    + (settings.orchestrator.ragEnabled ? 15 : 0)
+    + cloudDependencyScore
+  );
 
   useEffect(() => {
     // Genera attività recenti dalle conversazioni reali
@@ -213,6 +237,92 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </motion.div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '18px' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.35 }}
+          style={{
+            background: 'var(--vio-bg-secondary)',
+            borderRadius: 'var(--vio-radius-lg)',
+            padding: '20px 24px',
+            border: '1px solid var(--vio-border)',
+          }}
+        >
+          <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
+            Stato Orchestrazione
+          </h3>
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--vio-text-secondary)', fontSize: '12px' }}>Readiness reale</span>
+              <span style={{ color: 'var(--vio-green)', fontSize: '12px', fontWeight: 700 }}>{orchestrationReadiness}%</span>
+            </div>
+            <div style={{ height: '8px', background: 'var(--vio-bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${orchestrationReadiness}%` }}
+                transition={{ duration: 0.9, delay: 0.45 }}
+                style={{ height: '100%', background: 'linear-gradient(90deg, var(--vio-green), var(--vio-cyan))' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {[
+              { label: 'Auto-routing', value: settings.orchestrator.autoRouting ? 'ON' : 'OFF', color: settings.orchestrator.autoRouting ? 'var(--vio-green)' : 'var(--vio-text-dim)' },
+              { label: 'Cross-check', value: settings.orchestrator.crossCheckEnabled ? 'ON' : 'OFF', color: settings.orchestrator.crossCheckEnabled ? 'var(--vio-cyan)' : 'var(--vio-text-dim)' },
+              { label: 'RAG', value: settings.orchestrator.ragEnabled ? 'ON' : 'OFF', color: settings.orchestrator.ragEnabled ? 'var(--vio-magenta)' : 'var(--vio-text-dim)' },
+              {
+                label: 'Cloud keys',
+                value: settings.orchestrator.mode === 'cloud' ? `${configuredProviders}` : 'N/A local',
+                color: settings.orchestrator.mode === 'cloud'
+                  ? (configuredProviders > 0 ? 'var(--vio-yellow)' : 'var(--vio-text-dim)')
+                  : 'var(--vio-green)',
+              },
+            ].map((item) => (
+              <div key={item.label} style={{ padding: '12px', borderRadius: '10px', background: 'var(--vio-bg-tertiary)' }}>
+                <div style={{ color: 'var(--vio-text-dim)', fontSize: '11px', marginBottom: '4px' }}>{item.label}</div>
+                <div style={{ color: item.color, fontSize: '15px', fontWeight: 700 }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          style={{
+            background: 'var(--vio-bg-secondary)',
+            borderRadius: 'var(--vio-radius-lg)',
+            padding: '20px 24px',
+            border: '1px solid var(--vio-border)',
+          }}
+        >
+          <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
+            Categorie Più Richieste
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {CATEGORY_LOAD.map((category) => (
+              <div key={category.name}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span>{category.icon}</span>
+                  <span style={{ color: 'var(--vio-text-secondary)', fontSize: '12px', flex: 1 }}>{category.name}</span>
+                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '11px' }}>{category.count}</span>
+                </div>
+                <div style={{ height: '6px', background: 'var(--vio-bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (category.count / 500) * 100)}%` }}
+                    transition={{ duration: 0.8 }}
+                    style={{ height: '100%', background: 'linear-gradient(90deg, var(--vio-cyan), var(--vio-green))' }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </motion.div>
       </div>
 

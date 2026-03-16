@@ -22,6 +22,9 @@ PROJECT_DIR="$HOME/Projects/vio83-ai-orchestra"
 LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST_NAME="com.vio83.ai-orchestra.plist"
 PLIST_PATH="$LAUNCH_AGENT_DIR/$PLIST_NAME"
+RUNTIME_PLIST_NAME="com.vio83.runtime-services.plist"
+RUNTIME_PLIST_PATH="$LAUNCH_AGENT_DIR/$RUNTIME_PLIST_NAME"
+PYTHON3_BIN="$(command -v python3 || echo /usr/bin/python3)"
 
 echo ""
 echo -e "${GOLD}╔══════════════════════════════════════════════════════╗${NC}"
@@ -31,12 +34,19 @@ echo ""
 
 # === CREA DIRECTORY LaunchAgents SE NON ESISTE ===
 mkdir -p "$LAUNCH_AGENT_DIR"
+mkdir -p "$PROJECT_DIR/.logs" "$PROJECT_DIR/.pids"
 
 # === RIMUOVI VECCHIO AGENT SE PRESENTE ===
 if [ -f "$PLIST_PATH" ]; then
     launchctl unload "$PLIST_PATH" 2>/dev/null || true
     rm -f "$PLIST_PATH"
     log_info "Vecchio LaunchAgent rimosso"
+fi
+
+if [ -f "$RUNTIME_PLIST_PATH" ]; then
+    launchctl unload "$RUNTIME_PLIST_PATH" 2>/dev/null || true
+    rm -f "$RUNTIME_PLIST_PATH"
+    log_info "Vecchio LaunchAgent runtime rimosso"
 fi
 
 # === CREA LaunchAgent PLIST ===
@@ -82,9 +92,55 @@ PLIST
 
 log_ok "LaunchAgent creato: $PLIST_PATH"
 
+# === CREA LaunchAgent RUNTIME SERVICES ===
+log_gold "Creazione LaunchAgent runtime (OpenClaw/LegalRoom/n8n)..."
+
+cat > "$RUNTIME_PLIST_PATH" << RUNTIMEPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vio83.runtime-services</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${PYTHON3_BIN}</string>
+        <string>${PROJECT_DIR}/scripts/runtime/local_runtime_supervisor.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>${PROJECT_DIR}/.logs/runtime-launchagent-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>${PROJECT_DIR}/.logs/runtime-launchagent-stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PROJECT_DIR</key>
+        <string>${PROJECT_DIR}</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>${PROJECT_DIR}</string>
+</dict>
+</plist>
+RUNTIMEPLIST
+
+log_ok "LaunchAgent runtime creato: $RUNTIME_PLIST_PATH"
+
 # === CARICA IL LAUNCH AGENT ===
 log_gold "Attivazione LaunchAgent..."
 launchctl load "$PLIST_PATH"
+launchctl load "$RUNTIME_PLIST_PATH"
 log_ok "LaunchAgent caricato e attivo!"
 
 # === VERIFICA ===
@@ -95,18 +151,27 @@ else
     log_info "LaunchAgent registrato — si attiverà al prossimo login"
 fi
 
+if launchctl list | grep -q "com.vio83.runtime-services"; then
+    log_ok "Runtime LaunchAgent registrato e attivo!"
+else
+    log_info "Runtime LaunchAgent registrato — si attiverà al prossimo login"
+fi
+
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║${NC}  ${GOLD}★  AUTOSTART CONFIGURATO CON SUCCESSO!  ★${NC}               ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  L'app si avvierà automaticamente ad ogni login          ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  e aprirà Orion su http://localhost:5173                 ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  Runtime services supervisor: attivo con KeepAlive       ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  Per DISATTIVARE l'autostart:                            ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  launchctl unload ~/Library/LaunchAgents/$PLIST_NAME     ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  launchctl unload ~/Library/LaunchAgents/$RUNTIME_PLIST_NAME ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  Per RIATTIVARE:                                         ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  launchctl load ~/Library/LaunchAgents/$PLIST_NAME       ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  launchctl load ~/Library/LaunchAgents/$RUNTIME_PLIST_NAME ${GREEN}║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 

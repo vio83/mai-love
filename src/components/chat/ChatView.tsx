@@ -1,11 +1,11 @@
 // VIO 83 AI ORCHESTRA - Vista Chat Principale con Streaming
-import { useRef, useEffect, useState } from 'react';
 import { Music } from 'lucide-react';
-import { useAppStore } from '../../stores/appStore';
+import { useEffect, useRef, useState } from 'react';
 import { sendToOrchestra } from '../../services/ai/orchestrator';
-import ChatMessage from './ChatMessage';
-import ChatInput from './ChatInput';
+import { useAppStore } from '../../stores/appStore';
 import type { Message } from '../../types';
+import ChatInput from './ChatInput';
+import ChatMessage from './ChatMessage';
 
 export default function ChatView() {
   const {
@@ -55,6 +55,11 @@ export default function ChatView() {
           grok: 'XAI_API_KEY',
           mistral: 'MISTRAL_API_KEY',
           deepseek: 'DEEPSEEK_API_KEY',
+          gemini: 'GEMINI_API_KEY',
+          groq: 'GROQ_API_KEY',
+          openrouter: 'OPENROUTER_API_KEY',
+          together: 'TOGETHER_API_KEY',
+          perplexity: 'PERPLEXITY_API_KEY',
           ollama: '',
         }[k.provider];
         if (keyName) apiKeys[keyName] = k.key;
@@ -74,6 +79,8 @@ export default function ChatView() {
         fallbackProviders: settings.orchestrator.fallbackProviders,
         autoRouting: settings.orchestrator.autoRouting,
         crossCheckEnabled: settings.orchestrator.crossCheckEnabled,
+        ragEnabled: settings.orchestrator.ragEnabled,
+        strictEvidenceMode: settings.orchestrator.strictEvidenceMode,
         apiKeys,
         ollamaHost: settings.ollamaHost,
         ollamaModel: settings.ollamaModel || 'qwen2.5-coder:3b',

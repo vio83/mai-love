@@ -12,9 +12,36 @@ PASS=0
 FAIL=0
 WARN=0
 
-green()  { echo -e "\033[32m✅ $1\033[0m"; ((PASS++)); }
-red()    { echo -e "\033[31m❌ $1\033[0m"; ((FAIL++)); }
-yellow() { echo -e "\033[33m⚠️  $1\033[0m"; ((WARN++)); }
+green()  { echo -e "\033[32m✅ $1\033[0m"; PASS=$((PASS + 1)); return 0; }
+red()    { echo -e "\033[31m❌ $1\033[0m"; FAIL=$((FAIL + 1)); return 0; }
+yellow() { echo -e "\033[33m⚠️  $1\033[0m"; WARN=$((WARN + 1)); return 0; }
+
+pick_chat_model() {
+    python3 -c '
+import sys
+
+models = [line.strip() for line in sys.stdin if line.strip()]
+preferred = [
+    "qwen2.5-coder",
+    "llama3.2:3b",
+    "gemma2:2b",
+    "mistral",
+    "llama3",
+    "phi",
+    "codellama",
+    "deepseek",
+]
+
+for token in preferred:
+    for model in models:
+        if token in model.lower():
+            print(model)
+            raise SystemExit(0)
+
+if models:
+    print(models[0])
+'
+}
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════╗"
@@ -78,18 +105,20 @@ echo ""
 # ─── 4. Test Chat Ollama (Quick) ─────────────────────────────
 echo "── 4. Test Chat Ollama (risposta rapida) ─────────────"
 if curl -s http://localhost:11434/api/tags &>/dev/null; then
-    # Prendi il primo modello disponibile
     MODEL=$(curl -s http://localhost:11434/api/tags | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
-models = data.get('models', [])
-if models: print(models[0]['name'])
+models = [m['name'] for m in data.get('models', []) if m.get('name')]
+print('\\n'.join(models))
 " 2>/dev/null)
+
+    MODEL=$(printf '%s\n' "$MODEL" | pick_chat_model)
 
     if [ -n "$MODEL" ]; then
         echo "   Invio messaggio test a: $MODEL"
         RESPONSE=$(curl -s --max-time 30 http://localhost:11434/api/chat \
-            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Rispondi solo: OK FUNZIONA\"}],\"stream\":false}" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Rispondi solo: OK FUNZIONA\"}],\"stream\":false,\"options\":{\"temperature\":0,\"num_predict\":16}}" \
             2>/dev/null)
 
         if echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['message']['content'])" 2>/dev/null | grep -qi "ok\|funziona\|work"; then
@@ -124,7 +153,8 @@ if curl -s http://localhost:11434/api/tags &>/dev/null && [ -n "$MODEL" ]; then
         fi
         if [ $TOKENS -ge 5 ]; then break; fi
     done < <(curl -s --max-time 15 http://localhost:11434/api/chat \
-        -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Conta da 1 a 5\"}],\"stream\":true}" 2>/dev/null)
+        -H "Content-Type: application/json" \
+        -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Conta da 1 a 5\"}],\"stream\":true,\"options\":{\"temperature\":0,\"num_predict\":16}}" 2>/dev/null)
 
     if [ $TOKENS -ge 3 ]; then
         green "Streaming funziona! ($TOKENS token ricevuti)"
@@ -146,10 +176,12 @@ else
 fi
 
 echo "   ⏳ Vite build..."
-if npx vite build 2>&1 | tail -1 | grep -q "built in"; then
+BUILD_OUTPUT=$(npx vite build 2>&1)
+if [ $? -eq 0 ]; then
     green "Vite build OK"
 else
     red "Vite build fallito"
+    echo "$BUILD_OUTPUT" | tail -20
 fi
 echo ""
 
