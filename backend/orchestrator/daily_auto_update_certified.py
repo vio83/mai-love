@@ -81,7 +81,7 @@ class DailyAutoUpdateEngine:
     """
 
     def __init__(self):
-        self.project_root = Path(__file__).resolve().parents[3]
+        self.project_root = Path(__file__).resolve().parents[2]
         self.data_dir = self.project_root / "data"
         self.updates_dir = self.data_dir / "updates"
         self.artifacts_dir = self.updates_dir / "artifacts"

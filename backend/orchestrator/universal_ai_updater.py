@@ -30,7 +30,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 # Aggiungi project root al path
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 logger = logging.getLogger(__name__)

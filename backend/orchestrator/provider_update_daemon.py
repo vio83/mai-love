@@ -38,7 +38,7 @@ class ProviderAutoUpdater:
 
     def __init__(self):
         load_dotenv()
-        self.project_root = Path(__file__).resolve().parents[3]
+        self.project_root = Path(__file__).resolve().parents[2]
         self.config_path = self.project_root / "backend" / "config"
         self.data_path = self.project_root / "data"
         self.data_path.mkdir(exist_ok=True)
