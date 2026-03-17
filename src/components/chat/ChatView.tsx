@@ -3,7 +3,7 @@ import { Music } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { sendToOrchestra } from '../../services/ai/orchestrator';
 import { useAppStore } from '../../stores/appStore';
-import type { Attachment, Message } from '../../types';
+import type { AIProvider, Attachment, Message } from '../../types';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 
@@ -77,7 +77,7 @@ export default function ChatView() {
     setStreaming(true);
     setStreamingStartedAt(Date.now());
     setStreamingContent('');
-    setStreamingProvider(settings.orchestrator.mode === 'local' ? 'ollama' : settings.orchestrator.primaryProvider);
+    setStreamingProvider('ollama');
 
     try {
       const apiKeys: Record<string, string> = {};
@@ -134,8 +134,9 @@ export default function ChatView() {
       };
       addMessage(convId, aiMessage);
 
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as { name?: string; message?: string };
+      if (err?.name === 'AbortError') {
         const abortedMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -149,11 +150,7 @@ export default function ChatView() {
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `**Errore:** ${error.message || 'Impossibile contattare il provider AI.'}\n\n${
-          settings.orchestrator.mode === 'local'
-            ? '**Soluzioni:**\n1. Verifica che Ollama sia attivo: `ollama serve`\n2. Verifica il modello: `ollama list`\n3. Scarica un modello: `ollama pull qwen2.5-coder:3b`'
-            : '**Soluzioni:**\n1. Verifica le API keys nelle Impostazioni\n2. Controlla la connessione internet\n3. Prova a cambiare provider'
-        }`,
+        content: `**Errore:** ${err.message || 'Impossibile contattare Ollama locale.'}\n\n**Soluzioni:**\n1. Verifica che Ollama sia attivo: \`ollama serve\`\n2. Verifica i modelli installati: \`ollama list\`\n3. Scarica il modello consigliato: \`ollama pull qwen2.5-coder:3b\``,
         timestamp: Date.now(),
       };
       addMessage(convId, errorMessage);
@@ -189,11 +186,9 @@ export default function ChatView() {
           </h1>
 
           <p style={{ color: 'var(--vio-text-secondary)', fontSize: '14px', textAlign: 'center', maxWidth: '500px', lineHeight: '1.6' }}>
-            L'orchestra AI che unisce i modelli più potenti del mondo.
             {settings.orchestrator.mode === 'cloud'
-              ? ' Modalità Cloud attiva — connesso ai provider AI.'
-              : ' Modalità Locale attiva — tutto gira sul tuo Mac, zero dati trasmessi.'
-            }
+              ? `Modalità Cloud attiva — provider: ${settings.orchestrator.primaryProvider}. API keys configurate nelle Impostazioni.`
+              : 'AI locale, completamente offline. I tuoi dati non lasciano mai il Mac.'}
           </p>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -232,7 +227,7 @@ export default function ChatView() {
               id: 'streaming',
               role: 'assistant',
               content: streamingContent,
-              provider: streamingProvider as any,
+              provider: streamingProvider as AIProvider,
               timestamp: Date.now(),
             }}
           />

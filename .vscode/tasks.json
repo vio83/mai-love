@@ -1,3 +1,4 @@
+
 {
   // ============================================================
   // VIO 83 AI ORCHESTRA — Build & Run Tasks
@@ -46,7 +47,7 @@
     {
       "label": "backend-dev",
       "type": "shell",
-      "command": "python3 -m uvicorn backend.api.server:app --reload --host 0.0.0.0 --port 4000",
+      "command": "bash scripts/runtime/start_backend_dev_safe.sh",
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}",
@@ -60,9 +61,36 @@
       }
     },
     {
+      "label": "backend-reset",
+      "type": "shell",
+      "command": "bash scripts/runtime/backend_reset_panic.sh",
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PYTHONPATH": "${workspaceFolder}" }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "backend"
+      }
+    },
+    {
+      "label": "backend-certify-runtime",
+      "type": "shell",
+      "command": "bash scripts/runtime/certify_runtime_local_only.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "backend"
+      }
+    },
+    {
       "label": "tauri-dev",
       "type": "npm",
-      "script": "tauri dev",
+      "script": "tauri:dev",
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
@@ -73,8 +101,8 @@
     },
     {
       "label": "tauri-build",
-      "type": "shell",
-      "command": "npm run tauri build",
+      "type": "npm",
+      "script": "tauri:build",
       "group": "build",
       "presentation": {
         "reveal": "always",
@@ -130,6 +158,38 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "silent"
+      }
+    },
+    {
+      "label": "real-max-global-activate",
+      "type": "shell",
+      "command": "bash scripts/runtime/activate_real_max_global_mode.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "real-max-maintenance-now",
+      "type": "shell",
+      "command": "bash scripts/runtime/run_real_max_maintenance.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "⚡ Power 360 Activate",
+      "dependsOn": [
+        "real-max-global-activate",
+        "🎵 Start Full Orchestra"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
       }
     }
   ]

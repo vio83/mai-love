@@ -61,13 +61,15 @@ RAG_AVAILABLE = False
 # except Exception as e:
 #     print(f"⚠️  RAG Engine legacy non disponibile: {e}")
 
-# Knowledge Base v2 — sempre disponibile (fallback a SQLite FTS5)
+# Knowledge Base v2 — attiva quando il modulo è importabile (fallback SQLite FTS5)
 KB_AVAILABLE = False
-# try:
-#     from backend.rag.knowledge_base import get_knowledge_base, KnowledgeBase
-#     KB_AVAILABLE = True
-# except Exception as e:
-#     print(f"⚠️  Knowledge Base non disponibile: {e}")
+KB_IMPORT_ERROR: str | None = None
+try:
+    from backend.rag.knowledge_base import get_knowledge_base, KnowledgeBase
+    KB_AVAILABLE = True
+except Exception as e:
+    KB_IMPORT_ERROR = str(e)
+    print(f"⚠️  Knowledge Base non disponibile: {e}")
 
 load_dotenv()
 START_TIME = time.time()
@@ -100,6 +102,9 @@ RUNTIME_ENV_DEFAULTS = {
     "AUTONOMOUS_RUNTIME_WATCH_EXTENSIONS": ".py,.ts,.tsx,.js,.jsx,.md,.json,.yml,.yaml,.toml,.sh",
     "AUTONOMOUS_RUNTIME_BACKGROUND_ISOLATION": "true",
     "AUTONOMOUS_RUNTIME_MAX_FILES_PER_TICK": "20",
+    "VIO_EXECUTION_PROFILE": "real-max-local",
+    "VIO_NO_HYBRID": "false",
+    "VIO_LOCAL_MODEL_PREFERENCE": "qwen2.5-coder:3b",
 }
 
 AUTONOMOUS_RUNTIME = AutonomousRuntime(PROJECT_ROOT)
@@ -165,6 +170,31 @@ def _write_project_env_updates(updates: dict[str, str]) -> dict[str, str]:
 
 def _runtime_env_value(env_map: dict[str, str], key: str) -> str:
     return env_map.get(key, os.environ.get(key, RUNTIME_ENV_DEFAULTS.get(key, "")))
+
+
+def _as_bool(value: str) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_orchestration_policy() -> dict:
+    no_hybrid = _as_bool(os.environ.get("VIO_NO_HYBRID", "false"))
+    if no_hybrid:
+        return {"available": True, "mode": "local", "name": "Local-only no-hybrid", "enforced": True}
+    return {"available": True, "mode": "dual", "name": "Dual-mode (local + cloud)", "enforced": False}
+
+
+def _cap_request_tokens(requested: int) -> int:
+    soft_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS", "512") or 512)
+    hard_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS_HARD", "1024") or 1024)
+    upper = max(soft_cap, hard_cap)
+    return max(64, min(int(requested), upper))
+
+
+def _effective_temperature(requested: float) -> float:
+    speed_mode = _as_bool(os.environ.get("VIO_SPEED_MODE", "true"))
+    if not speed_mode:
+        return requested
+    return min(requested, 0.25)
 
 
 def _command_status(command: str) -> dict[str, Any]:
@@ -771,7 +801,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"⚠️  Knowledge Base init fallita: {e}")
     else:
-        print("📚 Knowledge Base: non disponibile")
+        reason = KB_IMPORT_ERROR or "modulo non importabile"
+        print(f"📚 Knowledge Base: non disponibile ({reason})")
 
     # RAG legacy
     if RAG_AVAILABLE:
@@ -792,15 +823,11 @@ async def lifespan(app: FastAPI):
     else:
         print(f"⚠️  Ollama: non raggiungibile ({ollama_status.get('error', 'unknown')})")
 
-    free_cloud = get_free_cloud_providers()
-    if free_cloud:
-        print(f"🆓 Provider cloud gratuiti: {list(free_cloud.keys())}")
-    available = get_available_cloud_providers()
-    paid_only = {k: v for k, v in available.items() if k not in free_cloud}
-    if paid_only:
-        print(f"☁️  Provider cloud a pagamento: {list(paid_only.keys())}")
-    if not available:
-        print("☁️  Provider cloud: nessuno (configura .env)")
+    _no_hybrid = _as_bool(os.environ.get("VIO_NO_HYBRID", "false"))
+    if _no_hybrid:
+        print("🛡️ Policy orchestrazione: local-only no-hybrid (provider cloud disattivati runtime)")
+    else:
+        print("🌐 Policy orchestrazione: dual-mode (provider cloud abilitati)")
 
     app.state.knowledge_auto_refresh_task = asyncio.create_task(_knowledge_auto_refresh_loop())
     print("🌍 Knowledge Watch: auto-refresh ogni 6h attivo")
@@ -861,22 +888,16 @@ app.add_middleware(
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Stato di salute completo del sistema."""
-    available = get_available_cloud_providers()
     ollama = await check_ollama_status()
 
-    providers = {}
-    for key in ALL_CLOUD_PROVIDERS:
-        providers[key] = {
-            "available": key in available,
-            "mode": "cloud",
-            "name": ALL_CLOUD_PROVIDERS[key]["name"],
-            "cost": ALL_CLOUD_PROVIDERS[key].get("cost", "paid"),
-        }
-    providers["ollama"] = {
+    providers = {
+        "ollama": {
         "available": ollama["available"],
         "mode": "local",
         "name": "Ollama (Locale)",
         "models": ollama.get("models", []),
+        },
+        "policy": _get_orchestration_policy(),
     }
 
     rag_stats = {"total_documents": 0, "status": "disabled"}
@@ -904,6 +925,7 @@ async def health_check():
 async def chat(request: ChatRequest):
     """Chat principale — instrada la richiesta al provider migliore."""
     try:
+        runtime_mode = request.mode or "local"
         messages = [{"role": "user", "content": request.message}]
 
         # Se c'è una conversazione, recupera il contesto
@@ -921,22 +943,25 @@ async def chat(request: ChatRequest):
             messages.insert(0, {"role": "system", "content": request.system_prompt})
 
         # Orchestratore
+        effective_max_tokens = _cap_request_tokens(request.max_tokens)
+        effective_temperature = _effective_temperature(request.temperature)
+
         result = await orchestrate(
             messages=messages,
-            mode=request.mode,
-            provider=request.provider or ("claude" if request.mode == "cloud" else "ollama"),
+            mode=runtime_mode,
+            provider=request.provider or "ollama",
             model=request.model,
             ollama_model=request.model or "qwen2.5-coder:3b",
             auto_routing=True,
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
+            temperature=effective_temperature,
+            max_tokens=effective_max_tokens,
         )
 
         # Salva nel database
         conv_id = request.conversation_id
         if not conv_id:
             title = auto_title_from_message(request.message)
-            conv_data = create_conversation(title=title, mode=request.mode)
+            conv_data = create_conversation(title=title, mode=runtime_mode)
             conv_id = conv_data["id"]
 
         add_message(conv_id, "user", request.message)
@@ -959,7 +984,7 @@ async def chat(request: ChatRequest):
             assistant_message=result["content"],
             provider=result["provider"],
             model=result["model"],
-            mode=request.mode,
+            mode=runtime_mode,
         )
 
         return ChatResponse(
@@ -973,7 +998,7 @@ async def chat(request: ChatRequest):
 
     except Exception as e:
         log_metric(
-            provider=request.provider or "ollama",
+            provider="ollama",
             model=request.model or "unknown",
             success=False, error_message=str(e),
         )
@@ -990,6 +1015,7 @@ async def chat_stream(request: ChatRequest):
     Chat con Server-Sent Events (SSE) — streaming token per token.
     Il frontend riceve ogni token in tempo reale.
     """
+    runtime_mode = request.mode or "local"
     messages = [{"role": "user", "content": request.message}]
 
     if request.conversation_id:
@@ -1006,11 +1032,11 @@ async def chat_stream(request: ChatRequest):
 
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     from backend.orchestrator.direct_router import classify_request as _classify
-    from backend.orchestrator.system_prompt import build_system_prompt
+    from backend.orchestrator.system_prompt import build_local_system_prompt
     has_system = any(m.get("role") == "system" for m in messages)
     if not has_system:
         req_type = _classify(request.message)
-        system_prompt = build_system_prompt(req_type)
+        system_prompt = build_local_system_prompt(req_type)
 
         # === RAG CONTEXT INJECTION ===
         # Cerca nella Knowledge Base e inietta fonti certificate nel contesto
@@ -1032,6 +1058,8 @@ async def chat_stream(request: ChatRequest):
         messages.insert(0, {"role": "system", "content": system_prompt})
 
     model = request.model or "llama3.2:3b"
+    effective_max_tokens = _cap_request_tokens(request.max_tokens)
+    effective_temperature = _effective_temperature(request.temperature)
 
     async def event_generator():
         full_content = ""
@@ -1040,8 +1068,8 @@ async def chat_stream(request: ChatRequest):
             async for token in call_ollama_streaming(
                 messages=messages,
                 model=model,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
+                temperature=effective_temperature,
+                max_tokens=effective_max_tokens,
             ):
                 full_content += token
                 yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
@@ -1053,7 +1081,7 @@ async def chat_stream(request: ChatRequest):
             conv_id = request.conversation_id
             if not conv_id:
                 title = auto_title_from_message(request.message)
-                conv_data = create_conversation(title=title, mode=request.mode)
+                conv_data = create_conversation(title=title, mode=runtime_mode)
                 conv_id = conv_data["id"]
 
             add_message(conv_id, "user", request.message)
@@ -1067,7 +1095,7 @@ async def chat_stream(request: ChatRequest):
                 assistant_message=full_content,
                 provider="ollama",
                 model=model,
-                mode=request.mode,
+                mode=runtime_mode,
             )
 
         except Exception as e:
@@ -1142,12 +1170,10 @@ async def api_archive_conversation(conv_id: str):
 async def classify(request: ClassifyRequest):
     """Classifica il tipo di richiesta per il routing intelligente."""
     req_type = classify_request(request.message)
-    from backend.config.providers import REQUEST_TYPE_ROUTING
-    routing = REQUEST_TYPE_ROUTING.get(req_type, {})
 
     return ClassifyResponse(
         request_type=req_type,
-        suggested_provider=routing.get("cloud_primary", "ollama"),
+        suggested_provider="ollama",
         confidence=0.85,
     )
 
@@ -1177,49 +1203,51 @@ async def api_ollama_models():
 
 @app.get("/providers")
 async def list_providers():
-    """Lista tutti i provider disponibili — 3 tier: locale, gratis, pagamento."""
-    available = get_available_cloud_providers()
-    free_available = get_free_cloud_providers()
+    """Lista provider runtime effettivi — rispetta VIO_NO_HYBRID da .env."""
     ollama = await check_ollama_status()
+    no_hybrid = _as_bool(os.environ.get("VIO_NO_HYBRID", ""))
+
+    local = {
+        "ollama": {
+            "name": "Ollama (Locale)",
+            "available": ollama["available"],
+            "cost": "free",
+            "default_model": LOCAL_PROVIDERS["ollama"]["default_model"],
+            "models": ollama.get("models", []),
+            "installed_models": [m["name"] for m in ollama.get("models", [])],
+        }
+    }
+
+    if no_hybrid:
+        return {
+            "local": local,
+            "free_cloud": {},
+            "paid_cloud": {},
+            "all_ordered": [
+                {"id": "ollama", "name": "Ollama (Locale)", "tier": "local", "available": ollama["available"]}
+            ],
+            "policy": {
+                "no_hybrid": True,
+                "cloud_runtime_enabled": False,
+                "note": "VIO_NO_HYBRID=true nel .env — solo Ollama locale attivo.",
+            },
+        }
+
+    # Cloud abilitato: restituisci tutti i provider configurati
+    free_cloud = get_free_cloud_providers()
+    paid_cloud = get_available_cloud_providers()
+    all_ordered = get_all_providers_ordered()
 
     return {
-        "local": {
-            "ollama": {
-                "name": "Ollama (Locale)",
-                "available": ollama["available"],
-                "cost": "free",
-                "default_model": LOCAL_PROVIDERS["ollama"]["default_model"],
-                "models": ollama.get("models", []),
-                "installed_models": [m["name"] for m in ollama.get("models", [])],
-            }
+        "local": local,
+        "free_cloud": free_cloud,
+        "paid_cloud": paid_cloud,
+        "all_ordered": all_ordered,
+        "policy": {
+            "no_hybrid": False,
+            "cloud_runtime_enabled": True,
+            "note": "L'utente può scegliere tra locale e cloud. API keys necessarie per provider cloud.",
         },
-        "free_cloud": {
-            key: {
-                "name": FREE_CLOUD_PROVIDERS[key]["name"],
-                "available": key in free_available,
-                "cost": "free",
-                "free_tier": FREE_CLOUD_PROVIDERS[key].get("free_tier", ""),
-                "signup_url": FREE_CLOUD_PROVIDERS[key].get("signup_url", ""),
-                "default_model": FREE_CLOUD_PROVIDERS[key]["default_model"],
-                "models": list(FREE_CLOUD_PROVIDERS[key]["models"].keys()),
-            }
-            for key in FREE_CLOUD_PROVIDERS
-        },
-        "paid_cloud": {
-            key: {
-                "name": CLOUD_PROVIDERS[key]["name"],
-                "available": key in available,
-                "cost": CLOUD_PROVIDERS[key].get("cost", "paid"),
-                "default_model": CLOUD_PROVIDERS[key]["default_model"],
-                "models": list(CLOUD_PROVIDERS[key]["models"].keys()),
-            }
-            for key in CLOUD_PROVIDERS
-        },
-        "all_ordered": [
-            {"id": p["id"], "name": p["name"], "tier": p["tier"],
-             "available": p.get("available", True)}
-            for p in get_all_providers_ordered()
-        ],
     }
 
 
@@ -1236,6 +1264,74 @@ async def api_orchestration_elite_stacks():
             "Replica ad alta fedeltà di capacità, orchestrazione e runtime locale/proxy è invece implementabile e già parzialmente presente nel progetto.",
             "Per task medico-legali è consigliata la strict evidence policy con knowledge base e fonti certificate.",
         ],
+    }
+
+
+@app.get("/orchestration/profile")
+async def api_orchestration_profile():
+    """Profilo orchestrazione runtime — legge policy da .env."""
+    env_map = _read_project_env_map()
+    profile = _runtime_env_value(env_map, "VIO_EXECUTION_PROFILE") or "real-max-local"
+    no_hybrid = _as_bool(_runtime_env_value(env_map, "VIO_NO_HYBRID"))
+    local_preference = _runtime_env_value(env_map, "VIO_LOCAL_MODEL_PREFERENCE") or "qwen2.5-coder:3b"
+
+    effective_mode = "local-only" if no_hybrid else "dual-mode"
+    notes = (
+        [
+            "Policy no-hybrid attiva: solo Ollama locale",
+            "Per abilitare cloud: imposta VIO_NO_HYBRID=false nel .env",
+        ]
+        if no_hybrid
+        else [
+            "Dual-mode attivo: locale + cloud disponibili",
+            "L'utente può scegliere tra Ollama locale e provider cloud con API key",
+        ]
+    )
+
+    return {
+        "status": "ok",
+        "profile": profile,
+        "no_hybrid": no_hybrid,
+        "local_model_preference": local_preference,
+        "effective_mode": effective_mode,
+        "notes": notes,
+    }
+
+
+@app.put("/orchestration/profile")
+async def api_set_orchestration_profile(
+    profile: str = Query("real-max-local"),
+    no_hybrid: bool = Query(True),
+    local_model_preference: str = Query("qwen2.5-coder:3b"),
+):
+    """Imposta profilo orchestrazione persistente nel .env e ricarica runtime env."""
+    normalized = (profile or "").strip().lower() or "real-max-local"
+    allowed = {"balanced", "real-max", "real-max-local", "ultra-local", "local-only"}
+    if normalized not in allowed:
+        raise HTTPException(status_code=400, detail=f"Profilo non valido: {profile}")
+
+    local_pref = (local_model_preference or "qwen2.5-coder:3b").strip() or "qwen2.5-coder:3b"
+
+    updates = {
+        "VIO_EXECUTION_PROFILE": normalized,
+        "VIO_NO_HYBRID": "false" if not no_hybrid else "true",
+        "VIO_LOCAL_MODEL_PREFERENCE": local_pref,
+    }
+
+    _write_project_env_updates(updates)
+    load_dotenv(PROJECT_ENV_PATH, override=True)
+
+    effective_mode = "local-only" if no_hybrid else "dual-mode"
+
+    return {
+        "status": "ok",
+        "updated": updates,
+        "requested": {
+            "profile": profile,
+            "no_hybrid": no_hybrid,
+            "local_model_preference": local_model_preference,
+        },
+        "effective_mode": effective_mode,
     }
 
 
@@ -1317,7 +1413,10 @@ async def rag_stats():
 async def kb_stats():
     """Statistiche Knowledge Base — biblioteca digitale."""
     if not KB_AVAILABLE:
-        return {"status": "disabled", "reason": "Knowledge Base non inizializzata"}
+        return {
+            "status": "disabled",
+            "reason": KB_IMPORT_ERROR or "Knowledge Base non inizializzata",
+        }
     kb = get_knowledge_base()
     return kb.get_stats()
 

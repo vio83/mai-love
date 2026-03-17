@@ -25,7 +25,7 @@ class ChatRequest(BaseModel):
     enable_cross_check: bool = False
     enable_rag: bool = True
     temperature: float = Field(0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(4096, ge=1, le=128000)
+    max_tokens: int = Field(512, ge=1, le=128000)
     system_prompt: Optional[str] = None
 
 
@@ -64,7 +64,7 @@ class ProviderConfig(BaseModel):
     enabled: bool = True
     model: Optional[str] = None
     priority: int = Field(1, ge=1, le=10)
-    max_tokens: int = 4096
+    max_tokens: int = 512
     temperature: float = 0.7
 
 

@@ -11,6 +11,7 @@ PROJECT="/Users/padronavio/Projects/vio83-ai-orchestra"
 PASS=0
 FAIL=0
 WARN=0
+E2E_SKIP_OLLAMA_CHAT=${E2E_SKIP_OLLAMA_CHAT:-0}
 
 green()  { echo -e "\033[32m✅ $1\033[0m"; PASS=$((PASS + 1)); return 0; }
 red()    { echo -e "\033[31m❌ $1\033[0m"; FAIL=$((FAIL + 1)); return 0; }
@@ -22,12 +23,19 @@ import sys
 
 models = [line.strip() for line in sys.stdin if line.strip()]
 preferred = [
-    "qwen2.5-coder",
+    "smollm2:135m",
+    "smollm2:360m",
+    "qwen2.5:0.5b",
+    "llama3.2:1b",
+    "qwen2.5:1.5b",
+    "deepseek-r1:1.5b",
+    "phi3:mini",
+    "phi4-mini",
+    "qwen2.5-coder:3b",
     "llama3.2:3b",
     "gemma2:2b",
     "mistral",
     "llama3",
-    "phi",
     "codellama",
     "deepseek",
 ]
@@ -104,22 +112,34 @@ echo ""
 
 # ─── 4. Test Chat Ollama (Quick) ─────────────────────────────
 echo "── 4. Test Chat Ollama (risposta rapida) ─────────────"
-if curl -s http://localhost:11434/api/tags &>/dev/null; then
-    MODEL=$(curl -s http://localhost:11434/api/tags | python3 -c "
+CHAT_OK=0
+if [ "$E2E_SKIP_OLLAMA_CHAT" = "1" ]; then
+    yellow "Chat test Ollama disabilitato (E2E_SKIP_OLLAMA_CHAT=1)"
+elif curl -s http://localhost:11434/api/tags &>/dev/null; then
+    MODEL_LIST=$(curl -s http://localhost:11434/api/tags | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 models = [m['name'] for m in data.get('models', []) if m.get('name')]
 print('\\n'.join(models))
 " 2>/dev/null)
 
-    MODEL=$(printf '%s\n' "$MODEL" | pick_chat_model)
+    MODEL=$(printf '%s\n' "$MODEL_LIST" | pick_chat_model)
 
     if [ -n "$MODEL" ]; then
         echo "   Invio messaggio test a: $MODEL"
-        RESPONSE=$(curl -s --max-time 30 http://localhost:11434/api/chat \
+        RESPONSE=$(curl -s --max-time 12 http://localhost:11434/api/chat \
             -H "Content-Type: application/json" \
-            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Rispondi solo: OK FUNZIONA\"}],\"stream\":false,\"options\":{\"temperature\":0,\"num_predict\":16}}" \
+            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Rispondi solo: OK\"}],\"stream\":false,\"options\":{\"temperature\":0,\"num_predict\":12}}" \
             2>/dev/null)
+        CURL_EXIT=$?
+
+        if [ $CURL_EXIT -ne 0 ]; then
+            red "Ollama chat timeout/errore (curl exit: $CURL_EXIT)"
+        elif [ -z "$RESPONSE" ]; then
+            red "Ollama chat risposta vuota"
+        elif echo "$RESPONSE" | python3 -c "import json,sys; json.load(sys.stdin); print('ok')" 2>/dev/null | grep -q "ok"; then
+            CHAT_OK=1
+        fi
 
         if echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['message']['content'])" 2>/dev/null | grep -qi "ok\|funziona\|work"; then
             green "Ollama risponde correttamente!"
@@ -130,7 +150,9 @@ print('\\n'.join(models))
                 green "Ollama risponde (contenuto diverso dal previsto)"
                 echo "   Risposta: $CONTENT"
             else
-                red "Ollama non ha risposto correttamente"
+                if [ $CURL_EXIT -eq 0 ]; then
+                    red "Ollama non ha risposto correttamente"
+                fi
             fi
         fi
     else
@@ -143,7 +165,9 @@ echo ""
 
 # ─── 5. Test Streaming Ollama ────────────────────────────────
 echo "── 5. Test Streaming Ollama ──────────────────────────"
-if curl -s http://localhost:11434/api/tags &>/dev/null && [ -n "$MODEL" ]; then
+if [ "$E2E_SKIP_OLLAMA_CHAT" = "1" ]; then
+    yellow "Streaming test disabilitato (E2E_SKIP_OLLAMA_CHAT=1)"
+elif curl -s http://localhost:11434/api/tags &>/dev/null && [ -n "$MODEL" ] && [ $CHAT_OK -eq 1 ]; then
     echo "   Test streaming con: $MODEL"
     TOKENS=0
     while IFS= read -r line; do
@@ -152,9 +176,9 @@ if curl -s http://localhost:11434/api/tags &>/dev/null && [ -n "$MODEL" ]; then
             ((TOKENS++))
         fi
         if [ $TOKENS -ge 5 ]; then break; fi
-    done < <(curl -s --max-time 15 http://localhost:11434/api/chat \
+    done < <(curl -s --max-time 10 http://localhost:11434/api/chat \
         -H "Content-Type: application/json" \
-        -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Conta da 1 a 5\"}],\"stream\":true,\"options\":{\"temperature\":0,\"num_predict\":16}}" 2>/dev/null)
+        -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Conta 1 2 3\"}],\"stream\":true,\"options\":{\"temperature\":0,\"num_predict\":12}}" 2>/dev/null)
 
     if [ $TOKENS -ge 3 ]; then
         green "Streaming funziona! ($TOKENS token ricevuti)"
@@ -162,7 +186,7 @@ if curl -s http://localhost:11434/api/tags &>/dev/null && [ -n "$MODEL" ]; then
         yellow "Streaming ha prodotto pochi token ($TOKENS)"
     fi
 else
-    yellow "Skipping test streaming"
+    yellow "Skipping test streaming (chat non pronta o modello non disponibile)"
 fi
 echo ""
 

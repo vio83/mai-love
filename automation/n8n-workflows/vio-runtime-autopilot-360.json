@@ -1,0 +1,355 @@
+{
+  "name": "VIO83 — Runtime Autopilot 360 (Auto-Optimize Permanent)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "seconds", "secondsInterval": 120 }
+          ]
+        }
+      },
+      "id": "trigger-120s",
+      "name": "Trigger Ogni 2 Minuti",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/health",
+        "options": { "timeout": 8000 }
+      },
+      "id": "check-health",
+      "name": "Backend Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 160]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/core/status",
+        "options": { "timeout": 8000 }
+      },
+      "id": "check-core-status",
+      "name": "Core Status Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 360]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/orchestration/profile",
+        "options": { "timeout": 5000 }
+      },
+      "id": "check-profile",
+      "name": "Orchestration Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 540]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-checks",
+      "name": "Merge Health Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// VIO83 Runtime Autopilot 360 — Analisi e decisioni automatiche\nconst items = $input.all();\nconst health = items[0]?.json || {};\nconst core = items[1]?.json || {};\nconst profile = items[2]?.json || {};\n\nconst now = new Date().toISOString();\nconst actions = [];\nconst diagnostics = [];\n\n// 1. Backend online?\nif (health.status !== 'ok') {\n  actions.push('restart-backend');\n  diagnostics.push('Backend non risponde o status != ok');\n}\n\n// 2. Ollama raggiungibile?\nconst ollamaOk = health.providers?.ollama?.available === true;\nif (!ollamaOk) {\n  actions.push('restart-ollama');\n  diagnostics.push('Ollama non raggiungibile');\n}\n\n// 3. Modelli installati?\nconst modelCount = health.providers?.ollama?.models?.length || 0;\nif (modelCount === 0) {\n  diagnostics.push('Nessun modello Ollama installato');\n}\n\n// 4. Errori core elevati?\nconst errorCount = core.errors?.total_tracked || 0;\nif (errorCount > 50) {\n  actions.push('clear-error-log');\n  diagnostics.push(`Errori accumulati: ${errorCount}`);\n}\n\n// 5. Cache cleanup necessario?\nconst cacheSize = core.cache?.size || 0;\nif (cacheSize > 500) {\n  actions.push('cache-cleanup');\n  diagnostics.push(`Cache items: ${cacheSize}`);\n}\n\n// 6. Profilo corretto?\nconst effectiveMode = profile.effective_mode || 'unknown';\nconst noHybrid = profile.no_hybrid;\n\n// 7. Uptime check\nconst uptimeSec = health.uptime_seconds || 0;\n\nconst score = [\n  health.status === 'ok' ? 25 : 0,\n  ollamaOk ? 25 : 0,\n  modelCount >= 3 ? 15 : modelCount >= 1 ? 8 : 0,\n  errorCount < 20 ? 15 : errorCount < 50 ? 8 : 0,\n  cacheSize < 300 ? 10 : 5,\n  uptimeSec > 60 ? 10 : 3,\n].reduce((a, b) => a + b, 0);\n\nreturn [{\n  json: {\n    timestamp: now,\n    health_score: score,\n    effective_mode: effectiveMode,\n    no_hybrid: noHybrid,\n    ollama_available: ollamaOk,\n    model_count: modelCount,\n    uptime_seconds: uptimeSec,\n    error_count: errorCount,\n    cache_size: cacheSize,\n    actions_needed: actions,\n    diagnostics: diagnostics,\n    needs_action: actions.length > 0,\n  }\n}];"
+      },
+      "id": "analyze",
+      "name": "Analizza e Decidi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "needs-action",
+              "leftValue": "={{ $json.needs_action }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-needs-action",
+      "name": "Serve Azione?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Esegui azioni di remediation\nconst data = $input.first().json;\nconst actions = data.actions_needed || [];\nconst results = [];\n\nfor (const action of actions) {\n  switch (action) {\n    case 'cache-cleanup':\n      try {\n        const resp = await fetch('http://127.0.0.1:4000/core/cache/cleanup', { method: 'POST', signal: AbortSignal.timeout(5000) });\n        results.push({ action, status: resp.ok ? 'done' : 'failed', code: resp.status });\n      } catch (e) {\n        results.push({ action, status: 'error', message: e.message });\n      }\n      break;\n    case 'restart-ollama':\n      results.push({ action, status: 'flagged', note: 'Ollama restart richiede intervento shell (launchd gestisce auto-restart)' });\n      break;\n    case 'restart-backend':\n      results.push({ action, status: 'flagged', note: 'Backend restart gestito da PM2/launchd supervisor' });\n      break;\n    case 'clear-error-log':\n      results.push({ action, status: 'info', note: 'Error log sarà pulito alla prossima manutenzione schedulata' });\n      break;\n    default:\n      results.push({ action, status: 'unknown' });\n  }\n}\n\nreturn [{ json: { ...data, remediation_results: results, remediated_at: new Date().toISOString() } }];"
+      },
+      "id": "remediate",
+      "name": "Auto-Remediate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && PYTHONPATH=. python3 scripts/runtime/benchmark_latency.py 2>/dev/null && cat data/config/perf-latency-check.json"
+      },
+      "id": "benchmark-latency",
+      "name": "Benchmark Latency",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 440]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-final",
+      "name": "Merge Risultati",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log autopilot persistente\nconst items = $input.all();\nconst data = items[0]?.json || {};\nconst benchmark = items[1]?.json || {};\nconst fs = require('fs');\nconst path = '/Users/padronavio/Projects/vio83-ai-orchestra/data/logs/autopilot-360.jsonl';\n\nconst entry = {\n  ts: new Date().toISOString(),\n  score: data.health_score,\n  mode: data.effective_mode,\n  ollama: data.ollama_available,\n  models: data.model_count,\n  errors: data.error_count,\n  actions: data.actions_needed,\n  remediation: data.remediation_results,\n  benchmark_exit: benchmark.exitCode,\n};\n\ntry {\n  const dir = require('path').dirname(path);\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\n  fs.appendFileSync(path, JSON.stringify(entry) + '\\n');\n} catch (e) {\n  // silent\n}\n\nreturn [{ json: { ...entry, logged: true } }];"
+      },
+      "id": "log-result",
+      "name": "Log Autopilot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 6 }
+          ]
+        }
+      },
+      "id": "trigger-6h",
+      "name": "Deep Optimize Ogni 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 700]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && PYTHONPATH=. python3 scripts/runtime/real_max_optimizer.py --write-env 2>&1 | tail -n 30"
+      },
+      "id": "deep-optimize",
+      "name": "Real Max Optimizer",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [300, 700]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && PYTHONPATH=. python3 scripts/runtime/benchmark_stream_latency.py 2>/dev/null && cat data/config/perf-stream-latency-check.json"
+      },
+      "id": "benchmark-stream",
+      "name": "Benchmark Stream Latency",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [600, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst optimizerOut = items[0]?.json?.stdout || '';\nconst streamBench = items[1]?.json || {};\nconst fs = require('fs');\n\n// Leggi report optimizer\nlet report = {};\ntry {\n  const raw = fs.readFileSync('/Users/padronavio/Projects/vio83-ai-orchestra/data/config/real-max-optimizer-report.json', 'utf-8');\n  report = JSON.parse(raw);\n} catch (e) { /* noop */ }\n\nconst entry = {\n  ts: new Date().toISOString(),\n  type: 'deep-optimize',\n  best_model: report.best_model || 'unknown',\n  best_score: report.best_score || 0,\n  models_benchmarked: report.models_count || 0,\n  stream_bench_exit: streamBench.exitCode,\n};\n\ntry {\n  const logPath = '/Users/padronavio/Projects/vio83-ai-orchestra/data/logs/autopilot-360.jsonl';\n  const dir = require('path').dirname(logPath);\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\n  fs.appendFileSync(logPath, JSON.stringify(entry) + '\\n');\n} catch (e) { /* silent */ }\n\nreturn [{ json: entry }];"
+      },
+      "id": "log-deep-optimize",
+      "name": "Log Deep Optimize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 700]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 24 }
+          ]
+        }
+      },
+      "id": "trigger-daily",
+      "name": "Manutenzione Giornaliera",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 1000]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && bash scripts/runtime/run_real_max_maintenance.sh 2>&1 | tail -n 40"
+      },
+      "id": "daily-maintenance",
+      "name": "Manutenzione Completa",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [300, 1000]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/core/cache/cleanup",
+        "method": "POST",
+        "options": { "timeout": 10000 }
+      },
+      "id": "daily-cache-cleanup",
+      "name": "Cache Cleanup Giornaliero",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 1000]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst maintenance = items[0]?.json || {};\nconst cache = items[1]?.json || {};\nconst fs = require('fs');\n\nconst entry = {\n  ts: new Date().toISOString(),\n  type: 'daily-maintenance',\n  maintenance_exit: maintenance.exitCode,\n  cache_cleanup: cache.status || 'unknown',\n};\n\ntry {\n  const logPath = '/Users/padronavio/Projects/vio83-ai-orchestra/data/logs/autopilot-360.jsonl';\n  const dir = require('path').dirname(logPath);\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\n  fs.appendFileSync(logPath, JSON.stringify(entry) + '\\n');\n} catch (e) { /* silent */ }\n\nreturn [{ json: entry }];"
+      },
+      "id": "log-daily",
+      "name": "Log Manutenzione",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 1000]
+    }
+  ],
+  "connections": {
+    "Trigger Ogni 2 Minuti": {
+      "main": [
+        [
+          { "node": "Backend Health Check", "type": "main", "index": 0 },
+          { "node": "Core Status Check", "type": "main", "index": 0 },
+          { "node": "Orchestration Profile", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Backend Health Check": {
+      "main": [
+        [
+          { "node": "Merge Health Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Core Status Check": {
+      "main": [
+        [
+          { "node": "Merge Health Data", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Orchestration Profile": {
+      "main": [
+        [
+          { "node": "Merge Health Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Merge Health Data": {
+      "main": [
+        [
+          { "node": "Analizza e Decidi", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Analizza e Decidi": {
+      "main": [
+        [
+          { "node": "Serve Azione?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Serve Azione?": {
+      "main": [
+        [
+          { "node": "Auto-Remediate", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Benchmark Latency", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Auto-Remediate": {
+      "main": [
+        [
+          { "node": "Merge Risultati", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Benchmark Latency": {
+      "main": [
+        [
+          { "node": "Merge Risultati", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Merge Risultati": {
+      "main": [
+        [
+          { "node": "Log Autopilot", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Deep Optimize Ogni 6h": {
+      "main": [
+        [
+          { "node": "Real Max Optimizer", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Real Max Optimizer": {
+      "main": [
+        [
+          { "node": "Benchmark Stream Latency", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Benchmark Stream Latency": {
+      "main": [
+        [
+          { "node": "Log Deep Optimize", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Manutenzione Giornaliera": {
+      "main": [
+        [
+          { "node": "Manutenzione Completa", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Manutenzione Completa": {
+      "main": [
+        [
+          { "node": "Cache Cleanup Giornaliero", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Cache Cleanup Giornaliero": {
+      "main": [
+        [
+          { "node": "Log Manutenzione", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "autopilot" },
+    { "name": "optimization" },
+    { "name": "runtime" },
+    { "name": "permanent" }
+  ]
+}

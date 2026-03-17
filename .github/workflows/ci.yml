@@ -1,0 +1,95 @@
+name: CI — Release Gate
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (TypeCheck + Lint + Test + Build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: ESLint (zero warnings)
+        run: npm run lint
+
+      - name: Unit tests (Vitest)
+        run: npm run test:frontend
+
+      - name: Production build
+        run: npm run build
+
+  backend:
+    name: Backend (Lint + Compile + Test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Flake8 lint (syntax errors)
+        run: |
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Python compile check
+        run: python -m compileall -q backend/
+
+      - name: Backend unit tests
+        run: |
+          PYTHONPATH=. python -m unittest discover -s tests/backend -v
+
+  tauri-build:
+    name: Tauri Build (macOS)
+    runs-on: macos-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [frontend, backend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Cargo check (Tauri)
+        run: cd src-tauri && cargo check

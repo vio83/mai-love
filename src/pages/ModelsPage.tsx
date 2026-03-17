@@ -1,7 +1,8 @@
 // VIO 83 AI ORCHESTRA — Models Registry: Tutti i modelli AI
 import { motion } from 'framer-motion';
 import { Cpu, Eye, Star, Wifi, WifiOff, Wrench, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAppStore } from '../stores/appStore';
 import type { AIModelInfo } from '../types';
 
 type EliteStacksPayload = {
@@ -25,98 +26,98 @@ const ALL_MODELS: AIModelInfo[] = [
     description: 'Flagship Anthropic per agenti, coding avanzato, ricerca multi-step e reasoning ad altissima affidabilità.',
     maxTokens: 128000, contextWindow: 1000000, costPer1kInput: 0.005, costPer1kOutput: 0.025,
     speedScore: 92, qualityScore: 99, specialties: ['Agents', 'Code', 'Research', 'Legal', 'Medical'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'claude', mode: 'cloud',
     description: 'Bilanciamento top fra velocità, tool use, scrittura professionale e sviluppo software serio.',
     maxTokens: 64000, contextWindow: 1000000, costPer1kInput: 0.003, costPer1kOutput: 0.015,
     speedScore: 97, qualityScore: 97, specialties: ['Fast Code', 'Writing', 'Analysis', 'Agents'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'gpt-5.4', name: 'GPT-5.4', provider: 'gpt4', mode: 'cloud',
     description: 'Flagship OpenAI per reasoning complesso, coding professionale, strumenti, MCP e workflow agentici.',
     maxTokens: 128000, contextWindow: 1000000, costPer1kInput: 0.0025, costPer1kOutput: 0.015,
     speedScore: 95, qualityScore: 98, specialties: ['Reasoning', 'Coding', 'Agents', 'Tools'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'gpt-5-mini', name: 'GPT-5 mini', provider: 'gpt4', mode: 'cloud',
     description: 'Variante OpenAI veloce e più economica per task ad alto volume senza scendere troppo di qualità.',
     maxTokens: 128000, contextWindow: 400000, costPer1kInput: 0.00025, costPer1kOutput: 0.002,
     speedScore: 98, qualityScore: 92, specialties: ['Fast General', 'Automation', 'Bulk Tasks'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'grok-4', name: 'Grok 4', provider: 'grok', mode: 'cloud',
     description: 'xAI punta su reasoning + tool use + contesto enorme. Molto forte per realtime se abbini ricerca server-side.',
     maxTokens: 8192, contextWindow: 2000000, costPer1kInput: 0.002, costPer1kOutput: 0.01,
     speedScore: 94, qualityScore: 94, specialties: ['Realtime', 'Research', 'Tool Use', 'Long Context'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', mode: 'cloud',
     description: 'Google top model per ragionamento, coding, multimodalità e documenti lunghissimi.',
     maxTokens: 8192, contextWindow: 1000000, costPer1kInput: 0.00125, costPer1kOutput: 0.01,
     speedScore: 93, qualityScore: 96, specialties: ['Long Context', 'Coding', 'Research', 'Multimodal'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'gemini-2-5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', mode: 'cloud',
     description: 'Versione Google ad alto rapporto prezzo/prestazioni per workload rapidi, continui e multimodali.',
     maxTokens: 8192, contextWindow: 1000000, costPer1kInput: 0.000075, costPer1kOutput: 0.0003,
     speedScore: 98, qualityScore: 91, specialties: ['Fast Search', 'Long Context', 'High Volume'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'mistral-large-latest', name: 'Mistral Large (latest)', provider: 'mistral', mode: 'cloud',
     description: 'Stack Mistral top-tier per multilingua, enterprise EU, document understanding e contenuti complessi.',
     maxTokens: 8192, contextWindow: 128000, costPer1kInput: 0.002, costPer1kOutput: 0.006,
     speedScore: 94, qualityScore: 92, specialties: ['Multilingual', 'EU', 'Translation', 'Enterprise'],
-    supportsVision: true, supportsTools: true, status: 'online',
+    supportsVision: true, supportsTools: true, status: 'standby',
   },
   {
     id: 'deepseek-reasoner', name: 'DeepSeek R1 / Reasoner', provider: 'deepseek', mode: 'cloud',
     description: 'Molto forte per matematica, logica, coding e reasoning strutturato con costo aggressivo.',
     maxTokens: 64000, contextWindow: 128000, costPer1kInput: 0.00055, costPer1kOutput: 0.00219,
     speedScore: 88, qualityScore: 94, specialties: ['Math', 'Reasoning', 'Logic', 'Code'],
-    supportsVision: false, supportsTools: true, status: 'online',
+    supportsVision: false, supportsTools: true, status: 'standby',
   },
   {
     id: 'groq-gpt-oss-120b', name: 'Groq + GPT-OSS 120B', provider: 'groq', mode: 'cloud',
     description: 'Integrazione ultra-rapida per task agentici, reasoning e automazioni ad alta velocità.',
     maxTokens: 65536, contextWindow: 131072, costPer1kInput: 0.00015, costPer1kOutput: 0.0006,
     speedScore: 99, qualityScore: 90, specialties: ['Speed', 'Automation', 'Agents', 'Code'],
-    supportsVision: false, supportsTools: true, status: 'online',
+    supportsVision: false, supportsTools: true, status: 'standby',
   },
   {
     id: 'perplexity-pro-search', name: 'Perplexity Pro Search', provider: 'perplexity', mode: 'cloud',
     description: 'Ricerca web grounded, citazioni e analisi orientata a fact-finding e investigative workflows.',
     maxTokens: 32768, contextWindow: 262144, costPer1kInput: 0, costPer1kOutput: 0,
     speedScore: 93, qualityScore: 91, specialties: ['Web Research', 'Citations', 'Current Events'],
-    supportsVision: false, supportsTools: true, status: 'online',
+    supportsVision: false, supportsTools: true, status: 'standby',
   },
   {
     id: 'openrouter-llama-3-3-free', name: 'OpenRouter Llama 3.3 70B Free', provider: 'openrouter', mode: 'cloud',
     description: 'Ottimo canale elastico per fallback, testing multi-provider e accesso rapido a modelli community/partner.',
     maxTokens: 8192, contextWindow: 131072, costPer1kInput: 0, costPer1kOutput: 0,
     speedScore: 90, qualityScore: 87, specialties: ['Fallback', 'Multi-provider', 'Experiments'],
-    supportsVision: false, supportsTools: true, status: 'online',
+    supportsVision: false, supportsTools: true, status: 'standby',
   },
   {
     id: 'together-llama-3-3-70b', name: 'Together Llama 3.3 70B', provider: 'together', mode: 'cloud',
     description: 'Buona opzione economica per reasoning generalista e throughput cloud indipendente.',
     maxTokens: 8192, contextWindow: 131072, costPer1kInput: 0.00088, costPer1kOutput: 0.00088,
     speedScore: 89, qualityScore: 88, specialties: ['Budget Cloud', 'Generalist', 'Reasoning'],
-    supportsVision: false, supportsTools: true, status: 'online',
+    supportsVision: false, supportsTools: true, status: 'standby',
   },
   {
     id: 'ollama-local', name: 'Ollama Locale', provider: 'ollama', mode: 'local',
     description: 'Modelli locali su MacBook Air M1. Zero costi, zero dati trasmessi. Privacy totale.',
     maxTokens: 4096, contextWindow: 32000, costPer1kInput: 0, costPer1kOutput: 0,
     speedScore: 75, qualityScore: 82, specialties: ['Privacy', 'Offline', 'Code'],
-    supportsVision: false, supportsTools: false, status: 'standby',
+    supportsVision: false, supportsTools: false, status: 'online',
   },
 ];
 
@@ -149,6 +150,16 @@ function prettyStackKey(raw: string): string {
 }
 
 export default function ModelsPage() {
+  const settings = useAppStore(s => s.settings);
+  const isCloud = settings.orchestrator.mode === 'cloud';
+
+  const models = useMemo(() => ALL_MODELS.map(m => {
+    if (m.mode === 'local') return m;
+    const activeProvider = settings.orchestrator.primaryProvider;
+    const status = isCloud && m.provider === activeProvider ? 'online' : 'standby';
+    return { ...m, status };
+  }), [settings.orchestrator.primaryProvider, isCloud]);
+
   const [eliteStacks, setEliteStacks] = useState<EliteStacksPayload | null>(null);
   const [eliteLoading, setEliteLoading] = useState(true);
   const [eliteError, setEliteError] = useState<string | null>(null);
@@ -170,9 +181,9 @@ export default function ModelsPage() {
         if (!cancelled) {
           setEliteStacks(data);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!cancelled) {
-          setEliteError(error?.message || 'Errore sconosciuto');
+          setEliteError((error as { message?: string })?.message || 'Errore sconosciuto');
         }
       } finally {
         if (!cancelled) {
@@ -196,7 +207,9 @@ export default function ModelsPage() {
           AI Models Registry
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          13 modelli/stacks — cloud + locale — allineati a routing specialistico e ricerca ad alta affidabilità
+          {isCloud
+            ? `Registro modelli — Cloud attivo (${settings.orchestrator.primaryProvider}), locale disponibile`
+            : 'Registro modelli — Ollama locale attivo, modelli cloud disponibili'}
         </p>
       </motion.div>
 
@@ -310,7 +323,7 @@ export default function ModelsPage() {
       </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-        {ALL_MODELS.map((m, i) => {
+        {models.map((m, i) => {
           const color = PROVIDER_COLORS[m.provider] || '#888';
           const icon = PROVIDER_ICONS[m.provider] || '🤖';
 

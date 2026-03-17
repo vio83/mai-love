@@ -44,6 +44,7 @@ from backend.orchestrator.system_prompt import (
     VIO83_MASTER_PROMPT,
     SPECIALIZED_PROMPTS,
     build_system_prompt,
+    build_local_system_prompt,
 )
 
 # Alias per retrocompatibilità (server.py lo importa come VIO83_SYSTEM_PROMPT)
@@ -93,6 +94,121 @@ ROUTING_MAP = {
     "reasoning": "claude",
     "conversation": "claude",
 }
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw.strip())
+    except Exception:
+        return default
+
+
+def _execution_profile() -> str:
+    raw = os.environ.get("VIO_EXECUTION_PROFILE", "real-max-local").strip().lower()
+    if raw in {"", "balanced", "real-max", "hybrid"}:
+        return "real-max-local"
+    return raw
+
+
+def _speed_mode_enabled() -> bool:
+    return _env_flag("VIO_SPEED_MODE", True)
+
+
+def _force_local_orchestration(mode: str) -> bool:
+    """Controlla se l'orchestrazione deve restare locale.
+    Rispetta VIO_NO_HYBRID da .env: se true forza locale, altrimenti segue il mode della request.
+    """
+    env_val = os.environ.get("VIO_NO_HYBRID", "").strip().lower()
+    if env_val in ("true", "1", "yes"):
+        return True
+    return mode == "local"
+
+
+def _local_model_candidates(
+    request_type: str,
+    explicit_model: Optional[str],
+    default_model: str,
+    prefer_fast: bool = False,
+) -> list[str]:
+    if explicit_model:
+        return [explicit_model]
+
+    routing = REQUEST_TYPE_ROUTING.get(request_type, {})
+    preference = os.environ.get("VIO_LOCAL_MODEL_PREFERENCE", "").strip()
+
+    fast_chain = [
+        "smollm2:135m",
+        "smollm2:360m",
+        "qwen2.5:0.5b",
+        "qwen2.5:1.5b",
+    ]
+
+    quality_chain = [
+        preference,
+        routing.get("local_primary"),
+        routing.get("local_fallback"),
+        default_model,
+        "qwen2.5-coder:3b",
+        "llama3.2:3b",
+        "gemma2:2b",
+        "mistral:latest",
+        "llama3:latest",
+    ]
+
+    raw_candidates = ([*fast_chain, *quality_chain] if prefer_fast else quality_chain)
+
+    seen: set[str] = set()
+    candidates: list[str] = []
+    for item in raw_candidates:
+        if not item:
+            continue
+        if item in seen:
+            continue
+        seen.add(item)
+        candidates.append(item)
+
+    return candidates
+
+
+def _effective_generation_params(
+    request_type: str,
+    last_msg: str,
+    requested_temperature: float,
+    requested_max_tokens: int,
+) -> tuple[float, int, bool]:
+    speed_mode = _speed_mode_enabled()
+
+    hard_cap = _env_int("VIO_MAX_TOKENS_HARD_CAP", 768)
+    turbo_cap = _env_int("VIO_TURBO_MAX_TOKENS", 320)
+    medium_cap = _env_int("VIO_MEDIUM_MAX_TOKENS", 512)
+
+    message_len = len((last_msg or "").strip())
+    short_query = message_len <= 180
+
+    if not speed_mode:
+        capped = min(max(64, requested_max_tokens), max(128, hard_cap))
+        temp = max(0.0, min(1.0, requested_temperature))
+        return temp, capped, False
+
+    # Turbo strategy: meno token, temperatura più bassa, modello più rapido per query brevi.
+    if short_query and request_type in {"conversation", "realtime", "analysis", "reasoning"}:
+        capped = min(max(64, requested_max_tokens), max(128, turbo_cap))
+        temp = min(requested_temperature, 0.2)
+        return temp, capped, True
+
+    capped = min(max(96, requested_max_tokens), max(192, medium_cap))
+    temp = min(requested_temperature, 0.25)
+    return temp, capped, False
 
 ALL_CLOUD_ROUTER_PROVIDERS = {
     **FREE_CLOUD_PROVIDERS,
@@ -449,7 +565,7 @@ async def call_ollama(
     host: str = "http://localhost:11434",
     stream: bool = False,
     temperature: float = 0.7,
-    max_tokens: int = 4096,
+    max_tokens: int = 512,
 ) -> dict:
     """
     Chiama Ollama direttamente via HTTP.
@@ -467,14 +583,16 @@ async def call_ollama(
         }
     }
 
+    ollama_timeout = float(_env_int("VIO_OLLAMA_TIMEOUT_SEC", 45))
+
     if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=ollama_timeout) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
     elif HAS_AIOHTTP:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=120)) as resp:
+            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=ollama_timeout)) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
     else:
@@ -485,7 +603,7 @@ async def call_ollama(
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=ollama_timeout) as resp:
             data = json.loads(resp.read())
 
     content = data.get("message", {}).get("content", "")
@@ -505,7 +623,7 @@ async def call_ollama_streaming(
     model: str = "qwen2.5-coder:3b",
     host: str = "http://localhost:11434",
     temperature: float = 0.7,
-    max_tokens: int = 4096,
+    max_tokens: int = 512,
 ) -> AsyncGenerator[str, None]:
     """
     Streaming Ollama — genera token uno alla volta.
@@ -522,8 +640,10 @@ async def call_ollama_streaming(
         }
     }
 
+    streaming_timeout = float(_env_int("VIO_OLLAMA_STREAM_TIMEOUT_SEC", 90))
+
     if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=streaming_timeout) as client:
             async with client.stream("POST", url, json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
@@ -539,7 +659,7 @@ async def call_ollama_streaming(
                             continue
     elif HAS_AIOHTTP:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=streaming_timeout)) as resp:
                 resp.raise_for_status()
                 async for line in resp.content:
                     decoded = line.decode("utf-8").strip()
@@ -611,7 +731,7 @@ async def orchestrate(
     ollama_host: str = "http://localhost:11434",
     ollama_model: str = "qwen2.5-coder:3b",
     temperature: float = 0.7,
-    max_tokens: int = 4096,
+    max_tokens: int = 512,
     cross_check: bool = False,
 ) -> dict:
     """
@@ -622,43 +742,70 @@ async def orchestrate(
 
     # Routing intelligente — classifica PRIMA di costruire il prompt
     request_type = classify_request(last_msg) if auto_routing else "conversation"
-    effective_provider = route_to_provider(request_type, mode) if auto_routing else provider
+    effective_temperature, effective_max_tokens, prefer_fast_model = _effective_generation_params(
+        request_type=request_type,
+        last_msg=last_msg,
+        requested_temperature=temperature,
+        requested_max_tokens=max_tokens,
+    )
+
+    force_local = _force_local_orchestration(mode)
+    if force_local:
+        effective_provider = "ollama"
+    else:
+        effective_provider = route_to_provider(request_type, mode) if auto_routing else provider
 
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     has_system = any(m.get("role") == "system" for m in messages)
     if not has_system:
-        system_prompt = build_system_prompt(request_type)
+        # Turbo locale: prompt compatto per ridurre token overhead e first-token latency.
+        if force_local or _speed_mode_enabled():
+            system_prompt = build_local_system_prompt(request_type)
+        else:
+            system_prompt = build_system_prompt(request_type)
         messages = [{"role": "system", "content": system_prompt}] + messages
 
     # In modalità locale, usa sempre Ollama
-    if mode == "local" or effective_provider == "ollama":
-        effective_model = ollama_model or model or "llama3.2:3b"
-        print(f"[Orchestra] Tipo: {request_type} | Ollama: {effective_model}")
+    if mode == "local" or effective_provider == "ollama" or force_local:
+        candidate_models = _local_model_candidates(
+            request_type=request_type,
+            explicit_model=model,
+            default_model=ollama_model or "llama3.2:3b",
+            prefer_fast=prefer_fast_model,
+        )
+        if not candidate_models:
+            candidate_models = ["llama3.2:3b"]
 
-        try:
-            result = await call_ollama(
-                messages, effective_model, ollama_host,
-                temperature=temperature, max_tokens=max_tokens,
-            )
-            result["request_type"] = request_type
-            return result
-        except Exception as e:
-            # Prova con modello fallback
-            fallback_models = ["llama3.2:3b", "qwen2.5-coder:3b", "gemma2:2b"]
-            for fb_model in fallback_models:
-                if fb_model != effective_model:
-                    try:
-                        print(f"[Orchestra] Fallback a {fb_model}")
-                        result = await call_ollama(
-                            messages, fb_model, ollama_host,
-                            temperature=temperature, max_tokens=max_tokens,
-                        )
-                        result["request_type"] = request_type
-                        return result
-                    except Exception:
-                        continue
-            raise Exception(f"Ollama non raggiungibile. Errore: {e}\n"
-                            "Verifica che Ollama sia attivo con: ollama serve")
+        print(
+            f"[Orchestra] Tipo: {request_type} | Profilo: {_execution_profile()} | "
+            f"No-Hybrid: {force_local} | Candidati locali: {candidate_models}"
+        )
+
+        last_error: Optional[Exception] = None
+        for idx, local_model in enumerate(candidate_models):
+            try:
+                if idx > 0:
+                    print(f"[Orchestra] Fallback locale -> {local_model}")
+
+                result = await call_ollama(
+                    messages,
+                    local_model,
+                    ollama_host,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                )
+                result["request_type"] = request_type
+                result["execution_profile"] = _execution_profile()
+                result["forced_local"] = force_local
+                return result
+            except Exception as e:
+                last_error = e
+                continue
+
+        raise Exception(
+            f"Ollama non raggiungibile o modelli locali indisponibili. Ultimo errore: {last_error}\n"
+            "Verifica che Ollama sia attivo con: ollama serve"
+        )
 
     # Cloud mode reale backend-side
     print(f"[Orchestra] Tipo: {request_type} | Cloud provider: {effective_provider}")
@@ -668,10 +815,12 @@ async def orchestrate(
             messages=messages,
             provider=effective_provider,
             model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            temperature=effective_temperature,
+            max_tokens=effective_max_tokens,
         )
         result["request_type"] = request_type
+        result["execution_profile"] = _execution_profile()
+        result["forced_local"] = force_local
         return result
     except Exception as e:
         routing_cfg = REQUEST_TYPE_ROUTING.get(request_type, {})
@@ -684,11 +833,13 @@ async def orchestrate(
                     messages=messages,
                     provider=fallback_provider,
                     model=None,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
                 )
                 result["request_type"] = request_type
                 result["fallback_from"] = effective_provider
+                result["execution_profile"] = _execution_profile()
+                result["forced_local"] = force_local
                 return result
             except Exception as fallback_error:
                 raise Exception(

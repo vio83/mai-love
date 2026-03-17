@@ -49,12 +49,13 @@ function extractProviderModelId(modelString: string): string {
   return parts.length > 1 ? parts.slice(1).join('/') : modelString;
 }
 
-function extractPerplexityOutput(data: any): string {
-  if (typeof data?.output_text === 'string' && data.output_text.trim()) return data.output_text;
-  if (Array.isArray(data?.output)) {
-    return data.output
-      .flatMap((item: any) => Array.isArray(item?.content) ? item.content : [])
-      .map((item: any) => item?.text || '')
+function extractPerplexityOutput(data: unknown): string {
+  const d = data as Record<string, unknown>;
+  if (typeof d?.output_text === 'string' && (d.output_text as string).trim()) return d.output_text as string;
+  if (Array.isArray(d?.output)) {
+    return (d.output as unknown[])
+      .flatMap((item: unknown) => { const it = item as Record<string, unknown>; return Array.isArray(it?.content) ? it.content as unknown[] : []; })
+      .map((item: unknown) => (item as Record<string, unknown>)?.text || '')
       .filter(Boolean)
       .join('')
       .trim();
@@ -125,6 +126,18 @@ function normalizeLocalModel(model: string): string {
   return LOCAL_MODEL_ALIASES[trimmed] || trimmed;
 }
 
+function resolveGenerationBudget(messageLength: number, deepMode: boolean): number {
+  if (deepMode) {
+    if (messageLength <= 120) return 320;
+    if (messageLength <= 400) return 512;
+    return 768;
+  }
+
+  if (messageLength <= 120) return 160;
+  if (messageLength <= 400) return 288;
+  return 448;
+}
+
 // Cache dei modelli Ollama installati (evita fetch /api/tags ad ogni messaggio)
 let _ollamaModelCache: { models: string[]; timestamp: number } = { models: [], timestamp: 0 };
 const OLLAMA_CACHE_TTL = 60_000; // 60 secondi
@@ -140,7 +153,7 @@ async function fetchInstalledOllamaModels(host: string, forceRefresh: boolean = 
     const data = await response.json();
     if (!Array.isArray(data?.models)) return _ollamaModelCache.models;
     const models = data.models
-      .map((m: any) => typeof m?.name === 'string' ? m.name : '')
+      .map((m: unknown) => typeof (m as Record<string, unknown>)?.name === 'string' ? (m as Record<string, unknown>).name as string : '')
       .filter((name: string) => !!name);
     _ollamaModelCache = { models, timestamp: now };
     return models;
@@ -238,6 +251,7 @@ async function callOllama(
   host: string = 'http://localhost:11434',
   onToken?: (token: string) => void,
   signal?: AbortSignal,
+  maxPredict: number = 512,
 ): Promise<AIResponse> {
   const start = Date.now();
   let resolvedModel = await resolveWorkingLocalModel(host, model);
@@ -254,7 +268,7 @@ async function callOllama(
           messages,
           stream: true,
           options: {
-            num_predict: 512,
+            num_predict: maxPredict,
             temperature: 0.2,
           },
         }),
@@ -326,7 +340,7 @@ async function callOllama(
         messages,
         stream: false,
         options: {
-          num_predict: 512,
+          num_predict: maxPredict,
           temperature: 0.2,
         },
       }),
@@ -371,6 +385,7 @@ async function callCloud(
   apiKeys: Record<string, string>,
   onToken?: (token: string) => void,
   signal?: AbortSignal,
+  maxTokens: number = 768,
 ): Promise<AIResponse> {
   const start = Date.now();
   const model = CLOUD_MODELS[provider];
@@ -454,7 +469,7 @@ async function callCloud(
     body: JSON.stringify({
       model: extractProviderModelId(model),
       messages,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       stream: useStream,
     }),
     signal,
@@ -536,29 +551,27 @@ export async function sendToOrchestra(
   const lastMessage = messages[messages.length - 1];
   if (!lastMessage) throw new Error('Nessun messaggio da inviare');
 
-  // Controlla se ci sono API keys configurate
-  const hasAnyApiKey = Object.values(config.apiKeys).some(k => k && k.trim().length > 0);
+  // Dual-mode: rispetta la scelta dell'utente (local o cloud)
+  const effectiveMode: AIMode = config.mode || 'local';
+  const effectiveProvider: AIProvider =
+    effectiveMode === 'cloud' ? (config.primaryProvider || 'claude') : 'ollama';
 
-  // Se siamo in cloud mode ma non ci sono API keys, forza Ollama
-  const effectiveMode: AIMode = (config.mode === 'cloud' && !hasAnyApiKey) ? 'local' : config.mode;
-  const effectiveProvider: AIProvider = effectiveMode === 'local' ? 'ollama' : config.primaryProvider;
-
-  if (effectiveMode !== config.mode) {
-    console.log(`[Orchestra] Nessuna API key trovata — fallback automatico a Ollama locale`);
+  if (effectiveMode === 'cloud') {
+    console.log(`[Orchestra] Cloud mode: provider=${effectiveProvider}`);
   }
 
+  const messageLength = (lastMessage.content || '').trim().length;
+  const deepMode = Boolean(config.crossCheckEnabled || config.ragEnabled || config.strictEvidenceMode);
+  const generationBudget = resolveGenerationBudget(messageLength, deepMode);
+
   // Routing intelligente — classifica PRIMA di costruire il prompt
-  let provider = effectiveProvider;
+  const provider = effectiveProvider;
   let requestType: RequestType = 'conversation';
   let activeOllamaModel = config.ollamaModel || 'llama3.2:3b';
 
   if (config.autoRouting) {
     requestType = classifyRequest(lastMessage.content);
-    if (effectiveMode === 'cloud') {
-      provider = routeToProvider(requestType, effectiveMode);
-    } else {
-      activeOllamaModel = routeToLocalModel(requestType, activeOllamaModel);
-    }
+    activeOllamaModel = routeToLocalModel(requestType, activeOllamaModel);
   }
   console.log(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
 
@@ -643,9 +656,10 @@ export async function sendToOrchestra(
         config.ollamaHost,
         onToken,
         signal,
+        generationBudget,
       );
     } else {
-      response = await callCloud(apiMessages, provider, config.apiKeys, onToken, signal);
+      response = await callCloud(apiMessages, provider, config.apiKeys, onToken, signal, generationBudget);
     }
 
     if (strictEvidenceDegraded && strictEvidenceBanner) {
@@ -664,54 +678,30 @@ export async function sendToOrchestra(
 
     // Cross-check opzionale
     if (config.crossCheckEnabled) {
-      if (effectiveMode === 'cloud' && config.fallbackProviders.length > 0) {
-        try {
-          const checkProvider = config.fallbackProviders[0];
-          const checkResponse = await callCloud(
-            [
-              ...apiMessages,
-              { role: 'assistant', content: response.content },
-              { role: 'user', content: 'Verifica se la risposta precedente è accurata. Rispondi solo con "CONFERMATO" se corretta, o spiega brevemente gli errori.' },
-            ],
-            checkProvider,
-            config.apiKeys,
-          );
+      // Fire-and-forget: cross-check locale NON blocca la risposta all'utente
+      // Il risultato verrà aggiunto in background (M1 8GB troppo lento per doppia inference sincrona)
+      const verifierModel = pickLocalVerifierModel(activeOllamaModel);
+      const crossCheckMessages = [
+        ...apiMessages,
+        { role: 'assistant', content: response.content },
+        {
+          role: 'user',
+          content: 'Verifica la risposta precedente. Rispondi con "CONFERMATO" se è accurata. Altrimenti rispondi con "CORREZIONE:" seguito da una nota breve.',
+        },
+      ];
+      callOllama(crossCheckMessages, verifierModel, config.ollamaHost, undefined, undefined, 160)
+        .then(checkResponse => {
+          const normalized = checkResponse.content.trim().toUpperCase();
+          const concordance = normalized.startsWith('CONFERMATO') || normalized.startsWith('CONFIRMED');
           response.crossCheckResult = {
-            concordance: checkResponse.content.includes('CONFERMATO'),
-            secondProvider: checkProvider,
-            secondResponse: checkResponse.content,
+            concordance,
+            secondProvider: 'ollama',
+            secondResponse: `[${verifierModel}] ${checkResponse.content}`,
           };
-        } catch (e) {
-          console.warn('[Orchestra] Cross-check cloud fallito:', e);
-        }
-      }
-
-      if (effectiveMode === 'local') {
-        // Fire-and-forget: cross-check locale NON blocca la risposta all'utente
-        // Il risultato verrà aggiunto in background (M1 8GB troppo lento per doppia inference sincrona)
-        const verifierModel = pickLocalVerifierModel(activeOllamaModel);
-        const crossCheckMessages = [
-          ...apiMessages,
-          { role: 'assistant', content: response.content },
-          {
-            role: 'user',
-            content: 'Verifica la risposta precedente. Rispondi con "CONFERMATO" se è accurata. Altrimenti rispondi con "CORREZIONE:" seguito da una nota breve.',
-          },
-        ];
-        callOllama(crossCheckMessages, verifierModel, config.ollamaHost)
-          .then(checkResponse => {
-            const normalized = checkResponse.content.trim().toUpperCase();
-            const concordance = normalized.startsWith('CONFERMATO') || normalized.startsWith('CONFIRMED');
-            response.crossCheckResult = {
-              concordance,
-              secondProvider: 'ollama',
-              secondResponse: `[${verifierModel}] ${checkResponse.content}`,
-            };
-          })
-          .catch(e => {
-            console.warn('[Orchestra] Cross-check locale fallito:', e);
-          });
-      }
+        })
+        .catch(e => {
+          console.warn('[Orchestra] Cross-check locale fallito:', e);
+        });
     }
 
     return response;
@@ -722,21 +712,13 @@ export async function sendToOrchestra(
     // Prima prova i fallback configurati
     for (const fallback of config.fallbackProviders) {
       try {
-        if (fallback === 'ollama') {
-          const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal);
-          if (strictEvidenceDegraded && strictEvidenceBanner) {
-            fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
-          }
-          return fallbackResponse;
+        if (fallback !== 'ollama') continue;
+
+        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal, generationBudget);
+        if (strictEvidenceDegraded && strictEvidenceBanner) {
+          fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
         }
-        // Solo se abbiamo API keys per questo provider
-        if (hasAnyApiKey) {
-          const fallbackResponse = await callCloud(apiMessages, fallback, config.apiKeys, onToken, signal);
-          if (strictEvidenceDegraded && strictEvidenceBanner) {
-            fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
-          }
-          return fallbackResponse;
-        }
+        return fallbackResponse;
       } catch (e) {
         console.warn(`[Orchestra] Fallback ${fallback} fallito:`, e);
       }
@@ -746,7 +728,7 @@ export async function sendToOrchestra(
     if (provider !== 'ollama') {
       try {
         console.log('[Orchestra] Ultimo tentativo: Ollama locale');
-        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal);
+        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal, generationBudget);
         if (strictEvidenceDegraded && strictEvidenceBanner) {
           fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
         }
@@ -756,8 +738,8 @@ export async function sendToOrchestra(
       }
     }
 
-    throw new Error(`Tutti i provider hanno fallito. Errore originale: ${error}`);
+    throw new Error(`Tutti i modelli locali Ollama hanno fallito. Errore originale: ${error}`);
   }
 }
 
-export { classifyRequest, CLOUD_MODELS, LOCAL_MODELS, routeToProvider };
+export { classifyRequest, CLOUD_MODELS, LOCAL_MODELS, resolveGenerationBudget, routeToProvider };

@@ -44,9 +44,9 @@ const defaultSettings: AppSettings = {
     mode: 'local',
     primaryProvider: 'ollama',
     fallbackProviders: ['ollama'],
-    crossCheckEnabled: true,
-    ragEnabled: true,
-    strictEvidenceMode: true,
+    crossCheckEnabled: false,
+    ragEnabled: false,
+    strictEvidenceMode: false,
     autoRouting: true,
   },
   apiKeys: [],
@@ -56,7 +56,25 @@ const defaultSettings: AppSettings = {
 };
 
 // Versione dello schema — incrementa per forzare reset dei settings corrotti
-const STORE_VERSION = 4;
+const STORE_VERSION = 8;
+
+function normalizeOrchestrator(
+  orchestrator: AppSettings['orchestrator'],
+): AppSettings['orchestrator'] {
+  const mode = orchestrator.mode || 'local';
+  const primaryProvider = orchestrator.primaryProvider || (mode === 'local' ? 'ollama' : 'claude');
+  const fallback = orchestrator.fallbackProviders?.length
+    ? orchestrator.fallbackProviders
+    : (mode === 'local' ? ['ollama'] : [primaryProvider]);
+
+  return {
+    ...orchestrator,
+    mode,
+    primaryProvider,
+    fallbackProviders: fallback as AIProvider[],
+    autoRouting: orchestrator.autoRouting ?? true,
+  };
+}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -113,7 +131,14 @@ export const useAppStore = create<AppState>()(
 
       updateSettings: (newSettings) => {
         set(state => ({
-          settings: { ...state.settings, ...newSettings },
+          settings: {
+            ...state.settings,
+            ...newSettings,
+            orchestrator: normalizeOrchestrator({
+              ...state.settings.orchestrator,
+              ...(newSettings.orchestrator || {}),
+            }),
+          },
         }));
       },
 
@@ -121,12 +146,11 @@ export const useAppStore = create<AppState>()(
         set(state => ({
           settings: {
             ...state.settings,
-            orchestrator: {
+            orchestrator: normalizeOrchestrator({
               ...state.settings.orchestrator,
               mode,
-              primaryProvider: mode === 'local' ? 'ollama' : 'claude',
-              autoRouting: true,
-            },
+              primaryProvider: mode === 'local' ? 'ollama' : state.settings.orchestrator.primaryProvider,
+            }),
           },
         }));
       },
@@ -135,10 +159,10 @@ export const useAppStore = create<AppState>()(
         set(state => ({
           settings: {
             ...state.settings,
-            orchestrator: {
+            orchestrator: normalizeOrchestrator({
               ...state.settings.orchestrator,
               primaryProvider: provider,
-            },
+            }),
           },
         }));
       },
@@ -177,15 +201,13 @@ export const useAppStore = create<AppState>()(
         set(state => ({
           settings: {
             ...state.settings,
-            orchestrator: {
-              mode: 'local',
-              primaryProvider: 'ollama',
-              fallbackProviders: ['ollama', ...state.settings.orchestrator.fallbackProviders.filter((p) => p !== 'ollama')],
+            orchestrator: normalizeOrchestrator({
+              ...state.settings.orchestrator,
               autoRouting: true,
               crossCheckEnabled: true,
               ragEnabled: true,
               strictEvidenceMode: true,
-            },
+            }),
           },
         }));
       },
@@ -194,9 +216,12 @@ export const useAppStore = create<AppState>()(
         set(state => ({
           settings: {
             ...state.settings,
-            orchestrator: {
+            orchestrator: normalizeOrchestrator({
               ...defaultSettings.orchestrator,
-            },
+              mode: 'local',
+              primaryProvider: 'ollama',
+              fallbackProviders: ['ollama'],
+            }),
             ollamaModel: state.settings.ollamaModel || defaultSettings.ollamaModel,
           },
         }));
@@ -210,22 +235,30 @@ export const useAppStore = create<AppState>()(
         const { abortController, isStreaming, ...rest } = state;
         return rest;
       },
-      migrate: (persistedState: any, version: number) => {
-        // Se la versione è vecchia, resetta i settings orchestrator a local
+      migrate: (persistedState: unknown, version: number) => {
+        const ps = (persistedState || {}) as Record<string, unknown>;
+        const currentSettings = (ps.settings || {}) as Record<string, unknown>;
+        const mergedSettings = {
+          ...defaultSettings,
+          ...currentSettings,
+          apiKeys: currentSettings.apiKeys || [],
+          ollamaHost: currentSettings.ollamaHost || defaultSettings.ollamaHost,
+          ollamaModel: currentSettings.ollamaModel || defaultSettings.ollamaModel,
+        };
+
         if (version < STORE_VERSION) {
-          console.log('[VIO83] Migrazione store: reset a modalità locale');
-          return {
-            ...persistedState,
-            settings: {
-              ...defaultSettings,
-              // Mantieni le conversazioni e le API keys se esistono
-              apiKeys: persistedState?.settings?.apiKeys || [],
-              ollamaHost: persistedState?.settings?.ollamaHost || defaultSettings.ollamaHost,
-              ollamaModel: persistedState?.settings?.ollamaModel || defaultSettings.ollamaModel,
-            },
-          };
+          console.log('[VIO83] Migrazione store v' + version + ' → v' + STORE_VERSION);
         }
-        return persistedState;
+
+        return {
+          ...ps,
+          settings: {
+            ...mergedSettings,
+            orchestrator: normalizeOrchestrator(
+              mergedSettings.orchestrator || defaultSettings.orchestrator,
+            ),
+          },
+        };
       },
     }
   )

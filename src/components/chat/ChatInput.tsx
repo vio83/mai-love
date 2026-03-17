@@ -1,23 +1,14 @@
 // VIO 83 AI ORCHESTRA - Input Chat con selettore modello, allegati, stop
-import { Cloud, Cpu, FileText, HardDrive, Image, Plus, Send, Square, X, Zap } from 'lucide-react';
+import { Cpu, FileText, HardDrive, Image, Plus, Send, Square, X, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/appStore';
-import type { AIProvider, Attachment } from '../../types';
+import type { Attachment } from '../../types';
 
 // Modelli Ollama disponibili localmente (su MacBook Air M1 8GB)
 const OLLAMA_MODELS = [
   { id: 'llama3.2:3b', name: 'Llama 3.2 3B', desc: 'Più potente — generale', ram: '~2GB' },
   { id: 'qwen2.5-coder:3b', name: 'Qwen Coder 3B', desc: 'Migliore per codice', ram: '~2GB' },
   { id: 'gemma2:2b', name: 'Gemma 2 2B', desc: 'Leggero — rapido', ram: '~1.5GB' },
-];
-
-const cloudProviders: { id: AIProvider; name: string; icon: string }[] = [
-  { id: 'claude', name: 'Claude', icon: '🟠' },
-  { id: 'gpt4', name: 'GPT-4o', icon: '🟢' },
-  { id: 'grok', name: 'Grok 3', icon: '🔵' },
-  { id: 'gemini', name: 'Gemini', icon: '💎' },
-  { id: 'mistral', name: 'Mistral', icon: '🟣' },
-  { id: 'deepseek', name: 'DeepSeek', icon: '🩷' },
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -32,8 +23,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { settings, setMode, setProvider, setOllamaModel, isStreaming, stopStreaming } = useAppStore();
-  const { mode, primaryProvider } = settings.orchestrator;
+  const { settings, setOllamaModel, isStreaming, stopStreaming } = useAppStore();
   const currentOllamaModel = settings.ollamaModel || 'llama3.2:3b';
 
   // Auto-resize textarea
@@ -159,7 +149,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       backgroundColor: 'var(--vio-bg-secondary)',
       padding: '12px 20px',
     }}>
-      {/* Mode + Provider/Model selector */}
+      {/* Local-only mode + model selector */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -167,29 +157,28 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         marginBottom: '10px',
         flexWrap: 'wrap',
       }}>
-        {/* Cloud / Local toggle */}
+        {/* Local-only badge */}
         <button
-          onClick={() => setMode(mode === 'cloud' ? 'local' : 'cloud')}
+          type="button"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             padding: '4px 12px',
             borderRadius: '20px',
-            border: `1px solid ${mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)'}`,
-            backgroundColor: `${mode === 'cloud' ? 'rgba(0,255,255,0.1)' : 'rgba(0,255,0,0.1)'}`,
-            color: mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)',
-            cursor: 'pointer',
+            border: '1px solid var(--vio-green)',
+            backgroundColor: 'rgba(0,255,0,0.1)',
+            color: 'var(--vio-green)',
+            cursor: 'default',
             fontSize: '12px',
             fontWeight: 600,
           }}
         >
-          {mode === 'cloud' ? <Cloud size={14} /> : <HardDrive size={14} />}
-          {mode === 'cloud' ? 'Cloud' : 'Locale'}
+          <HardDrive size={14} />
+          Locale (No-Hybrid)
         </button>
 
-        {/* === LOCAL MODE: Ollama model selector === */}
-        {mode === 'local' && OLLAMA_MODELS.map(model => (
+        {OLLAMA_MODELS.map(model => (
           <button
             key={model.id}
             onClick={() => setOllamaModel(model.id)}
@@ -213,53 +202,27 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           </button>
         ))}
 
-        {mode === 'local' && (
-          <span style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '11px',
-            color: 'var(--vio-green-dim)',
-            marginLeft: 'auto',
-          }}>
-            <HardDrive size={11} />
-            Ollama {currentModelInfo ? `— ${currentModelInfo.ram}` : ''}
-          </span>
-        )}
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '11px',
+          color: 'var(--vio-green-dim)',
+          marginLeft: 'auto',
+        }}>
+          <HardDrive size={11} />
+          Ollama {currentModelInfo ? `— ${currentModelInfo.ram}` : ''}
+        </span>
 
-        {/* === CLOUD MODE: Provider buttons === */}
-        {mode === 'cloud' && cloudProviders.map(p => (
-          <button
-            key={p.id}
-            onClick={() => setProvider(p.id)}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '16px',
-              border: `1px solid ${primaryProvider === p.id ? 'var(--vio-green)' : 'var(--vio-border)'}`,
-              backgroundColor: primaryProvider === p.id ? 'rgba(0,255,0,0.1)' : 'transparent',
-              color: primaryProvider === p.id ? 'var(--vio-green)' : 'var(--vio-text-secondary)',
-              cursor: 'pointer',
-              fontSize: '11px',
-              transition: 'all 0.2s',
-            }}
-          >
-            {p.icon} {p.name}
-          </button>
-        ))}
-
-        {/* Auto-routing indicator */}
-        {mode === 'cloud' && settings.orchestrator.autoRouting && (
-          <span style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '11px',
-            color: 'var(--vio-magenta)',
-            marginLeft: 'auto',
-          }}>
-            <Zap size={12} /> Auto-routing attivo
-          </span>
-        )}
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '11px',
+          color: 'var(--vio-magenta)',
+        }}>
+          <Zap size={12} /> Auto-routing locale attivo
+        </span>
       </div>
 
       {/* Attachments preview */}
@@ -350,10 +313,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={mode === 'local'
-            ? `Scrivi un messaggio... (${currentModelInfo?.name || 'Ollama'})`
-            : `Scrivi un messaggio... (${cloudProviders.find(p => p.id === primaryProvider)?.name || 'Cloud'})`
-          }
+          placeholder={`Scrivi un messaggio... (${currentModelInfo?.name || 'Ollama'})`}
           disabled={disabled}
           rows={1}
           style={{

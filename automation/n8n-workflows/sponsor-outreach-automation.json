@@ -1,5 +1,5 @@
 {
-  "name": "VIO83 — Sponsor Outreach & Visibility Automation (Weekly Content Engine)",
+  "name": "VIO83 — Sponsor Outreach & Visibility Automation (Weekly Dynamic Engine)",
   "nodes": [
     {
       "parameters": {
@@ -22,7 +22,7 @@
       "name": "Get Current Stats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [450, 300]
+      "position": [450, 320]
     },
     {
       "parameters": {
@@ -35,28 +35,48 @@
       "name": "Get Weekly Views",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [450, 500]
+      "position": [650, 320]
+    },
+    {
+      "parameters": {
+        "command": "=python3 /Users/padronavio/Projects/vio83-ai-orchestra/scripts/sponsor/generate_weekly_content.py --stars {{$('Get Current Stats').item.json.stargazers_count || 0}} --forks {{$('Get Current Stats').item.json.forks_count || 0}} --views {{$('Get Weekly Views').item.json.count || 0}} --json"
+      },
+      "id": "run-script",
+      "name": "Run Weekly Content Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [860, 320]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $json.stdout || '{}';\nconst parsed = JSON.parse(raw);\nreturn [{ json: parsed }];"
+      },
+      "id": "parse-script",
+      "name": "Parse Generated Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 320]
     },
     {
       "parameters": {
         "values": {
           "string": [
-            {
-              "name": "linkedin_post_1",
-              "value": "=🎵 Weekly Build Log — VIO 83 AI Orchestra\n\nQuesta settimana ho spinto in produzione miglioramenti su affidabilità locale e automazioni sponsor.\n\n📊 Snapshot attuale:\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} stelle\n🔀 {{ $('Get Current Stats').item.json.forks_count }} fork\n👀 {{ $('Get Weekly Views').item.json.count }} visualizzazioni\n\nSto costruendo da sola una piattaforma multi-AI con routing intelligente, cross-check e focus reale su qualità + velocità.\n\n💚 Se vuoi supportare il progetto open source:\nSupport Hub → https://vio83.github.io/vio83-ai-orchestra/support.html\n\n#AI #OpenSource #BuildInPublic #IndieDev #MadeInItaly"
-            },
-            {
-              "name": "linkedin_post_2",
-              "value": "=🧠 AI utile = precisione + velocità + verifica\n\nMolte app AI sono veloci ma poco verificabili. Altre sono rigorose ma lente.\nCon VIO 83 AI Orchestra sto lavorando per tenere insieme entrambe le cose: output affidabile in tempi pratici, anche in locale.\n\nObiettivo mese: 10 sponsor per accelerare roadmap, QA e release.\n\nSe credi in AI trasparente e concreta:\n💚 https://github.com/sponsors/vio83\n☕ https://ko-fi.com/vio83_ai_orchestra_\n🌍 https://vio83.github.io/vio83-ai-orchestra/support.html\n\n#AIEngineering #OpenSource #SoloFounder #Tech #LLM"
-            },
-            {
-              "name": "kofi_post",
-              "value": "=☕ Ko-fi Weekly Update — Building VIO 83\n\nCiao! Questa settimana: ottimizzazioni su affidabilità locale AI, UX chat e funnel sponsor.\n\nNumeri live:\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} stars\n🔀 {{ $('Get Current Stats').item.json.forks_count }} forks\n👀 {{ $('Get Weekly Views').item.json.count }} views\n\nOgni supporto qui su Ko-fi finanzia test API, tempo di sviluppo e qualità release.\n\nGrazie di cuore 💚\nSupport Hub: https://vio83.github.io/vio83-ai-orchestra/support.html"
-            },
-            {
-              "name": "github_weekly_post",
-              "value": "=## Weekly Progress — VIO 83 AI Orchestra\n\nThis week focused on reliability, speed, and sponsor growth operations.\n\n### Metrics\n- Stars: {{ $('Get Current Stats').item.json.stargazers_count }}\n- Forks: {{ $('Get Current Stats').item.json.forks_count }}\n- Weekly Views: {{ $('Get Weekly Views').item.json.count }}\n\n### Done\n- Local AI orchestration hardening\n- Better fallback and user-facing response flow\n- Sponsor funnel consistency updates\n\n### Support\n- GitHub Sponsors: https://github.com/sponsors/vio83\n- Ko-fi: https://ko-fi.com/vio83_ai_orchestra_\n- Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html"
-            }
+            { "name": "linkedin_post_1_it", "value": "={{ $json.linkedin_post_1_it }}" },
+            { "name": "linkedin_post_1_en", "value": "={{ $json.linkedin_post_1_en }}" },
+            { "name": "linkedin_post_2_it", "value": "={{ $json.linkedin_post_2_it }}" },
+            { "name": "linkedin_post_2_en", "value": "={{ $json.linkedin_post_2_en }}" },
+            { "name": "kofi_post_it", "value": "={{ $json.kofi_post_it }}" },
+            { "name": "kofi_post_en", "value": "={{ $json.kofi_post_en }}" },
+            { "name": "github_weekly_post_it", "value": "={{ $json.github_weekly_post_it }}" },
+            { "name": "github_weekly_post_en", "value": "={{ $json.github_weekly_post_en }}" },
+            { "name": "linkedin_post_1", "value": "={{ $json.linkedin_post_1 }}" },
+            { "name": "linkedin_post_2", "value": "={{ $json.linkedin_post_2 }}" },
+            { "name": "kofi_post", "value": "={{ $json.kofi_post }}" },
+            { "name": "github_weekly_post", "value": "={{ $json.github_weekly_post }}" },
+            { "name": "optimization", "value": "={{ JSON.stringify($json.optimization || {}) }}" },
+            { "name": "md_path", "value": "={{ $json.md_path }}" },
+            { "name": "json_path", "value": "={{ $json.json_path }}" }
           ]
         },
         "options": {}
@@ -65,20 +85,18 @@
       "name": "Generate Social Posts",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [700, 400]
+      "position": [1260, 260]
     },
     {
       "parameters": {
         "values": {
           "string": [
-            {
-              "name": "action_items",
-              "value": "=📋 WEEKLY CONTENT CALENDAR — {{ $now.format('yyyy-MM-dd') }}\n\nLunedì: LinkedIn Post #1 (build log + metriche)\nMercoledì: Ko-fi weekly update\nGiovedì: LinkedIn Post #2 (thought leadership + CTA)\nVenerdì: GitHub weekly progress post\n\nOutreach: 3–5 DM mirati/settimana (Lun-Ven)\n\nTarget pratico:\n- CTR support hub >= 2.5%\n- Conversione visita→sponsor 1–3%\n- Revisione KPI ogni domenica\n\nHub: https://vio83.github.io/vio83-ai-orchestra/support.html"
-            },
-            {
-              "name": "dm_template",
-              "value": "=Ciao [Nome], seguo con interesse il tuo lavoro su [tema].\nSto costruendo VIO 83 AI Orchestra (multi-AI orchestration, open source, build in public).\nSe vuoi dare un'occhiata e lasciarmi feedback o supporto: https://vio83.github.io/vio83-ai-orchestra/support.html\nGrazie davvero 🙏"
-            }
+            { "name": "action_items_it", "value": "={{ $('Parse Generated Content').item.json.action_items_it }}" },
+            { "name": "action_items_en", "value": "={{ $('Parse Generated Content').item.json.action_items_en }}" },
+            { "name": "dm_template_it", "value": "={{ $('Parse Generated Content').item.json.dm_template_it }}" },
+            { "name": "dm_template_en", "value": "={{ $('Parse Generated Content').item.json.dm_template_en }}" },
+            { "name": "action_items", "value": "={{ $('Parse Generated Content').item.json.action_items }}" },
+            { "name": "dm_template", "value": "={{ $('Parse Generated Content').item.json.dm_template }}" }
           ]
         },
         "options": {}
@@ -87,27 +105,86 @@
       "name": "Generate Action Items",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [950, 400]
+      "position": [1460, 260]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const links = $json.publish_links || {};\nconst approvalChecklist = [\n  'Controlla tono umano e autentico',\n  'Controlla metriche + data nel testo',\n  'Controlla link sponsor/ko-fi/support hub',\n  'Approva manualmente prima del publish'\n].join('\\n');\n\nconst commands = [\n  links.linkedin_post_1_it ? `open \"${links.linkedin_post_1_it}\"` : '',\n  links.linkedin_post_1_en ? `open \"${links.linkedin_post_1_en}\"` : '',\n  links.linkedin_post_2_it ? `open \"${links.linkedin_post_2_it}\"` : '',\n  links.linkedin_post_2_en ? `open \"${links.linkedin_post_2_en}\"` : '',\n  links.kofi ? `open \"${links.kofi}\"` : '',\n  links.github ? `open \"${links.github}\"` : ''\n].filter(Boolean);\n\nreturn [{\n  json: {\n    ...$json,\n    approval_checklist: approvalChecklist,\n    one_click_open_command: commands.join(' && ') || 'echo \"No publish links found\"'\n  }\n}];"
+      },
+      "id": "prepare-drafts",
+      "name": "Prepare Draft + Approval (Optional)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 500]
+    },
+    {
+      "parameters": {
+        "command": "={{$json.one_click_open_command}}"
+      },
+      "id": "open-drafts",
+      "name": "Open Drafts In Browser (Optional One Click)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1460, 500],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "command": "bash /Users/padronavio/Projects/vio83-ai-orchestra/scripts/sponsor/boost_20x.sh"
+      },
+      "id": "run-turbo",
+      "name": "Run Turbo 20X (Optional)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1260, 680],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "turbo_summary", "value": "=data/weekly-content/turbo-20x-summary.json" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "turbo-summary",
+      "name": "Turbo Summary (Optional)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, 680],
+      "disabled": true
     }
   ],
   "connections": {
     "Every Week": {
-      "main": [
-        [
-          { "node": "Get Current Stats", "type": "main", "index": 0 },
-          { "node": "Get Weekly Views", "type": "main", "index": 0 }
-        ]
-      ]
+      "main": [[{ "node": "Get Current Stats", "type": "main", "index": 0 }]]
     },
     "Get Current Stats": {
+      "main": [[{ "node": "Get Weekly Views", "type": "main", "index": 0 }]]
+    },
+    "Get Weekly Views": {
+      "main": [[{ "node": "Run Weekly Content Script", "type": "main", "index": 0 }]]
+    },
+    "Run Weekly Content Script": {
+      "main": [[{ "node": "Parse Generated Content", "type": "main", "index": 0 }]]
+    },
+    "Parse Generated Content": {
       "main": [
-        [{ "node": "Generate Social Posts", "type": "main", "index": 0 }]
+        [{ "node": "Generate Social Posts", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Draft + Approval (Optional)", "type": "main", "index": 0 }],
+        [{ "node": "Run Turbo 20X (Optional)", "type": "main", "index": 0 }]
       ]
     },
     "Generate Social Posts": {
-      "main": [
-        [{ "node": "Generate Action Items", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Generate Action Items", "type": "main", "index": 0 }]]
+    },
+    "Prepare Draft + Approval (Optional)": {
+      "main": [[{ "node": "Open Drafts In Browser (Optional One Click)", "type": "main", "index": 0 }]]
+    },
+    "Run Turbo 20X (Optional)": {
+      "main": [[{ "node": "Turbo Summary (Optional)", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
@@ -116,6 +193,9 @@
   "tags": [
     { "name": "Sponsor" },
     { "name": "VIO83" },
-    { "name": "Outreach" }
+    { "name": "Outreach" },
+    { "name": "DynamicContent" },
+    { "name": "Bilingual" },
+    { "name": "ManualApproval" }
   ]
 }

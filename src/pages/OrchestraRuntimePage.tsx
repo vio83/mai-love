@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Activity, AlertTriangle, Bot, CheckCircle2, CircleAlert, Clock3, Cpu, Gauge, Globe, Link2, PlayCircle, Power, RefreshCw, ShieldCheck, Wifi } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ERROR_RATE_WINDOW_MINUTES,
   getRuntimeAutopilotState,
@@ -235,7 +235,7 @@ export default function OrchestraRuntimePage() {
     setToast({ message, kind });
   };
 
-  const syncStrictWithStore = (strictValue: boolean) => {
+  const syncStrictWithStore = useCallback((strictValue: boolean) => {
     const current = useAppStore.getState().settings.orchestrator;
     if ((current.strictEvidenceMode ?? true) !== strictValue) {
       updateSettings({
@@ -245,7 +245,7 @@ export default function OrchestraRuntimePage() {
         },
       });
     }
-  };
+  }, [updateSettings]);
 
   useEffect(() => {
     if (!toast) return;
@@ -299,7 +299,7 @@ export default function OrchestraRuntimePage() {
 
     void bootstrap();
     return () => { cancelled = true; };
-  }, [updateSettings]);
+  }, [updateSettings, syncStrictWithStore]);
 
   const avgOptimization = useMemo(() => {
     if (state.targets.length === 0) return 0;

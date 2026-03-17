@@ -183,7 +183,20 @@ Creator and sole developer of VIO 83 AI Orchestra — the world's first multi-AI
 Technologies: Tauri 2.0, Rust, React 18, TypeScript, Python 3.12, FastAPI, ChromaDB, SQLite FTS5, Zustand, LangChain, LangGraph, n8n, Framer Motion, Vite 7, Ollama, OpenClaw, GitHub Actions
 ```
 
-### Posizione 2 — Upskilling & Certificazioni
+### Posizione 2 — Ali Integrazione Feb-Mar 2025 (RECENTE)
+```
+Qualifica: Assistente Amministrativo Sanitario
+Azienda: Ali Integrazione Società Cooperativa Sociale (presso AOU Cagliari — Azienda Ospedaliera Universitaria)
+Periodo: Febbraio 2025 — Marzo 2025 (17/02/2025 — 12/03/2025)
+Località: Cagliari, Sardegna
+Settore: SSN — Sistema Sanitario Nazionale
+Tipo: Contratto a tempo determinato
+
+Descrizione:
+Incarico recente nel Sistema Sanitario Nazionale presso l'Azienda Ospedaliera Universitaria di Cagliari, tramite Ali Integrazione — la stessa cooperativa dove ho ricoperto il ruolo di Direttrice HR per 7 anni (2013-2020). Gestione amministrativa sanitaria, documentazione clinica, interfaccia con personale medico e pazienti. Conferma della continuità professionale nel settore healthcare.
+```
+
+### Posizione 3 — Upskilling & Certificazioni
 ```
 Qualifica: Professional Development & AI Upskilling
 Azienda: Multiple Institutions (University of Helsinki, IDCERT, Talenti SRL/Forma.Temp, OPES, Dicolab, Federica Web Learning)
@@ -210,7 +223,7 @@ Total: 400+ hours of certified professional training in 2025 alone.
 Percorso GOL 102 — Upskilling (CPI Iglesias, Prot. 35394)
 ```
 
-### Posizione 3 — CARRIERA APICE ⭐
+### Posizione 4 — CARRIERA APICE ⭐
 ```
 Qualifica: Direttrice Risorse Umane — Team Leader Multi-Sedi
 Azienda: Ali Integrazione Società Cooperativa Sociale
@@ -236,7 +249,7 @@ Risultati documentati:
 Competenze: HR Strategy, People Management (50+), Healthcare Operations, Crisis Management, Stakeholder Engagement, Process Optimization (-60% wait times), Quality Assurance, Change Management, Conflict Resolution, CUP Management, Multi-site Coordination
 ```
 
-### Posizione 4
+### Posizione 5
 ```
 Qualifica: Assistente Amministrativo Sanitario Specializzato
 Azienda: Tempor SPA (presso ASSL Carbonia — Azienda per la Tutela della Salute)
@@ -249,7 +262,7 @@ Descrizione:
 Ritorno all'healthcare diretto. Supervisione sistemi informativi sanitari regionali (SIS Sardegna), piattaforme e-Health, gestione documentazione healthcare SSN. Supporto operativo durante periodo emergenza sanitaria COVID-19.
 ```
 
-### Posizione 5
+### Posizione 6
 ```
 Qualifica: Coordinatore Call Center Sanitario
 Azienda: Cooperativa Sociale Solidarietà 2008 / Cooperativa Sociale Nuova Era
@@ -261,7 +274,7 @@ Descrizione:
 Coordinamento operativo call center sanitari regionali. Gestione sistema CUP per multiple ASL. Formazione operatori e supervisione qualità servizio al paziente. Esperienza propedeutica al ruolo di Direttrice HR.
 ```
 
-### Posizione 6
+### Posizione 7
 ```
 Qualifica: Coadiutore Amministrativo — Operatore CUP Regionale
 Azienda: RealJob S.P.A / Alba S.p.A (presso ASL N.8 Cagliari)
@@ -274,7 +287,7 @@ Descrizione:
 Amministrazione sanitaria presso multiple sedi ospedaliere (Ospedale SS. Trinità, CUP regionale). Gestione prenotazioni, archivio clinico, documentazione SSN. Consolidamento expertise nei sistemi sanitari regionali. Gestione flussi pazienti e interfaccia con personale medico.
 ```
 
-### Posizione 7
+### Posizione 8
 ```
 Qualifica: Assistente Amministrativo Sanitario
 Azienda: Punto.Lavoro Spa (presso ASL N.7 Sardegna)
@@ -286,7 +299,7 @@ Descrizione:
 Primo incarico nel sistema sanitario regionale. Fondazione expertise in sistemi healthcare, gestione pazienti, documentazione SSN.
 ```
 
-### Posizione 8
+### Posizione 9
 ```
 Qualifica: Collaboratore Amministrativo
 Azienda: Legacoop CTL Cagliari — Impresa Sociale Cooperativa
@@ -297,7 +310,7 @@ Descrizione:
 Supporto amministrativo all'economia cooperativa. Fondazione nella gestione cooperativa e nel terzo settore. Valori sociali e comunitari.
 ```
 
-### Posizione 9
+### Posizione 10
 ```
 Qualifica: Volontario Servizio Civile Nazionale
 Periodo: 2008

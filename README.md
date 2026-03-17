@@ -5,8 +5,8 @@
 <h1 align="center">🎵 VIO 83 AI ORCHESTRA</h1>
 
 <p align="center">
-  <strong>The World's First Intelligent Multi-AI Orchestration Platform</strong><br>
-  <em>One app. Every AI. Smart routing. Verified answers. Desktop-native.</em>
+  <strong>Desktop AI platform — local-first, offline, private</strong><br>
+  <em>Ollama routing. Streaming chat. Knowledge base. Tauri desktop app.</em>
 </p>
 
 <p align="center">
@@ -18,13 +18,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Claude-Opus_4-D97706?style=flat-square&logo=anthropic" />
-  <img src="https://img.shields.io/badge/GPT--4o-OpenAI-10B981?style=flat-square&logo=openai" />
-  <img src="https://img.shields.io/badge/Gemini_2.0-Google-06B6D4?style=flat-square&logo=google" />
-  <img src="https://img.shields.io/badge/Grok_3-xAI-3B82F6?style=flat-square" />
-  <img src="https://img.shields.io/badge/Mistral-Large-8B5CF6?style=flat-square" />
-  <img src="https://img.shields.io/badge/DeepSeek-R1-EC4899?style=flat-square" />
   <img src="https://img.shields.io/badge/Ollama-Local_AI-00ff00?style=flat-square" />
+  <img src="https://img.shields.io/badge/Runtime-No--Hybrid_%2F_Local--Only-00ff00?style=flat-square" />
+  <img src="https://img.shields.io/badge/Privacy-Zero_Data_Leaves_Mac-00ff00?style=flat-square" />
 </p>
 
 <p align="center">
@@ -32,117 +28,100 @@
   <img src="https://img.shields.io/badge/React_18-TypeScript-61DAFB?style=flat-square&logo=react" />
   <img src="https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi" />
   <img src="https://img.shields.io/badge/Zustand-State_Management-brown?style=flat-square" />
-  <img src="https://img.shields.io/badge/ChromaDB-Vector_Search-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/SQLite_FTS5-Knowledge_Base-orange?style=flat-square" />
   <img src="https://img.shields.io/badge/License-Proprietary_+_AGPL--3.0-red?style=flat-square" />
 </p>
 
 <p align="center">
-  <a href="#-why-vio-83">Why VIO 83?</a> •
+  <a href="#-what-it-does">What It Does</a> •
   <a href="#-features">Features</a> •
-  <a href="#-screenshots">Screenshots</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-architecture">Architecture</a> •
-  <a href="#-supported-models">Models</a> •
+  <a href="#-local-models">Local Models</a> •
   <a href="#-sponsor-this-project">Sponsor</a> •
   <a href="#-contributing">Contributing</a>
 </p>
 
 ---
 
-## 🎯 Why VIO 83?
+## 🎯 What It Does
 
-**The problem is simple**: today you pay for 5+ different AI subscriptions, switch between 10 browser tabs, get inconsistent answers, and have zero verification that the AI isn't hallucinating.
+VIO 83 AI Orchestra is a **local-first desktop AI app** for macOS.
 
-**VIO 83 AI Orchestra** solves this with one elegant principle:
+**Runtime policy: no-hybrid / local-only.** All AI calls go to [Ollama](https://ollama.ai) running on your machine. No data leaves your Mac at runtime.
 
-> **One interface. Every AI model in the world. The smartest one answers your question. Verified.**
+> Cloud API keys (Claude, GPT-4, Gemini, etc.) are configurable in Settings for future cloud mode, but the current runtime enforces Ollama-only routing. Cloud routing is not active.
 
-### What Makes It Different
+### What It Includes Today
 
-| Feature | ChatGPT | Claude.ai | Gemini | VIO 83 |
-|---------|---------|-----------|--------|--------|
-| Multiple AI models | ❌ GPT only | ❌ Claude only | ❌ Gemini only | ✅ **7+ providers** |
-| Smart auto-routing | ❌ | ❌ | ❌ | ✅ **AI picks the best model per task** |
-| Cross-check verification | ❌ | ❌ | ❌ | ✅ **Second AI verifies the first** |
-| Visual workflow builder | ❌ | ❌ | ❌ | ✅ **Drag & drop AI pipelines** |
-| RAG with certified sources | ❌ | ❌ | ❌ | ✅ **Academic/library verification** |
-| Real-time analytics dashboard | ❌ | ❌ | ❌ | ✅ **Performance tracking per model** |
-| Works 100% offline | ❌ Cloud only | ❌ Cloud only | ❌ Cloud only | ✅ **Ollama local models** |
-| Desktop native app | ❌ Web only | ❌ Web only | ❌ Web only | ✅ **Tauri 2.0 (2MB app!)** |
-| Privacy-first | ❌ | ❌ | ❌ | ✅ **Your data stays on your Mac** |
-| Source-available | ❌ | ❌ | ❌ | ✅ **View code, dual-licensed** |
+| Component | Status |
+|-----------|--------|
+| Streaming chat (Ollama) | ✅ Active |
+| Smart request routing (local) | ✅ Active — classifies code/medical/reasoning/etc. |
+| Cross-check verification (local) | ✅ Active — second Ollama model verifies first |
+| Knowledge base (SQLite FTS5) | ✅ Active — ChromaDB optional, disabled on Python 3.14 |
+| Command Center dashboard | ✅ Active — real usage metrics |
+| AI Models registry | ✅ Active — shows installed Ollama models |
+| Analytics page | ✅ Active |
+| Tauri 2 desktop shell | ✅ Builds on macOS |
+| Cloud API routing | ⚠️ Keys configurable, routing locked local-only at runtime |
 
 ---
 
 ## ✨ Features
 
-### 🧠 Intelligent Multi-AI Routing
-The Orchestra doesn't just call an AI — it **thinks about which AI to call**:
+### 🧠 Local AI Routing
+The orchestrator classifies each request before calling a model:
 
-- **Code questions** → Claude Sonnet (best reasoning) or Qwen Coder (local)
-- **Creative writing** → GPT-4o (strongest creative) or Llama (local)
-- **Real-time info** → Grok 3 (connected to X/Twitter)
-- **Deep reasoning** → Claude Opus 4 or DeepSeek R1
-- **Quick tasks** → Gemini 2.0 Flash (fastest) or Gemma 2 (local)
-- **Math & Science** → DeepSeek R1 + Claude cross-verification
+- **Code questions** → `qwen2.5-coder:3b` (best local code model)
+- **Reasoning / deep analysis** → `deepseek-r1:latest`
+- **Legal / medical** → `mistral:latest`
+- **General conversation** → configured model (default `llama3.2:3b`)
+- **Quick tasks** → `gemma2:2b` or `llama3.2:3b`
 
 ### 🔍 Cross-Check Verification
-For critical answers, a **second AI model** independently verifies the first response. If they disagree, you see both perspectives with a concordance score (%). Full transparency, zero blind trust.
+For critical answers, a **second local Ollama model** independently verifies the first response. Both responses are compared for concordance (%). All inference stays on your Mac.
 
 ### 📊 Command Center Dashboard
-Real-time monitoring of your AI orchestra — requests per model, token usage, cost tracking, latency analysis, and model distribution. See which AI works best for you.
+Real-time monitoring of local AI usage — requests per model, token usage, cost ($0.00 for local), latency analysis, and model distribution.
 
-### 🔄 Visual Workflow Builder
-Design custom AI pipelines by connecting nodes: Input → Router → Multiple Models → Cross-Check → Output. Save, share, and run workflows with a visual drag-and-drop interface.
-
-### 📚 RAG — Certified Knowledge Base
-Every answer can be checked against a local database of **verified sources** — academic papers, official documentation, library records. ChromaDB + SQLite FTS5 for blazing-fast retrieval.
+### 📚 Knowledge Base (SQLite FTS5)
+Every answer can be checked against a local knowledge base using **SQLite FTS5 full-text search**. ChromaDB/semantic search is optional and disabled on Python 3.14.
 
 Quality badges on every response:
-- 🥇 **Gold** — Verified by 3+ certified sources
+- 🥇 **Gold** — Verified by 3+ sources
 - 🥈 **Silver** — Partially corroborated
-- 🥉 **Bronze** — Low confidence, use with caution
+- 🥉 **Bronze** — Low confidence
 - ⚪ **Unverified** — No matching sources found
 
 ### 🤖 AI Models Registry
-Browse, compare, and configure 8+ AI models. See quality scores, speed benchmarks, specialties, context windows, pricing — all in one unified view.
+Browse and configure installed Ollama models. Shows quality scores, speed benchmarks, specialties per task type.
 
-### 📈 Performance Analytics
-Track your AI usage over 7/30/90 day periods. Compare response quality and speed across all models. Identify which AI excels at what tasks. Optimize your cost-per-quality ratio.
-
-### 🌐 Cloud + Local: You Choose
-- **Cloud Mode**: Always-latest models via API (Claude Opus 4, GPT-4o, Gemini 2.0, Grok 3, Mistral Large, DeepSeek R1)
-- **Local Mode**: 100% offline with Ollama (Llama 3.2, Qwen, Mistral, Phi-3, Gemma 2)
-- **Hybrid Mode**: Cloud primary, local fallback when offline
-
-### 🔒 Security First
-- API keys stored in **macOS Keychain** (hardware-encrypted)
-- Local mode = zero data leaves your machine
+### 🔒 Privacy First
+- All inference runs locally via Ollama — zero API calls at runtime
 - No telemetry, no tracking, no data collection
+- API keys stored encrypted (configurable for future cloud mode)
 - Open source = fully auditable
 
 ### 🎨 Vio Dark Fluorescent Theme
-A custom-designed dark theme with framer-motion animations:
+Custom dark theme with Framer Motion animations:
 - Pure black background (#000000)
 - Fluorescent green accents (#00FF00)
-- Magenta highlights (#FF00FF) + Cyan (#00FFFF)
+- Magenta (#FF00FF), Cyan (#00FFFF), Yellow (#FFFF00)
 - JetBrains Mono for code, Inter for UI
 
 ---
 
-## 📸 Screenshots
-
-> **7 full pages** of professional UI — not a prototype, a real product.
+## 📸 UI Pages
 
 | Page | Description |
 |------|-------------|
 | 🏠 **Dashboard** | Command Center with live stats, model distribution, activity feed |
-| 💬 **AI Chat** | Multi-provider streaming chat with markdown rendering |
-| 🔄 **Workflow Builder** | Visual pipeline designer with SVG connections |
-| 🛡️ **Cross-Check** | Multi-model verification with concordance scoring |
-| 📈 **Analytics** | Performance tracking with time-range filtering |
-| 📚 **RAG Knowledge** | Knowledge base manager with quality badges |
-| 🤖 **AI Models** | Model registry with benchmarks and configuration |
+| 💬 **AI Chat** | Local streaming chat with markdown rendering + cross-check |
+| 🛡️ **Cross-Check** | Multi-model local verification with concordance scoring |
+| 📈 **Analytics** | Usage tracking per model |
+| 📚 **Knowledge Base** | FTS5 knowledge base manager with quality badges |
+| 🤖 **AI Models** | Ollama model registry with benchmarks and configuration |
 
 ---
 
@@ -152,7 +131,7 @@ A custom-designed dark theme with framer-motion animations:
 - **macOS** (Apple Silicon recommended)
 - **Node.js** 20+ (`nvm install 20`)
 - **Rust** (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
-- **Python** 3.11+ (`brew install python`)
+- **Python** 3.11–3.13 (note: ChromaDB is incompatible with Python 3.14)
 - **Ollama** (`brew install ollama`)
 
 ### Install
@@ -166,27 +145,28 @@ cd vio83-ai-orchestra
 npm install
 
 # Backend
-pip3 install litellm fastapi uvicorn chromadb anthropic openai httpx
+pip3 install fastapi uvicorn httpx
 
-# Download a local model
+# Download local models
 ollama pull qwen2.5-coder:3b
-
-# Configure API keys (optional, for cloud mode)
-cp .env.example .env
-# Edit .env with your keys
+ollama pull llama3.2:3b
 ```
 
 ### Run
 
 ```bash
-# Terminal 1: Backend API
-python -m backend.api.server
+# Start everything (recommended)
+./orchestra.sh
 
-# Terminal 2: Frontend dev server
+# Or individually:
+# Terminal 1: Ollama
+ollama serve
+
+# Terminal 2: Backend API
+PYTHONPATH=. python3 -m uvicorn backend.api.server:app --reload --port 4000
+
+# Terminal 3: Frontend
 npm run dev
-
-# Terminal 3 (optional): Tauri desktop app
-npm run tauri dev
 ```
 
 Open `http://localhost:5173` — your Orchestra is ready. 🎵
@@ -226,76 +206,64 @@ Note: OpenClaw and LegalRoom require real local start commands; no fake health s
 USER types a question
         ↓
 ┌─────────────────────────┐
-│  Frontend (React/Tauri)  │  ← 7 pages: Dashboard, Chat, Workflow, CrossCheck,
-└───────────┬─────────────┘     Analytics, RAG, Models + Settings
-            ↓
-┌─────────────────────────┐
-│  Request Classifier      │  ← Categorizes: code/creative/analysis/realtime/math
-└───────────┬─────────────┘
-            ↓
-    ┌───────┴───────┐
-    │  CLOUD MODE?   │
-    │                │
-    │ YES → LiteLLM  │ → Claude / GPT-4o / Gemini / Grok / Mistral / DeepSeek
-    │                │
-    │ NO → Ollama    │ → Llama / Qwen / Mistral / Phi / Gemma (on your Mac)
-    └───────┬───────┘
-            ↓
-┌─────────────────────────┐
-│  Cross-Check (optional)  │  ← Second AI validates first response
+│  Frontend (React/Tauri)  │  ← Dashboard, Chat, Analytics, Models, KB, Settings
 └───────────┬─────────────┘
             ↓
 ┌─────────────────────────┐
-│  RAG Verification        │  ← Check against ChromaDB + SQLite FTS5
+│  Request Classifier      │  ← Classifies: code/medical/legal/reasoning/etc.
+└───────────┬─────────────┘
+            ↓
+┌─────────────────────────┐
+│  Local Model Router      │  ← Picks best Ollama model for request type
+└───────────┬─────────────┘
+            ↓
+┌─────────────────────────┐
+│  Ollama (local only)     │  ← llama3.2, qwen2.5-coder, deepseek-r1, mistral...
+└───────────┬─────────────┘
+            ↓
+┌─────────────────────────┐
+│  Cross-Check (optional)  │  ← Second Ollama model verifies first response
+└───────────┬─────────────┘
+            ↓
+┌─────────────────────────┐
+│  KB Verification (FTS5)  │  ← SQLite FTS5 full-text search
 └───────────┬─────────────┘
             ↓
    Response + Quality Badge + Analytics Event
             ↓
-      USER gets verified answer ✓
+      USER gets answer — all local, zero cloud calls ✓
 ```
 
 ### Tech Stack
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Desktop | **Tauri 2.0** | 2MB app vs 100MB Electron. Native performance. |
-| Frontend | **React 18 + TypeScript** | World's largest ecosystem. Type-safe. |
-| Styling | **Tailwind CSS 4** + CSS Variables | Utility-first + custom dark theme. |
-| Animations | **Framer Motion** | Smooth page transitions and micro-interactions. |
-| State | **Zustand** | 1KB, simple, powerful. Multi-page navigation. |
-| Icons | **Lucide React** | 1000+ tree-shakeable SVG icons. |
-| AI Gateway | **LiteLLM** | 100+ providers, unified API. Used by Netflix. |
-| Local AI | **Ollama** | Run any model locally. Privacy-first. |
-| Backend | **FastAPI** | Fastest Python web framework. Async + SSE streaming. |
-| Vector DB | **ChromaDB** | Embeddings + semantic search for RAG. |
-| Full-Text | **SQLite FTS5** | Blazing-fast keyword search. |
-| Security | **macOS Keychain** | Hardware-encrypted key storage. |
-| Bundler | **Vite 7** | Near-instant HMR, optimized builds. |
+| Desktop | **Tauri 2.0** | Lightweight native shell vs Electron. |
+| Frontend | **React 18 + TypeScript** | Type-safe, fast, large ecosystem. |
+| Styling | **CSS Variables + Tailwind** | Custom dark theme. |
+| Animations | **Framer Motion** | Smooth page transitions. |
+| State | **Zustand** | Lightweight persistent store. |
+| Icons | **Lucide React** | Tree-shakeable SVG icons. |
+| Local AI | **Ollama** | Run any model locally. Zero cloud calls. |
+| Backend | **FastAPI** | Async Python, SSE streaming. |
+| Knowledge DB | **SQLite FTS5** | Full-text search, no external service. |
+| Bundler | **Vite 7** | Fast HMR, optimized builds. |
 
 ---
 
-## 📊 Supported Models
+## 🤖 Local Models
 
-### Cloud (API required)
-| Provider | Model | Best For | Context | Speed |
-|----------|-------|----------|---------|-------|
-| Anthropic | Claude Opus 4 | Complex reasoning, research | 200K | ⚡⚡ |
-| Anthropic | Claude Sonnet 4 | Code, analysis, writing | 200K | ⚡⚡⚡ |
-| OpenAI | GPT-4o | Creative, multimodal | 128K | ⚡⚡⚡ |
-| Google | Gemini 2.0 Flash | Ultra-fast, multimodal | 1M | ⚡⚡⚡⚡ |
-| xAI | Grok 3 | Real-time info, unfiltered | 131K | ⚡⚡⚡ |
-| Mistral | Mistral Large | Multilingual, reasoning | 128K | ⚡⚡⚡ |
-| DeepSeek | DeepSeek R1 | Math, science, deep reasoning | 64K | ⚡⚡ |
+All inference uses **Ollama** running locally. Pull models with `ollama pull <name>`:
 
-### Local (Ollama, no API needed)
 | Model | Size | RAM | Best For |
 |-------|------|-----|----------|
-| Qwen 2.5 Coder 3B | 2.0 GB | 2.5 GB | Code generation |
-| Llama 3.2 3B | 2.0 GB | 2.5 GB | General assistant |
-| Mistral 7B | 4.1 GB | 5.0 GB | Reasoning |
-| Phi-3 3.8B | 2.3 GB | 3.0 GB | Efficient reasoning |
-| DeepSeek Coder V2 Lite | 2.5 GB | 3.5 GB | Code + debugging |
-| Gemma 2 2B | 1.6 GB | 2.0 GB | Ultra-fast responses |
+| `qwen2.5-coder:3b` | 2.0 GB | 2.5 GB | Code generation |
+| `llama3.2:3b` | 2.0 GB | 2.5 GB | General assistant |
+| `mistral:latest` | 4.1 GB | 5.0 GB | Reasoning, legal, medical |
+| `deepseek-r1:latest` | varies | 5+ GB | Deep reasoning |
+| `gemma2:2b` | 1.6 GB | 2.0 GB | Ultra-fast responses |
+
+> Cloud model routing (Claude, GPT-4, Gemini, etc.) is configurable in Settings but **not active at runtime**. Runtime enforces local-only.
 
 ---
 
@@ -344,10 +312,10 @@ I'm building VIO 83 because I believe access to intelligent AI should not requir
 
 | Priority | Need | Why It Matters |
 |----------|------|----------------|
-| **#1 Critical** | API costs (Claude, GPT-4, Gemini, Grok) | Testing 7 providers requires real API credits every day |
-| **#2 Hardware** | Mac Studio M4 Ultra (192GB) | Current M1 8GB cannot run large local models |
-| **#3 Time** | Full-time development | More hours = faster features, better quality |
-| **#4 Infrastructure** | Server for the Knowledge Base | 250M+ academic papers need storage and processing |
+| **#1 Hardware** | Mac Studio M4 Ultra (192GB) | Current M1 8GB limits large local models |
+| **#2 Time** | Full-time development | More hours = faster features, better quality |
+| **#3 Infrastructure** | Server for the Knowledge Base | Scaling FTS5/vector index to millions of docs |
+| **#4 Optional cloud** | API credits for future cloud mode | Testing optional multi-provider routing |
 
 ### Current Progress (Live — 17 March 2026)
 

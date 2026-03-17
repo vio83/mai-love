@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA — Dashboard: Command Center
 import { motion } from 'framer-motion';
 import { Activity, Clock, Cpu, DollarSign, TrendingUp, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_TO_REQUEST_TYPE, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
 import { useAppStore } from '../stores/appStore';
 
@@ -88,28 +88,31 @@ export default function DashboardPage() {
   // Provider con usage reale
   const providerEntries = Object.values(metrics.providers) as Array<{provider: string; count: number}>;
   const totalProviderCount = providerEntries.reduce((acc, p) => acc + p.count, 0) || 1;
+  const isCloud = settings.orchestrator.mode === 'cloud';
+  const activeProvider = settings.orchestrator.primaryProvider;
   const providers = [
-    { id: 'claude', name: 'Claude Sonnet 4', usage: 0, status: 'online' as const },
-    { id: 'gpt4', name: 'GPT-4o', usage: 0, status: 'online' as const },
-    { id: 'grok', name: 'Grok 2', usage: 0, status: 'online' as const },
-    { id: 'mistral', name: 'Mistral Large', usage: 0, status: 'online' as const },
-    { id: 'deepseek', name: 'DeepSeek R1', usage: 0, status: 'online' as const },
-    { id: 'gemini', name: 'Gemini 2.5 Pro', usage: 0, status: 'online' as const },
-    { id: 'groq', name: 'Groq', usage: 0, status: 'online' as const },
-    { id: 'ollama', name: 'Ollama Locale', usage: 0, status: (settings.orchestrator.mode === 'local' ? 'active' : 'standby') as string },
+    { id: 'claude', name: 'Claude Sonnet 4', usage: 0, status: (isCloud && activeProvider === 'claude' ? 'active' : 'online') as string },
+    { id: 'gpt4', name: 'GPT-4o', usage: 0, status: (isCloud && activeProvider === 'gpt4' ? 'active' : 'online') as string },
+    { id: 'grok', name: 'Grok 2', usage: 0, status: (isCloud && activeProvider === 'grok' ? 'active' : 'online') as string },
+    { id: 'mistral', name: 'Mistral Large', usage: 0, status: (isCloud && activeProvider === 'mistral' ? 'active' : 'online') as string },
+    { id: 'deepseek', name: 'DeepSeek R1', usage: 0, status: (isCloud && activeProvider === 'deepseek' ? 'active' : 'online') as string },
+    { id: 'gemini', name: 'Gemini 2.5 Pro', usage: 0, status: (isCloud && activeProvider === 'gemini' ? 'active' : 'online') as string },
+    { id: 'groq', name: 'Groq', usage: 0, status: (isCloud && activeProvider === 'groq' ? 'active' : 'online') as string },
+    { id: 'ollama', name: 'Ollama Locale', usage: 0, status: (!isCloud ? 'active' : 'standby') as string },
   ].map(p => {
     const pm = (metrics.providers as Record<string, {count: number}>)[p.id];
     return { ...p, usage: pm ? Math.round((pm.count / totalProviderCount) * 100) : 0 };
   });
 
+  const derivedActivities = useMemo(() => conversations.slice(0, 8).map(conv => ({
+    time: new Date(conv.updatedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+    action: conv.title.slice(0, 60),
+    model: conv.model || 'ollama',
+  })), [conversations]);
+
   useEffect(() => {
-    const activities = conversations.slice(0, 8).map(conv => ({
-      time: new Date(conv.updatedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-      action: conv.title.slice(0, 60),
-      model: conv.model || 'ollama',
-    }));
-    setRecentActivity(activities);
-  }, [conversations]);
+    setRecentActivity(derivedActivities);
+  }, [derivedActivities]);
 
   const statCards = [
     { icon: Activity, label: 'Richieste Totali', value: totalRequests.toLocaleString(), change: totalRequests > 0 ? `${totalRequests} reali` : 'nessuna ancora', color: 'var(--vio-green)' },
@@ -135,8 +138,10 @@ export default function DashboardPage() {
           Command Center
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          Panoramica in tempo reale dell'orchestra AI — 7 modelli attivi,{' '}
-          {settings.orchestrator.mode === 'cloud' ? 'modalità cloud' : 'modalità locale'}
+          Panoramica in tempo reale —{' '}
+          {settings.orchestrator.mode === 'cloud'
+            ? `cloud (${settings.orchestrator.primaryProvider})`
+            : 'Ollama locale'}
         </p>
       </motion.div>
 

@@ -1,0 +1,169 @@
+{
+  "name": "VIO83 — Mac + VSCode Autopilot 24/7 (17 Marzo 2026 → Permanente)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "seconds", "secondsInterval": 120 }]
+        }
+      },
+      "id": "trigger-2min",
+      "name": "⏱ Trigger Ogni 2 Minuti",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "command": "pm2 jlist 2>/dev/null || echo '[]'"
+      },
+      "id": "pm2-status",
+      "name": "📊 PM2 Status Check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [260, 160]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/health",
+        "options": { "timeout": 8000 }
+      },
+      "id": "backend-health",
+      "name": "🔋 Backend Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:11434/api/tags",
+        "options": { "timeout": 5000 }
+      },
+      "id": "ollama-health",
+      "name": "🧠 Ollama Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [260, 440]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/healthz",
+        "options": { "timeout": 5000 }
+      },
+      "id": "n8n-health",
+      "name": "⚡ n8n Self-Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [260, 580]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pm2Raw = $('📊 PM2 Status Check').first().json.stdout || '[]';\nlet pm2List = [];\ntry { pm2List = JSON.parse(pm2Raw); } catch(e) {}\n\nconst backend = $('🔋 Backend Health').first().json;\nconst ollama = $('🧠 Ollama Health').first().json;\nconst n8nHealth = $('⚡ n8n Self-Health').first().json;\n\nconst now = new Date().toISOString();\nconst issues = [];\n\n// Check PM2 processes\nif (pm2List.length === 0) issues.push('⚠️ PM2: nessun processo attivo');\npm2List.forEach(p => {\n  if (p.pm2_env?.status !== 'online') {\n    issues.push(`⚠️ PM2 processo OFFLINE: ${p.name}`);\n  }\n});\n\n// Check backend\nif (!backend || backend.error) issues.push('❌ Backend: non raggiungibile');\n\n// Check Ollama\nif (!ollama || ollama.error) issues.push('⚠️ Ollama: non raggiungibile (locale AI offline)');\n\nconst status = issues.length === 0 ? 'OPTIMAL' : 'DEGRADED';\n\nreturn [{ \n  json: { \n    timestamp: now,\n    status,\n    issues,\n    pm2_count: pm2List.length,\n    backend_ok: !backend?.error,\n    ollama_ok: !ollama?.error,\n    summary: issues.length === 0 ? '✅ Tutti i servizi operativi' : issues.join(' | ')\n  }\n}];"
+      },
+      "id": "aggregate-status",
+      "name": "🔍 Aggrega Stato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{
+            "value1": "={{$json.status}}",
+            "operation": "equals",
+            "value2": "DEGRADED"
+          }]
+        }
+      },
+      "id": "check-degraded",
+      "name": "🔀 Degradato?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [780, 360]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && pm2 resurrect 2>/dev/null; pm2 start ecosystem.config.js 2>/dev/null || pm2 start backend/main.py --name vio-backend --interpreter python3 2>/dev/null; echo 'Recovery attempt done'"
+      },
+      "id": "auto-recovery",
+      "name": "🔧 Auto Recovery",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [1020, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const statusData = $('🔍 Aggrega Stato').first().json;\nconst logLine = `[${statusData.timestamp}] ${statusData.status} | PM2:${statusData.pm2_count} | Backend:${statusData.backend_ok} | Ollama:${statusData.ollama_ok} | ${statusData.summary}\\n`;\nreturn [{ json: { log: logLine, append: true } }];"
+      },
+      "id": "format-log",
+      "name": "📝 Formatta Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 460]
+    },
+    {
+      "parameters": {
+        "command": "echo '{{$json.log}}' >> /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/autopilot.log 2>/dev/null; tail -c 500000 /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/autopilot.log > /tmp/vio-log-tmp && mv /tmp/vio-log-tmp /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/autopilot.log 2>/dev/null; echo 'Log written'"
+      },
+      "id": "write-log",
+      "name": "💾 Scrivi Log",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [1260, 460]
+    }
+  ],
+  "connections": {
+    "⏱ Trigger Ogni 2 Minuti": {
+      "main": [[
+        { "node": "📊 PM2 Status Check", "type": "main", "index": 0 },
+        { "node": "🔋 Backend Health", "type": "main", "index": 0 },
+        { "node": "🧠 Ollama Health", "type": "main", "index": 0 },
+        { "node": "⚡ n8n Self-Health", "type": "main", "index": 0 }
+      ]]
+    },
+    "📊 PM2 Status Check": {
+      "main": [[{ "node": "🔍 Aggrega Stato", "type": "main", "index": 0 }]]
+    },
+    "🔋 Backend Health": {
+      "main": [[{ "node": "🔍 Aggrega Stato", "type": "main", "index": 0 }]]
+    },
+    "🧠 Ollama Health": {
+      "main": [[{ "node": "🔍 Aggrega Stato", "type": "main", "index": 0 }]]
+    },
+    "⚡ n8n Self-Health": {
+      "main": [[{ "node": "🔍 Aggrega Stato", "type": "main", "index": 0 }]]
+    },
+    "🔍 Aggrega Stato": {
+      "main": [[{ "node": "🔀 Degradato?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Degradato?": {
+      "main": [
+        [{ "node": "🔧 Auto Recovery", "type": "main", "index": 0 }],
+        [{ "node": "📝 Formatta Log", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔧 Auto Recovery": {
+      "main": [[{ "node": "📝 Formatta Log", "type": "main", "index": 0 }]]
+    },
+    "📝 Formatta Log": {
+      "main": [[{ "node": "💾 Scrivi Log", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "createdAt": "2026-03-17T00:00:00Z",
+    "updatedAt": "2026-03-17T00:00:00Z",
+    "description": "Autopilot permanente 24/7 per VIO83 AI Orchestra. Controlla PM2, backend, Ollama, n8n ogni 2 minuti. Auto-recovery se degradato. Log persistente con rotazione 500KB."
+  }
+}
