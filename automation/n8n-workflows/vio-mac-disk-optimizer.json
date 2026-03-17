@@ -1,0 +1,116 @@
+{
+  "name": "VIO83 — Mac Disk Optimizer (Giornaliero 03:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 3 * * *" }]
+        }
+      },
+      "id": "trigger-daily-3am",
+      "name": "⏰ Cron Ogni Notte 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "command": "df -h / | awk 'NR==2{print $4}'"
+      },
+      "id": "check-disk-before",
+      "name": "💾 Spazio Attuale",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{
+            "value1": "={{ parseInt($json.stdout.replace(/[^0-9.]/g,'')) }}",
+            "operation": "smallerEqual",
+            "value2": 15
+          }]
+        }
+      },
+      "id": "check-low-space",
+      "name": "⚠️ Spazio < 15GB?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "command": "bash /Users/padronavio/Projects/vio83-ai-orchestra/scripts/mac-cleanup.sh 2>&1"
+      },
+      "id": "run-cleanup",
+      "name": "🧹 Esegui Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [660, 180]
+    },
+    {
+      "parameters": {
+        "command": "npm cache clean --force 2>/dev/null; pip3 cache purge 2>/dev/null; find /Users/padronavio/Projects/vio83-ai-orchestra -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true; find /Users/padronavio/Projects/vio83-ai-orchestra -name '*.pyc' -delete 2>/dev/null || true; df -h / | awk 'NR==2{print \"Disponibile: \" $4}'"
+      },
+      "id": "quick-cleanup",
+      "name": "⚡ Quick Cleanup (sempre)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [660, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cleanupOut = $('🧹 Esegui Cleanup').first()?.json?.stdout || '';\nconst quickOut = $('⚡ Quick Cleanup (sempre)').first()?.json?.stdout || '';\nconst output = cleanupOut || quickOut;\nlet freed = 0;\nconst match = output.match(/liberati[^0-9]*(\\d+)MB/);\nif (match) freed = parseInt(match[1]);\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    freed_mb: freed,\n    output: output.substring(0, 500),\n    status: freed > 0 ? `✅ Liberati ~${freed}MB` : '✅ Cleanup eseguito'\n  }\n}];"
+      },
+      "id": "parse-result",
+      "name": "📊 Analizza Risultato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "command": "echo '[$(date -u +%Y-%m-%dT%H:%M:%SZ)] DISK_OPT: {{$json.status}} | Available: $(df -h / | awk \"NR==2{print $4}\")' >> /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/disk-optimizer.log"
+      },
+      "id": "write-log",
+      "name": "📝 Log Risultato",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "⏰ Cron Ogni Notte 03:00": {
+      "main": [[{ "node": "💾 Spazio Attuale", "type": "main", "index": 0 }]]
+    },
+    "💾 Spazio Attuale": {
+      "main": [[{ "node": "⚠️ Spazio < 15GB?", "type": "main", "index": 0 }]]
+    },
+    "⚠️ Spazio < 15GB?": {
+      "main": [
+        [{ "node": "🧹 Esegui Cleanup", "type": "main", "index": 0 }],
+        [{ "node": "⚡ Quick Cleanup (sempre)", "type": "main", "index": 0 }]
+      ]
+    },
+    "🧹 Esegui Cleanup": {
+      "main": [[{ "node": "📊 Analizza Risultato", "type": "main", "index": 0 }]]
+    },
+    "⚡ Quick Cleanup (sempre)": {
+      "main": [[{ "node": "📊 Analizza Risultato", "type": "main", "index": 0 }]]
+    },
+    "📊 Analizza Risultato": {
+      "main": [[{ "node": "📝 Log Risultato", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "meta": {
+    "description": "Cleanup automatico disco Mac ogni notte alle 03:00. Pulisce npm, pip, pycache, Cargo debug artifacts, log vecchi, Docker. Trigger aggressivo se spazio < 15GB."
+  }
+}

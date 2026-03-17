@@ -1,0 +1,182 @@
+{
+  "name": "VIO83 — Mac Optimizer COMPLETO (Disk + Runtime + VSCode)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 3 * * *" }] }
+      },
+      "id": "cron-night",
+      "name": "⏰ Ogni Notte 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "seconds", "secondsInterval": 300 }] }
+      },
+      "id": "cron-5min",
+      "name": "⏱ Ogni 5 Minuti (Health)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 500]
+    },
+    {
+      "parameters": {
+        "command": "df -g / | awk 'NR==2{print $4}'"
+      },
+      "id": "disk-check",
+      "name": "💾 Controlla Disco",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{
+            "value1": "={{ parseInt($json.stdout.trim()) }}",
+            "operation": "smallerEqual",
+            "value2": 15
+          }]
+        }
+      },
+      "id": "disk-low",
+      "name": "⚠️ Sotto 15GB?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "bash /Users/padronavio/Projects/vio83-ai-orchestra/scripts/mac-free-space-NOW.sh 2>&1 | tail -20"
+      },
+      "id": "full-cleanup",
+      "name": "🧹 Cleanup Aggressivo",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [700, 180]
+    },
+    {
+      "parameters": {
+        "command": "npm cache clean --force 2>/dev/null; pip3 cache purge 2>/dev/null; find /Users/padronavio/Projects -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true; df -h / | awk 'NR==2{print \"Libero: \"$4}'"
+      },
+      "id": "light-cleanup",
+      "name": "⚡ Quick Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [700, 420]
+    },
+    {
+      "parameters": {
+        "command": "pm2 jlist 2>/dev/null | python3 -c \"import sys,json; p=json.load(sys.stdin); [print(x['name'],x.get('pm2_env',{}).get('status','?')) for x in p]\" 2>/dev/null || echo 'pm2 offline'"
+      },
+      "id": "pm2-check",
+      "name": "🔋 PM2 Status",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4000/health",
+        "options": { "timeout": 5000 }
+      },
+      "id": "backend-check",
+      "name": "🌐 Backend Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pm2 = $('🔋 PM2 Status').first().json.stdout || '';\nconst backend = $('🌐 Backend Health').first().json;\nconst backendOk = !backend.error;\n\nif (!backendOk) {\n  return [{ json: { action: 'restart_backend', reason: 'backend_down' } }];\n}\n\nconst offlineProcs = pm2.split('\\n').filter(l => l.includes('stopped') || l.includes('error') || l.includes('errored'));\nif (offlineProcs.length > 0) {\n  return [{ json: { action: 'restart_pm2', procs: offlineProcs.join(',') } }];\n}\n\nreturn [{ json: { action: 'none', status: 'all_ok' } }];"
+      },
+      "id": "analyze-health",
+      "name": "🔍 Analizza Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{
+            "value1": "={{ $json.action }}",
+            "operation": "notEqual",
+            "value2": "none"
+          }]
+        }
+      },
+      "id": "need-restart",
+      "name": "🔀 Serve Restart?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [940, 500]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/padronavio/Projects/vio83-ai-orchestra && pm2 restart all 2>/dev/null || pm2 start ecosystem.config.js 2>/dev/null; echo 'restart done'"
+      },
+      "id": "auto-restart",
+      "name": "🔧 Auto Restart PM2",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [1180, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ts = new Date().toISOString();\nconst cleanup = $('🧹 Cleanup Aggressivo').first()?.json?.stdout || $('⚡ Quick Cleanup').first()?.json?.stdout || '';\nconst health = $('🔍 Analizza Health').first().json;\nconst restart = $('🔧 Auto Restart PM2').first()?.json?.stdout || 'no restart';\n\nconst disk = require('child_process').execSync('df -h / | awk \\'NR==2{print $4}\\'').toString().trim();\n\nreturn [{ json: {\n  timestamp: ts,\n  disk_free: disk,\n  cleanup_snippet: cleanup.substring(0, 200),\n  health_action: health.action,\n  restart_result: restart.substring(0, 100)\n}}];"
+      },
+      "id": "build-log",
+      "name": "📊 Componi Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 620]
+    },
+    {
+      "parameters": {
+        "command": "echo '{{$json.timestamp}} | disk:{{$json.disk_free}} | action:{{$json.health_action}}' >> /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/optimizer-complete.log; tail -c 300000 /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/optimizer-complete.log > /tmp/oc_tmp && mv /tmp/oc_tmp /Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/optimizer-complete.log 2>/dev/null"
+      },
+      "id": "write-log",
+      "name": "📝 Scrivi Log",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "continueOnFail": true,
+      "position": [1420, 620]
+    }
+  ],
+  "connections": {
+    "⏰ Ogni Notte 03:00": { "main": [[{ "node": "💾 Controlla Disco", "type": "main", "index": 0 }]] },
+    "⏱ Ogni 5 Minuti (Health)": { "main": [[{ "node": "🔋 PM2 Status", "type": "main", "index": 0 }, { "node": "🌐 Backend Health", "type": "main", "index": 0 }]] },
+    "💾 Controlla Disco": { "main": [[{ "node": "⚠️ Sotto 15GB?", "type": "main", "index": 0 }]] },
+    "⚠️ Sotto 15GB?": {
+      "main": [
+        [{ "node": "🧹 Cleanup Aggressivo", "type": "main", "index": 0 }],
+        [{ "node": "⚡ Quick Cleanup", "type": "main", "index": 0 }]
+      ]
+    },
+    "🧹 Cleanup Aggressivo": { "main": [[{ "node": "📊 Componi Log", "type": "main", "index": 0 }]] },
+    "⚡ Quick Cleanup": { "main": [[{ "node": "📊 Componi Log", "type": "main", "index": 0 }]] },
+    "🔋 PM2 Status": { "main": [[{ "node": "🔍 Analizza Health", "type": "main", "index": 0 }]] },
+    "🌐 Backend Health": { "main": [[{ "node": "🔍 Analizza Health", "type": "main", "index": 0 }]] },
+    "🔍 Analizza Health": { "main": [[{ "node": "🔀 Serve Restart?", "type": "main", "index": 0 }]] },
+    "🔀 Serve Restart?": {
+      "main": [
+        [{ "node": "🔧 Auto Restart PM2", "type": "main", "index": 0 }],
+        [{ "node": "📊 Componi Log", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔧 Auto Restart PM2": { "main": [[{ "node": "📊 Componi Log", "type": "main", "index": 0 }]] },
+    "📊 Componi Log": { "main": [[{ "node": "📝 Scrivi Log", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Optimizer completo: disk check ogni notte 03:00 + health check ogni 5 min. Cleanup aggressivo se sotto 15GB. Auto-restart PM2 se processi down."
+  }
+}
