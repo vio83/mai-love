@@ -3,7 +3,7 @@ import { Music } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { sendToOrchestra } from '../../services/ai/orchestrator';
 import { useAppStore } from '../../stores/appStore';
-import type { Message } from '../../types';
+import type { Attachment, Message } from '../../types';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 
@@ -22,6 +22,8 @@ export default function ChatView() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingProvider, setStreamingProvider] = useState('');
+  const [streamingStartedAt, setStreamingStartedAt] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
   // Auto-scroll
@@ -29,7 +31,31 @@ export default function ChatView() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeConversation?.messages, streamingContent]);
 
-  const handleSend = async (content: string) => {
+  useEffect(() => {
+    if (!isStreaming || !streamingStartedAt) {
+      setElapsedMs(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setElapsedMs(Date.now() - streamingStartedAt);
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [isStreaming, streamingStartedAt]);
+
+  const formatElapsed = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  };
+
+  const handleSend = async (content: string, attachments?: Attachment[]) => {
     let convId = activeConversationId;
     if (!convId) {
       convId = createConversation();
@@ -41,6 +67,7 @@ export default function ChatView() {
       role: 'user',
       content,
       timestamp: Date.now(),
+      attachments,
     };
     addMessage(convId, userMessage);
 
@@ -48,6 +75,7 @@ export default function ChatView() {
     const controller = new AbortController();
     setAbortController(controller);
     setStreaming(true);
+    setStreamingStartedAt(Date.now());
     setStreamingContent('');
     setStreamingProvider(settings.orchestrator.mode === 'local' ? 'ollama' : settings.orchestrator.primaryProvider);
 
@@ -89,7 +117,7 @@ export default function ChatView() {
         apiKeys,
         ollamaHost: settings.ollamaHost,
         ollamaModel: settings.ollamaModel || 'qwen2.5-coder:3b',
-      }, onToken);
+      }, onToken, controller.signal);
 
       // Aggiungi risposta finale
       const aiMessage: Message = {
@@ -107,6 +135,17 @@ export default function ChatView() {
       addMessage(convId, aiMessage);
 
     } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        const abortedMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: '⏹️ Generazione interrotta dall’utente.',
+          timestamp: Date.now(),
+        };
+        addMessage(convId, abortedMessage);
+        return;
+      }
+
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -121,6 +160,8 @@ export default function ChatView() {
     } finally {
       setStreaming(false);
       setAbortController(null);
+      setStreamingStartedAt(null);
+      setElapsedMs(0);
       setStreamingContent('');
     }
   };
@@ -213,6 +254,7 @@ export default function ChatView() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ color: 'var(--vio-green)', fontSize: '13px' }}>L'orchestra sta elaborando</span>
               <span style={{ color: 'var(--vio-green)', animation: 'pulse 1.5s infinite' }}>...</span>
+              <span style={{ color: 'var(--vio-cyan)', fontSize: '12px' }}>⏱ {formatElapsed(elapsedMs)}</span>
             </div>
           </div>
         )}

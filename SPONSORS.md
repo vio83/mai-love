@@ -48,7 +48,7 @@ Your sponsorship directly funds API testing costs, hardware upgrades, and full-t
 
 ## 🌟 One-Time Contributors
 
-*One-time donations via [Ko-fi](https://ko-fi.com/vio83) — every contribution matters!*
+*One-time donations via [Ko-fi](https://ko-fi.com/vio83_ai_orchestra_) — every contribution matters!*
 
 ---
 
@@ -83,8 +83,12 @@ Your sponsorship directly funds API testing costs, hardware upgrades, and full-t
     <img src="https://img.shields.io/badge/GitHub_Sponsors-💚_Sponsor_Now-ea4aaa?style=for-the-badge&logo=github-sponsors" />
   </a>
   &nbsp;&nbsp;
-  <a href="https://ko-fi.com/vio83">
+  <a href="https://ko-fi.com/vio83_ai_orchestra_">
     <img src="https://img.shields.io/badge/Ko--fi-☕_One_Time_Donation-FF5E5B?style=for-the-badge&logo=ko-fi" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://vio83.github.io/vio83-ai-orchestra/support.html">
+    <img src="https://img.shields.io/badge/Support_Hub-🌍_All_Options-8B5CF6?style=for-the-badge" />
   </a>
 </p>
 

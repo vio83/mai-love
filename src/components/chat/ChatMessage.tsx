@@ -167,6 +167,38 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           </ReactMarkdown>
         </div>
 
+        {message.attachments && message.attachments.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+            {message.attachments.map((att) => (
+              <div
+                key={att.id}
+                style={{
+                  border: '1px solid var(--vio-border)',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  backgroundColor: 'var(--vio-bg-tertiary)',
+                  minWidth: '180px',
+                  maxWidth: '320px',
+                }}
+              >
+                {att.type.startsWith('image/') && att.dataUrl ? (
+                  <img
+                    src={att.dataUrl}
+                    alt={att.name}
+                    style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
+                  />
+                ) : null}
+                <div style={{ fontSize: '12px', color: 'var(--vio-text-secondary)', wordBreak: 'break-word' }}>
+                  📎 {att.name}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--vio-text-dim)' }}>
+                  {att.type || 'file'} • {(att.size / 1024).toFixed(1)} KB
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Footer: timestamp + model info */}
         <div style={{
           display: 'flex',

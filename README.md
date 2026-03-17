@@ -321,12 +321,16 @@ USER types a question
     <img src="https://img.shields.io/badge/GitHub_Sponsors-💚_Become_a_Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors" />
   </a>
   &nbsp;&nbsp;
-  <a href="https://ko-fi.com/vio83">
+  <a href="https://ko-fi.com/vio83_ai_orchestra_">
     <img src="https://img.shields.io/badge/Ko--fi-☕_Support_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi" />
   </a>
   &nbsp;&nbsp;
   <a href="https://www.linkedin.com/in/viorica-porcu-637735139">
     <img src="https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=for-the-badge&logo=linkedin" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://vio83.github.io/vio83-ai-orchestra/support.html">
+    <img src="https://img.shields.io/badge/Support_Hub-🌍_All_Options-8B5CF6?style=for-the-badge" />
   </a>
 </p>
 
@@ -345,7 +349,7 @@ I'm building VIO 83 because I believe access to intelligent AI should not requir
 | **#3 Time** | Full-time development | More hours = faster features, better quality |
 | **#4 Infrastructure** | Server for the Knowledge Base | 250M+ academic papers need storage and processing |
 
-### Current Progress (Live — March 2026)
+### Current Progress (Live — 17 March 2026)
 
 ```
 Backend Engine:       ████████████████░░░░  85%  (15 modules, all tested)
@@ -367,6 +371,8 @@ Analytics Dashboard:  ████████████████░░░�
 | 🎼 **Conductor** | $50 | Above + monthly video call + custom AI routing rules |
 | 🏆 **Patron** | $100 | Above + your logo in the app UI + dedicated support |
 | 🏢 **Enterprise** | $500 | Commercial license + custom deployment + 1:1 support |
+
+> **Target:** first 10 founding sponsors by **17 April 2026**. This is a public goal, not a guaranteed outcome.
 
 > **Early sponsors get lifetime perks** at launch-era prices. When VIO 83 ships v1.0, these tiers will increase.
 

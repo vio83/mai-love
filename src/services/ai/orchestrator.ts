@@ -129,9 +129,9 @@ function normalizeLocalModel(model: string): string {
 let _ollamaModelCache: { models: string[]; timestamp: number } = { models: [], timestamp: 0 };
 const OLLAMA_CACHE_TTL = 60_000; // 60 secondi
 
-async function fetchInstalledOllamaModels(host: string): Promise<string[]> {
+async function fetchInstalledOllamaModels(host: string, forceRefresh: boolean = false): Promise<string[]> {
   const now = Date.now();
-  if (_ollamaModelCache.models.length > 0 && (now - _ollamaModelCache.timestamp) < OLLAMA_CACHE_TTL) {
+  if (!forceRefresh && _ollamaModelCache.models.length > 0 && (now - _ollamaModelCache.timestamp) < OLLAMA_CACHE_TTL) {
     return _ollamaModelCache.models;
   }
   try {
@@ -168,6 +168,19 @@ async function resolveWorkingLocalModel(host: string, preferredModel: string): P
 
   const fallback = LOCAL_FALLBACK_MODELS.find((candidate) => installed.includes(candidate));
   return fallback || installed[0] || preferred;
+}
+
+async function pickRetryLocalModel(host: string, excludedModels: Set<string>): Promise<string | null> {
+  const installed = await fetchInstalledOllamaModels(host, true);
+  if (installed.length === 0) return null;
+
+  const preferredFallback = LOCAL_FALLBACK_MODELS.find(
+    (candidate) => installed.includes(candidate) && !excludedModels.has(candidate),
+  );
+  if (preferredFallback) return preferredFallback;
+
+  const firstAvailable = installed.find((model) => !excludedModels.has(model));
+  return firstAvailable || null;
 }
 
 async function fetchLocalRagContext(question: string): Promise<{ contextText: string; sourceCount: number }> {
@@ -212,8 +225,8 @@ async function fetchLocalRagContext(question: string): Promise<{ contextText: st
 // ============================================================
 // SYSTEM PROMPT — importato dal modulo dedicato
 // ============================================================
-import { buildLocalSystemPrompt, buildSystemPrompt } from './systemPrompt';
 import { recordMetric } from '../metrics/categoryTracker';
+import { buildLocalSystemPrompt, buildSystemPrompt } from './systemPrompt';
 
 // ============================================================
 // OLLAMA — Chiamata locale con streaming
@@ -224,84 +237,128 @@ async function callOllama(
   model: string = 'qwen2.5-coder:3b',
   host: string = 'http://localhost:11434',
   onToken?: (token: string) => void,
+  signal?: AbortSignal,
 ): Promise<AIResponse> {
   const start = Date.now();
-  const resolvedModel = await resolveWorkingLocalModel(host, model);
+  let resolvedModel = await resolveWorkingLocalModel(host, model);
+  const attemptedModels = new Set<string>([resolvedModel]);
 
   // Se abbiamo callback streaming, usiamo stream: true
   if (onToken) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch(`${host}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: resolvedModel,
+          messages,
+          stream: true,
+          options: {
+            num_predict: 512,
+            temperature: 0.2,
+          },
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          const retryModel = await pickRetryLocalModel(host, attemptedModels);
+          if (retryModel) {
+            resolvedModel = retryModel;
+            attemptedModels.add(resolvedModel);
+            continue;
+          }
+
+          const installed = await fetchInstalledOllamaModels(host, true);
+          throw new Error(`Ollama error: 404 (model '${resolvedModel}' non trovato). Installati: ${installed.join(', ') || 'nessuno'}`);
+        }
+        throw new Error(`Ollama error: ${response.status}`);
+      }
+      if (!response.body) throw new Error('Ollama: no response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let totalTokens = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        // Ollama manda un JSON per riga
+        const lines = chunk.split('\n').filter(l => l.trim());
+
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.message?.content) {
+              fullContent += data.message.content;
+              onToken(data.message.content);
+            }
+            if (data.eval_count) totalTokens = (data.prompt_eval_count || 0) + data.eval_count;
+          } catch {
+            // skip malformed JSON
+          }
+        }
+      }
+
+      return {
+        content: fullContent,
+        provider: 'ollama',
+        model: resolvedModel,
+        tokensUsed: totalTokens,
+        latencyMs: Date.now() - start,
+      };
+    }
+
+    throw new Error(`Ollama error: model non disponibile dopo retry. Ultimo tentativo: '${resolvedModel}'`);
+  }
+
+  // Senza streaming
+  for (let attempt = 0; attempt < 2; attempt++) {
     const response = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: resolvedModel, messages, stream: true }),
+      body: JSON.stringify({
+        model: resolvedModel,
+        messages,
+        stream: false,
+        options: {
+          num_predict: 512,
+          temperature: 0.2,
+        },
+      }),
+      signal,
     });
 
     if (!response.ok) {
       if (response.status === 404) {
-        const installed = await fetchInstalledOllamaModels(host);
+        const retryModel = await pickRetryLocalModel(host, attemptedModels);
+        if (retryModel) {
+          resolvedModel = retryModel;
+          attemptedModels.add(resolvedModel);
+          continue;
+        }
+
+        const installed = await fetchInstalledOllamaModels(host, true);
         throw new Error(`Ollama error: 404 (model '${resolvedModel}' non trovato). Installati: ${installed.join(', ') || 'nessuno'}`);
       }
-      throw new Error(`Ollama error: ${response.status}`);
-    }
-    if (!response.body) throw new Error('Ollama: no response body');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullContent = '';
-    let totalTokens = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      // Ollama manda un JSON per riga
-      const lines = chunk.split('\n').filter(l => l.trim());
-
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          if (data.message?.content) {
-            fullContent += data.message.content;
-            onToken(data.message.content);
-          }
-          if (data.eval_count) totalTokens = (data.prompt_eval_count || 0) + data.eval_count;
-        } catch { /* skip malformed JSON */ }
-      }
+      throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
     }
 
+    const data = await response.json();
     return {
-      content: fullContent,
+      content: data.message?.content || '',
       provider: 'ollama',
       model: resolvedModel,
-      tokensUsed: totalTokens,
+      tokensUsed: (data.prompt_eval_count || 0) + (data.eval_count || 0),
       latencyMs: Date.now() - start,
     };
   }
 
-  // Senza streaming
-  const response = await fetch(`${host}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: resolvedModel, messages, stream: false }),
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      const installed = await fetchInstalledOllamaModels(host);
-      throw new Error(`Ollama error: 404 (model '${resolvedModel}' non trovato). Installati: ${installed.join(', ') || 'nessuno'}`);
-    }
-    throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
-  }
-  const data = await response.json();
-
-  return {
-    content: data.message?.content || '',
-    provider: 'ollama',
-    model: resolvedModel,
-    tokensUsed: (data.prompt_eval_count || 0) + (data.eval_count || 0),
-    latencyMs: Date.now() - start,
-  };
+  throw new Error(`Ollama error: model non disponibile dopo retry. Ultimo tentativo: '${resolvedModel}'`);
 }
 
 // ============================================================
@@ -313,6 +370,7 @@ async function callCloud(
   provider: AIProvider,
   apiKeys: Record<string, string>,
   onToken?: (token: string) => void,
+  signal?: AbortSignal,
 ): Promise<AIResponse> {
   const start = Date.now();
   const model = CLOUD_MODELS[provider];
@@ -368,6 +426,7 @@ async function callCloud(
         preset: 'pro-search',
         input,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -398,6 +457,7 @@ async function callCloud(
       max_tokens: 4096,
       stream: useStream,
     }),
+    signal,
   });
 
   if (!response.ok) {
@@ -471,6 +531,7 @@ export async function sendToOrchestra(
     ollamaModel?: string;
   },
   onToken?: (token: string) => void,
+  signal?: AbortSignal,
 ): Promise<AIResponse> {
   const lastMessage = messages[messages.length - 1];
   if (!lastMessage) throw new Error('Nessun messaggio da inviare');
@@ -581,9 +642,10 @@ export async function sendToOrchestra(
         activeOllamaModel,
         config.ollamaHost,
         onToken,
+        signal,
       );
     } else {
-      response = await callCloud(apiMessages, provider, config.apiKeys, onToken);
+      response = await callCloud(apiMessages, provider, config.apiKeys, onToken, signal);
     }
 
     if (strictEvidenceDegraded && strictEvidenceBanner) {
@@ -661,7 +723,7 @@ export async function sendToOrchestra(
     for (const fallback of config.fallbackProviders) {
       try {
         if (fallback === 'ollama') {
-          const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+          const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal);
           if (strictEvidenceDegraded && strictEvidenceBanner) {
             fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
           }
@@ -669,7 +731,7 @@ export async function sendToOrchestra(
         }
         // Solo se abbiamo API keys per questo provider
         if (hasAnyApiKey) {
-          const fallbackResponse = await callCloud(apiMessages, fallback, config.apiKeys, onToken);
+          const fallbackResponse = await callCloud(apiMessages, fallback, config.apiKeys, onToken, signal);
           if (strictEvidenceDegraded && strictEvidenceBanner) {
             fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
           }
@@ -684,7 +746,7 @@ export async function sendToOrchestra(
     if (provider !== 'ollama') {
       try {
         console.log('[Orchestra] Ultimo tentativo: Ollama locale');
-        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken);
+        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal);
         if (strictEvidenceDegraded && strictEvidenceBanner) {
           fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
         }

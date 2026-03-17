@@ -1,14 +1,14 @@
 {
-  "name": "VIO83 — Sponsor Outreach & Visibility Automation (Weekly)",
+  "name": "VIO83 — Sponsor Outreach & Visibility Automation (Daily Ops)",
   "nodes": [
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "days", "daysInterval": 7 }]
+          "interval": [{ "field": "days", "daysInterval": 1 }]
         }
       },
       "id": "trigger-weekly",
-      "name": "Every Monday",
+      "name": "Every Day",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [200, 400]
@@ -43,15 +43,15 @@
           "string": [
             {
               "name": "linkedin_post",
-              "value": "=🎵 Weekly update from VIO 83 AI Orchestra!\n\n📊 This week's numbers:\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} GitHub Stars\n🔀 {{ $('Get Current Stats').item.json.forks_count }} Forks\n👀 {{ $('Get Weekly Views').item.json.count }} Page Views\n\nStill building the world's first multi-AI orchestration platform. 7 AI providers. Cross-check verification. RAG knowledge base.\n\nEvery star helps! ⭐\n\n💚 github.com/sponsors/vio83\n⭐ github.com/vio83/vio83-ai-orchestra\n\n#AI #OpenSource #MultiAI #IndieHacker #MadeInItaly"
+              "value": "=🎵 VIO 83 AI Orchestra — Sponsor & Growth Update\n\n📊 KPI snapshot:\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} GitHub Stars\n🔀 {{ $('Get Current Stats').item.json.forks_count }} Forks\n👀 {{ $('Get Weekly Views').item.json.count }} Weekly Views\n\n💚 Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html\n💚 GitHub Sponsors: https://github.com/sponsors/vio83\n☕ Ko-fi: https://ko-fi.com/vio83_ai_orchestra_\n\n#AI #OpenSource #MultiAI #IndieHacker #MadeInItaly"
             },
             {
               "name": "kofi_post",
-              "value": "=📊 Weekly Progress Update!\n\nGitHub Stars: {{ $('Get Current Stats').item.json.stargazers_count }}\nForks: {{ $('Get Current Stats').item.json.forks_count }}\nPage Views: {{ $('Get Weekly Views').item.json.count }}\n\nStill building solo. Your coffee keeps the Orchestra playing! ☕💚"
+              "value": "=📊 Ko-fi Weekly Update\n\nGitHub Stars: {{ $('Get Current Stats').item.json.stargazers_count }}\nForks: {{ $('Get Current Stats').item.json.forks_count }}\nViews: {{ $('Get Weekly Views').item.json.count }}\n\nStill building solo. Every coffee funds real API tests and release work. ☕💚\n\nSupport Hub: https://vio83.github.io/vio83-ai-orchestra/support.html"
             },
             {
               "name": "tweet_content",
-              "value": "=🎵 VIO 83 AI Orchestra — weekly update\n\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} stars | 🔀 {{ $('Get Current Stats').item.json.forks_count }} forks\n\n7 AI providers. Cross-check verification. Smart routing.\n\nStar it → github.com/vio83/vio83-ai-orchestra\n\n#AI #OpenSource #LLM"
+              "value": "=🎵 VIO 83 AI Orchestra — growth snapshot\n\n⭐ {{ $('Get Current Stats').item.json.stargazers_count }} stars | 🔀 {{ $('Get Current Stats').item.json.forks_count }} forks\n\nSupport → https://vio83.github.io/vio83-ai-orchestra/support.html\n\n#AI #OpenSource #LLM"
             }
           ]
         },
@@ -69,7 +69,7 @@
           "string": [
             {
               "name": "action_items",
-              "value": "=📋 WEEKLY ACTION ITEMS — {{ $now.format('yyyy-MM-dd') }}\n\n1. ✏️ Post the LinkedIn update (content generated above)\n2. ✏️ Post the Ko-fi update\n3. ✏️ Post on X/Twitter\n4. ⭐ Star 5 related repositories\n5. 👥 Follow 10 AI developers on GitHub\n6. 💬 Comment on 3 AI LinkedIn posts\n7. 📧 Send 2 sponsor outreach DMs\n8. 📝 Update README stats if significant changes\n9. 🔍 Check Google Search Console for new queries\n10. 📊 Review Bing Webmaster Tools for indexing status"
+              "value": "=📋 SPONSOR OPS PLAN — {{ $now.format('yyyy-MM-dd') }}\n\nTarget operativo settimanale:\n• LinkedIn: 2 post / settimana (LUN + GIO)\n• Ko-fi: 1 update / settimana (MER)\n• GitHub: 1 post release/progress / settimana (VEN)\n• Outreach DM: 3–5 DM / settimana (1 al giorno LUN–VEN)\n\nChecklist giornaliera:\n1) Verifica KPI (stars, forks, views)\n2) Pubblica contenuto del giorno in base al calendario\n3) Aggiorna Support Hub se cambia CTA\n4) Traccia risposte e follow-up sponsor\n5) Registra risultati nel report weekly\n\nLink core:\n- Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html\n- GitHub Sponsors: https://github.com/sponsors/vio83\n- Ko-fi: https://ko-fi.com/vio83_ai_orchestra_\n- LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139"
             }
           ]
         },
@@ -83,7 +83,7 @@
     }
   ],
   "connections": {
-    "Every Monday": {
+    "Every Day": {
       "main": [
         [
           { "node": "Get Current Stats", "type": "main", "index": 0 },

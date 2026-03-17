@@ -2,9 +2,10 @@
 
 <p align="center">
   <a href="https://github.com/sponsors/vio83"><img src="https://img.shields.io/badge/💚_Sponsor_Me-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white" /></a>
-  <a href="https://ko-fi.com/vio83"><img src="https://img.shields.io/badge/☕_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" /></a>
+  <a href="https://ko-fi.com/vio83_ai_orchestra_"><img src="https://img.shields.io/badge/☕_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" /></a>
   <a href="https://www.linkedin.com/in/viorica-porcu-637735139"><img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" /></a>
   <a href="https://vio83.github.io/vio83-ai-orchestra/"><img src="https://img.shields.io/badge/🌐_Website-00ff00?style=for-the-badge" /></a>
+  <a href="https://vio83.github.io/vio83-ai-orchestra/support.html"><img src="https://img.shields.io/badge/🌍_Support_Hub-8B5CF6?style=for-the-badge" /></a>
 </p>
 
 <p align="center"><em>Building the future of AI orchestration — one commit at a time, from Italy.</em></p>
@@ -66,7 +67,7 @@ Workflow Builder:     ████████░░░░░░░░░░░�
 
 I build this **alone** on a MacBook Air M1 (8GB RAM). No investors. No salary. No team. Your sponsorship directly funds API costs, hardware upgrades, and full-time development.
 
-**Goal: first 10 sponsors by April 2026.**
+**Target: first 10 founding sponsors by 17 April 2026. No fake guarantees, just public progress.**
 
 <p align="center">
   <a href="https://github.com/sponsors/vio83"><strong>→ Become a Sponsor ←</strong></a>

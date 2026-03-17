@@ -1,6 +1,6 @@
 # Ko-fi Page — VIO 83 AI ORCHESTRA
 ## Contenuto completo ottimizzato per sponsorizzazione — Marzo 2026
-## Copia-incolla ogni sezione direttamente su https://ko-fi.com/vio83
+## Copia-incolla ogni sezione direttamente su https://ko-fi.com/vio83_ai_orchestra_
 
 ---
 
@@ -8,7 +8,7 @@
 
 ```
 1. Vai su https://ko-fi.com e accedi (o crea account con porcu.v.83@gmail.com)
-2. Username: vio83
+2. Page slug: vio83_ai_orchestra_
 3. Vai su https://ko-fi.com/manage/supporterpage
 4. Applica le impostazioni sotto
 ```

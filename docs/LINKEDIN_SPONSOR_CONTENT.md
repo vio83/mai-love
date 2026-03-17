@@ -31,7 +31,7 @@ I'm building the world's first intelligent multi-AI orchestration platform — o
 🔗 GitHub: github.com/vio83/vio83-ai-orchestra
 🌐 Website: vio83.github.io/vio83-ai-orchestra
 💚 Sponsor: github.com/sponsors/vio83
-☕ Ko-fi: ko-fi.com/vio83
+☕ Ko-fi: ko-fi.com/vio83_ai_orchestra_
 
 Open to: sponsors, collaborators, feedback, and anyone who believes AI should be transparent, verified, and accessible.
 
@@ -176,7 +176,7 @@ Early sponsors get LIFETIME perks at today's prices. When v1.0 launches, tiers i
 The foundation is solid. With your support, I ship the future.
 
 💚 github.com/sponsors/vio83
-☕ ko-fi.com/vio83
+☕ ko-fi.com/vio83_ai_orchestra_
 ⭐ github.com/vio83/vio83-ai-orchestra
 
 Even a star ⭐ on GitHub helps with visibility.
@@ -333,7 +333,7 @@ I need 10 sponsors. Just 10 people who believe in transparent, verified AI.
 Even $5/month makes a difference. Early sponsors get lifetime perks.
 
 💚 github.com/sponsors/vio83
-☕ ko-fi.com/vio83
+☕ ko-fi.com/vio83_ai_orchestra_
 ⭐ github.com/vio83/vio83-ai-orchestra
 
 Share this if you believe open source AI deserves support.

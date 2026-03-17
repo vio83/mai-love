@@ -41,7 +41,7 @@
         "url": "https://api.indexnow.org/indexnow",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"host\": \"vio83.github.io\",\n  \"key\": \"3e6f9ffe76d0f756d7492ec16fd4d501\",\n  \"keyLocation\": \"https://vio83.github.io/vio83-ai-orchestra/3e6f9ffe76d0f756d7492ec16fd4d501.txt\",\n  \"urlList\": [\n    \"https://vio83.github.io/vio83-ai-orchestra/\",\n    \"https://vio83.github.io/vio83-ai-orchestra/sitemap.xml\"\n  ]\n}",
+        "jsonBody": "{\n  \"host\": \"vio83.github.io\",\n  \"key\": \"3e6f9ffe76d0f756d7492ec16fd4d501\",\n  \"keyLocation\": \"https://vio83.github.io/vio83-ai-orchestra/3e6f9ffe76d0f756d7492ec16fd4d501.txt\",\n  \"urlList\": [\n    \"https://vio83.github.io/vio83-ai-orchestra/\",\n    \"https://vio83.github.io/vio83-ai-orchestra/support.html\",\n    \"https://vio83.github.io/vio83-ai-orchestra/sitemap.xml\"\n  ]\n}",
         "options": {}
       },
       "id": "ping-indexnow",
@@ -67,7 +67,7 @@
           "string": [
             {
               "name": "report",
-              "value": "=SEO Ping Report — {{ $now.format('yyyy-MM-dd HH:mm') }}\n\n✅ Google: Pinged\n✅ Bing: Pinged\n✅ IndexNow: Pinged (Bing+Yandex+DuckDuckGo)\n\nGitHub Stars: {{ $json.stargazers_count }}\nGitHub Forks: {{ $json.forks_count }}\nWatchers: {{ $json.subscribers_count }}"
+              "value": "=SEO Ping Report — {{ $now.format('yyyy-MM-dd HH:mm') }}\n\n✅ Google sitemap ping: attempted\n✅ Bing sitemap ping: attempted\n✅ IndexNow ping: homepage + support hub + sitemap\n\nGitHub Stars: {{ $json.stargazers_count }}\nGitHub Forks: {{ $json.forks_count }}\nWatchers: {{ $json.subscribers_count }}\n\nSupport Hub: https://vio83.github.io/vio83-ai-orchestra/support.html"
             }
           ]
         },
