@@ -125,17 +125,27 @@ function normalizeLocalModel(model: string): string {
   return LOCAL_MODEL_ALIASES[trimmed] || trimmed;
 }
 
+// Cache dei modelli Ollama installati (evita fetch /api/tags ad ogni messaggio)
+let _ollamaModelCache: { models: string[]; timestamp: number } = { models: [], timestamp: 0 };
+const OLLAMA_CACHE_TTL = 60_000; // 60 secondi
+
 async function fetchInstalledOllamaModels(host: string): Promise<string[]> {
+  const now = Date.now();
+  if (_ollamaModelCache.models.length > 0 && (now - _ollamaModelCache.timestamp) < OLLAMA_CACHE_TTL) {
+    return _ollamaModelCache.models;
+  }
   try {
     const response = await fetch(`${host}/api/tags`, { method: 'GET' });
-    if (!response.ok) return [];
+    if (!response.ok) return _ollamaModelCache.models;
     const data = await response.json();
-    if (!Array.isArray(data?.models)) return [];
-    return data.models
+    if (!Array.isArray(data?.models)) return _ollamaModelCache.models;
+    const models = data.models
       .map((m: any) => typeof m?.name === 'string' ? m.name : '')
       .filter((name: string) => !!name);
+    _ollamaModelCache = { models, timestamp: now };
+    return models;
   } catch {
-    return [];
+    return _ollamaModelCache.models;
   }
 }
 
@@ -165,13 +175,13 @@ async function fetchLocalRagContext(question: string): Promise<{ contextText: st
   if (!cleanQuestion) return { contextText: '', sourceCount: 0 };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1800);
+  const timeoutId = setTimeout(() => controller.abort(), 800); // 800ms max, was 1800
 
   try {
     const query = new URLSearchParams({
       question: cleanQuestion,
-      max_context_tokens: '1200',
-      n_results: '5',
+      max_context_tokens: '600', // ridotto da 1200 per velocità
+      n_results: '3', // ridotto da 5
     }).toString();
 
     const response = await fetch(`http://localhost:4000/kb/context?${query}`, {
@@ -202,7 +212,8 @@ async function fetchLocalRagContext(question: string): Promise<{ contextText: st
 // ============================================================
 // SYSTEM PROMPT — importato dal modulo dedicato
 // ============================================================
-import { buildSystemPrompt } from './systemPrompt';
+import { buildLocalSystemPrompt, buildSystemPrompt } from './systemPrompt';
+import { recordMetric } from '../metrics/categoryTracker';
 
 // ============================================================
 // OLLAMA — Chiamata locale con streaming
@@ -491,7 +502,9 @@ export async function sendToOrchestra(
   console.log(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
 
   // Prepara messaggi con system prompt SPECIALIZZATO per tipo di richiesta
-  let systemPrompt = buildSystemPrompt(requestType);
+  // Per modelli locali < 7B usa prompt compatto (~400 token vs ~4000)
+  const isLocal = effectiveMode === 'local' || provider === 'ollama';
+  let systemPrompt = isLocal ? buildLocalSystemPrompt(requestType) : buildSystemPrompt(requestType);
   const strictEvidenceMode = Boolean(config.strictEvidenceMode);
   let strictEvidenceDegraded = false;
   let strictEvidenceBanner = '';
@@ -612,32 +625,30 @@ export async function sendToOrchestra(
       }
 
       if (effectiveMode === 'local') {
-        try {
-          const verifierModel = pickLocalVerifierModel(activeOllamaModel);
-          const checkResponse = await callOllama(
-            [
-              ...apiMessages,
-              { role: 'assistant', content: response.content },
-              {
-                role: 'user',
-                content: 'Verifica la risposta precedente. Rispondi con "CONFERMATO" se è accurata. Altrimenti rispondi con "CORREZIONE:" seguito da una nota breve.',
-              },
-            ],
-            verifierModel,
-            config.ollamaHost,
-          );
-
-          const normalized = checkResponse.content.trim().toUpperCase();
-          const concordance = normalized.startsWith('CONFERMATO') || normalized.startsWith('CONFIRMED');
-
-          response.crossCheckResult = {
-            concordance,
-            secondProvider: 'ollama',
-            secondResponse: `[${verifierModel}] ${checkResponse.content}`,
-          };
-        } catch (e) {
-          console.warn('[Orchestra] Cross-check locale fallito:', e);
-        }
+        // Fire-and-forget: cross-check locale NON blocca la risposta all'utente
+        // Il risultato verrà aggiunto in background (M1 8GB troppo lento per doppia inference sincrona)
+        const verifierModel = pickLocalVerifierModel(activeOllamaModel);
+        const crossCheckMessages = [
+          ...apiMessages,
+          { role: 'assistant', content: response.content },
+          {
+            role: 'user',
+            content: 'Verifica la risposta precedente. Rispondi con "CONFERMATO" se è accurata. Altrimenti rispondi con "CORREZIONE:" seguito da una nota breve.',
+          },
+        ];
+        callOllama(crossCheckMessages, verifierModel, config.ollamaHost)
+          .then(checkResponse => {
+            const normalized = checkResponse.content.trim().toUpperCase();
+            const concordance = normalized.startsWith('CONFERMATO') || normalized.startsWith('CONFIRMED');
+            response.crossCheckResult = {
+              concordance,
+              secondProvider: 'ollama',
+              secondResponse: `[${verifierModel}] ${checkResponse.content}`,
+            };
+          })
+          .catch(e => {
+            console.warn('[Orchestra] Cross-check locale fallito:', e);
+          });
       }
     }
 
