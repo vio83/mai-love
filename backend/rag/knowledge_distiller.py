@@ -62,6 +62,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 DISTILLED_DB = os.path.join(DATA_DIR, "knowledge_distilled.db")
 EMBEDDINGS_DIR = os.path.join(DATA_DIR, "embeddings")
 FULLTEXT_DIR = os.path.join(DATA_DIR, "fulltext")
+MAX_KNOWLEDGE_DB_MB_DEFAULT = 500
 
 
 # ============================================================
@@ -356,10 +357,13 @@ class DistilledKnowledgeDB:
 
     def __init__(self, db_path: str = ""):
         self.db_path = db_path or DISTILLED_DB
+        max_mb = float(os.environ.get("VIO_MAX_KNOWLEDGE_DB_MB", str(MAX_KNOWLEDGE_DB_MB_DEFAULT)) or MAX_KNOWLEDGE_DB_MB_DEFAULT)
+        self.max_db_size_bytes = max(50 * 1024 * 1024, int(max_mb * 1024 * 1024))
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
         os.makedirs(FULLTEXT_DIR, exist_ok=True)
         self._init_database()
+        self._enforce_storage_budget()
 
     @contextmanager
     def _conn(self):
@@ -479,6 +483,69 @@ class DistilledKnowledgeDB:
                     aggiornato REAL
                 )
             """)
+
+    def _current_db_size_bytes(self) -> int:
+        if not os.path.exists(self.db_path):
+            return 0
+        return os.path.getsize(self.db_path)
+
+    def _enforce_storage_budget(self):
+        """Mantiene il DB entro il budget configurato (default 500MB)."""
+        db_size = self._current_db_size_bytes()
+        if db_size <= self.max_db_size_bytes:
+            return
+
+        over_bytes = db_size - self.max_db_size_bytes
+
+        with self._conn() as conn:
+            total_docs = int(conn.execute("SELECT COUNT(*) FROM l1_metadata").fetchone()[0])
+            if total_docs <= 0:
+                return
+
+            avg_doc_bytes = max(1, db_size // total_docs)
+            docs_to_delete = max(250, int((over_bytes / avg_doc_bytes) * 1.25))
+
+            oldest_rows = conn.execute(
+                "SELECT doc_id FROM l1_metadata ORDER BY data_distillazione ASC LIMIT ?",
+                (docs_to_delete,),
+            ).fetchall()
+            doc_ids = [row[0] for row in oldest_rows]
+
+            if not doc_ids:
+                return
+
+            placeholders = ",".join(["?"] * len(doc_ids))
+
+            # Rimuovi eventuali fulltext compressi associati
+            fulltext_rows = conn.execute(
+                f"SELECT file_path FROM l5_fulltext WHERE doc_id IN ({placeholders})",
+                doc_ids,
+            ).fetchall()
+            for row in fulltext_rows:
+                file_path = row[0]
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+
+            # Delete coerente su tutti i livelli
+            conn.execute(f"DELETE FROM l2_embeddings WHERE doc_id IN ({placeholders})", doc_ids)
+            conn.execute(f"DELETE FROM l3_summaries WHERE doc_id IN ({placeholders})", doc_ids)
+            conn.execute(f"DELETE FROM l4_knowledge_graph WHERE doc_id IN ({placeholders})", doc_ids)
+            conn.execute(f"DELETE FROM l5_fulltext WHERE doc_id IN ({placeholders})", doc_ids)
+            conn.execute(f"DELETE FROM distilled_fts WHERE doc_id IN ({placeholders})", doc_ids)
+            conn.execute(f"DELETE FROM l1_metadata WHERE doc_id IN ({placeholders})", doc_ids)
+
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+        # VACUUM fuori transazione per compattare fisicamente il file
+        try:
+            conn_vac = sqlite3.connect(self.db_path, timeout=30)
+            conn_vac.execute("VACUUM")
+            conn_vac.close()
+        except Exception:
+            pass
 
     # ========================================================
     # DISTILLAZIONE: da testo completo a 5 livelli
@@ -614,6 +681,7 @@ class DistilledKnowledgeDB:
                 metadata.categoria,
             ))
 
+        self._enforce_storage_budget()
         return result
 
     def distill_metadata_only(self, metadata: Level1_Metadata) -> str:
@@ -656,6 +724,7 @@ class DistilledKnowledgeDB:
                 metadata.parole_chiave, metadata.categoria,
             ))
 
+        self._enforce_storage_budget()
         return metadata.doc_id
 
     def distill_batch_metadata(self, batch: list[Level1_Metadata]) -> int:
@@ -694,6 +763,7 @@ class DistilledKnowledgeDB:
                 """, (m.doc_id, m.titolo, m.autore, m.parole_chiave, m.categoria))
 
                 count += 1
+            self._enforce_storage_budget()
         return count
 
     # ========================================================

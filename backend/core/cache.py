@@ -289,6 +289,17 @@ _cache_engine: Optional[CacheEngine] = None
 
 
 def get_cache(data_dir: str = "./data") -> CacheEngine:
+    # Fallback a /tmp se il filesystem non supporta SQLite locking (es. VirtioFS/FUSE)
+    _test_path = os.path.join(data_dir, "_sqlite_test.tmp")
+    try:
+        import sqlite3 as _sq
+        _c = _sq.connect(_test_path, timeout=2)
+        _c.execute("CREATE TABLE IF NOT EXISTS _t (x)")
+        _c.commit(); _c.close()
+        os.remove(_test_path)
+    except Exception:
+        data_dir = "/tmp/vio83_cache"
+        os.makedirs(data_dir, exist_ok=True)
     """Ottieni istanza singleton del Cache Engine."""
     global _cache_engine
     if _cache_engine is None:

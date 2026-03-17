@@ -74,7 +74,7 @@ function classifyRequest(message: string): RequestType {
   if (/\b(scrivi|write|storia|story|poesia|poem|creativo|creative|articolo|article|blog|racconto|romanzo|canzone)\b/.test(lower)) return 'creative';
   if (/\b(analiz|analy|dati|data|grafico|chart|statistic|csv|excel|tabella|confronta|compare)\b/.test(lower)) return 'analysis';
   if (/\b(oggi|today|attual|current|news|notizie|ultimo|latest|2026|2025|tempo reale)\b/.test(lower)) return 'realtime';
-  if (/\b(spiega|explain|perch[eé]|why|come funziona|how does|ragion|reason|logic|matematica|math|teoria|filosofia)\b/.test(lower)) return 'reasoning';
+  if (/(spiega|explain|perché|perche|why|come funziona|how does|ragion|reason|logic|matematica|math|teoria|filosofia)/.test(lower)) return 'reasoning';
   return 'conversation';
 }
 

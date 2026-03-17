@@ -53,6 +53,8 @@ const defaultSettings: AppSettings = {
   ollamaHost: 'http://localhost:11434',
   ollamaModel: 'llama3.2:3b',
   fontSize: 14,
+  onboardingCompleted: false,
+  analyticsOptIn: false,
 };
 
 // Versione dello schema — incrementa per forzare reset dei settings corrotti

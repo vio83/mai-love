@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VIO 83 AI Orchestra",
+    "tagline": "Your local AI orchestra",
+    "loading": "Loading runtime…",
+    "version": "Version {{version}}"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "AI Chat",
+    "workflow": "Workflow Builder",
+    "crosscheck": "Cross-Check",
+    "analytics": "Analytics",
+    "rag": "RAG Knowledge",
+    "models": "AI Models",
+    "runtime": "Runtime 360",
+    "settings": "Settings"
+  },
+  "mode": {
+    "cloud": "☁️ Cloud",
+    "local": "💻 Local"
+  },
+  "chat": {
+    "placeholder": "Type a message… (Enter to send, Shift+Enter for new line)",
+    "send": "Send",
+    "stop": "Stop",
+    "clear": "Clear chat",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "thinking": "Processing…",
+    "error": "Error generating response",
+    "retry": "Retry",
+    "newConversation": "New conversation",
+    "noMessages": "No messages yet. Start a conversation!"
+  },
+  "settings": {
+    "title": "Settings",
+    "save": "Save",
+    "cancel": "Cancel",
+    "reset": "Reset to defaults",
+    "language": "Language",
+    "theme": "Theme",
+    "apiKeys": "API Keys",
+    "orchestrator": "Orchestrator",
+    "privacy": "Privacy",
+    "about": "About"
+  },
+  "models": {
+    "title": "AI Models",
+    "local": "Local Models",
+    "cloud": "Cloud Models",
+    "noOllama": "Ollama not available. Install Ollama to use local models.",
+    "download": "Download model",
+    "remove": "Remove",
+    "active": "Active"
+  },
+  "errors": {
+    "boundary": {
+      "title": "Critical application error",
+      "description": "VIO 83 AI Orchestra encountered an unexpected error. Press Reset to recover or Reload to restart.",
+      "reset": "🔄 Reset component",
+      "reload": "↺ Reload application",
+      "stackTrace": "🔍 Stack trace (development mode only)",
+      "errorId": "Error ID"
+    },
+    "network": "Network error. Check your connection.",
+    "backend": "Backend unreachable. Make sure the server is running.",
+    "rateLimit": "Too many requests. Please wait a moment.",
+    "unknown": "Unknown error. Please try again."
+  },
+  "health": {
+    "online": "Online",
+    "offline": "Offline",
+    "degraded": "Degraded",
+    "checking": "Checking…"
+  },
+  "onboarding": {
+    "welcome": "Welcome to VIO 83 AI Orchestra!",
+    "step1": "Configure API Keys",
+    "step2": "Choose your model",
+    "step3": "First chat",
+    "skip": "Skip guided setup",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Start using the app",
+    "addKey": "Add API key",
+    "keyPlaceholder": "Paste your API key here…",
+    "keyAdded": "Key added successfully!"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "close": "Close",
+    "open": "Open",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "refresh": "Refresh",
+    "export": "Export",
+    "import": "Import",
+    "copy": "Copy",
+    "paste": "Paste"
+  }
+}

@@ -93,7 +93,7 @@ class ClassifyResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Stato di salute del sistema."""
     status: str = "ok"
-    version: str = "0.1.0"
+    version: str = "0.9.0"
     providers: dict = {}
     rag_stats: dict = {}
     uptime_seconds: float = 0.0

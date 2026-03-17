@@ -1,9 +1,11 @@
 // VIO 83 AI ORCHESTRA - App Principale con Navigazione Multi-Pagina
 import { Menu } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import ParticleBackground from './components/layout/ParticleBackground';
+import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import Sidebar from './components/sidebar/Sidebar';
+import { detectLocale } from './i18n';
 import { useAppStore } from './stores/appStore';
 import './styles/vio-dark.css';
 
@@ -17,7 +19,18 @@ const ModelsPage = lazy(() => import('./pages/ModelsPage'));
 const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
 
 export default function App() {
-  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage } = useAppStore();
+  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings } = useAppStore();
+
+  useEffect(() => {
+    if (!settings.onboardingCompleted) {
+      const autoLocale = detectLocale();
+      if (settings.language !== autoLocale) {
+        updateSettings({ language: autoLocale });
+      }
+    }
+  }, [settings.onboardingCompleted, settings.language, updateSettings]);
+
+  const showOnboarding = !settings.onboardingCompleted;
 
   const loadingFallback = (
     <div style={{
@@ -33,6 +46,25 @@ export default function App() {
     </div>
   );
 
+  const notFoundFallback = (
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '10px',
+      color: 'var(--vio-text-secondary)',
+      background: 'var(--vio-bg-primary)',
+      padding: '24px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: '28px' }}>🧭</div>
+      <div style={{ fontWeight: 700, color: 'var(--vio-text-primary)' }}>Pagina non trovata</div>
+      <div style={{ fontSize: '13px' }}>La sezione richiesta non esiste o è stata rinominata.</div>
+    </div>
+  );
+
   // Render the active page
   const renderPage = () => {
     switch (currentPage) {
@@ -45,7 +77,7 @@ export default function App() {
       case 'models': return <ModelsPage />;
       case 'runtime': return <OrchestraRuntimePage />;
       case 'settings': return <SettingsPanel variant="page" />;
-      default: return <ChatView />;
+      default: return notFoundFallback;
     }
   };
 
@@ -131,6 +163,11 @@ export default function App() {
 
       {/* Settings modal — only as overlay when triggered from non-settings pages */}
       {settingsOpen && currentPage !== 'settings' && <SettingsPanel />}
+
+      {/* First-run onboarding */}
+      {showOnboarding && (
+        <OnboardingWizard onComplete={() => updateSettings({ onboardingCompleted: true })} />
+      )}
     </div>
   );
 }

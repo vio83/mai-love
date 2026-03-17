@@ -422,7 +422,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
                 <p className="text-white text-sm font-medium mb-3">Info Sistema</p>
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-gray-500">Versione</span><span className="text-white">0.1.0-alpha</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Versione</span><span className="text-white">0.9.0-beta</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Framework</span><span className="text-white">Tauri 2.0 + React 18</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Orchestratore</span><span className="text-white">Direct Router + FastAPI</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Vector DB</span><span className="text-white">ChromaDB</span></div>

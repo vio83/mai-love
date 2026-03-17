@@ -76,6 +76,8 @@ export interface AppSettings {
   ollamaHost: string;
   ollamaModel: string;
   fontSize: number;
+  onboardingCompleted: boolean;
+  analyticsOptIn: boolean;
 }
 
 // AI Response with metadata

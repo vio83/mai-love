@@ -282,6 +282,7 @@ class ConnectionPoolManager:
                     limits=limits,
                     headers=headers or {},
                     http2=HAS_H2,  # HTTP/2 solo se h2 è installato
+                    trust_env=False,  # evita conflitti SOCKS/proxy da variabili ambiente
                 )
             except (ImportError, Exception) as e:
                 logger.warning(f"[Pool] httpx client non creato per {name}: {e}. Fallback a urllib.")

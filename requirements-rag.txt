@@ -1,0 +1,25 @@
+# VIO 83 AI ORCHESTRA — Dipendenze RAG (opzionali)
+# Richiede Python 3.11 o 3.12 (non compatibile con Python 3.14)
+#
+# Installare SOLO se vuoi abilitare il RAG Engine con Vector Search:
+#   pip install -r requirements-rag.txt
+#
+# Poi impostare in .env:
+#   RAG_ENABLED=true
+#
+# Attenzione: sentence-transformers scarica ~500MB di modelli al primo avvio.
+
+# === Vector Database ===
+chromadb>=0.5.0,<1.0.0
+
+# === Embedding Locali (via HuggingFace) ===
+sentence-transformers>=3.0.0
+
+# === PDF avanzato (opzionale, più preciso di pypdf) ===
+# PyMuPDF>=1.24.0            # pip install PyMuPDF
+
+# === Dipendenze transitive (vengono installate automaticamente) ===
+# torch                      # PyTorch per sentence-transformers
+# transformers               # HuggingFace transformers
+# numpy>=1.24.0
+# scikit-learn>=1.3.0

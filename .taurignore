@@ -1,0 +1,7 @@
+# Exclude heavy runtime data from desktop bundles
+/data/**/*.db
+/data/**/*.db-*
+/data/embeddings/**
+/data/fulltext/**
+/data/logs/**
+/automation/logs/**

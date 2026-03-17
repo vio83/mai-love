@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VIO 83 AI Orchestra",
+    "tagline": "La tua orchestra AI locale",
+    "loading": "Caricamento runtime…",
+    "version": "Versione {{version}}"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "AI Chat",
+    "workflow": "Workflow Builder",
+    "crosscheck": "Cross-Check",
+    "analytics": "Analytics",
+    "rag": "RAG Knowledge",
+    "models": "AI Models",
+    "runtime": "Runtime 360",
+    "settings": "Impostazioni"
+  },
+  "mode": {
+    "cloud": "☁️ Cloud",
+    "local": "💻 Locale"
+  },
+  "chat": {
+    "placeholder": "Scrivi un messaggio… (Invio per inviare, Shift+Invio per andare a capo)",
+    "send": "Invia",
+    "stop": "Ferma",
+    "clear": "Pulisci chat",
+    "copy": "Copia",
+    "copied": "Copiato!",
+    "thinking": "In elaborazione…",
+    "error": "Errore durante la risposta",
+    "retry": "Riprova",
+    "newConversation": "Nuova conversazione",
+    "noMessages": "Nessun messaggio. Inizia una conversazione!"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "reset": "Ripristina predefiniti",
+    "language": "Lingua",
+    "theme": "Tema",
+    "apiKeys": "Chiavi API",
+    "orchestrator": "Orchestratore",
+    "privacy": "Privacy",
+    "about": "Informazioni"
+  },
+  "models": {
+    "title": "Modelli AI",
+    "local": "Modelli Locali",
+    "cloud": "Modelli Cloud",
+    "noOllama": "Ollama non disponibile. Installa Ollama per usare modelli locali.",
+    "download": "Scarica modello",
+    "remove": "Rimuovi",
+    "active": "Attivo"
+  },
+  "errors": {
+    "boundary": {
+      "title": "Errore critico dell'applicazione",
+      "description": "VIO 83 AI Orchestra ha incontrato un errore inatteso. Premi Ripristina per riprendere oppure Ricarica per riavviare.",
+      "reset": "🔄 Ripristina componente",
+      "reload": "↺ Ricarica applicazione",
+      "stackTrace": "🔍 Stack trace (solo in modalità sviluppo)",
+      "errorId": "Error ID"
+    },
+    "network": "Errore di rete. Controlla la connessione.",
+    "backend": "Backend non raggiungibile. Assicurati che il server sia avviato.",
+    "rateLimit": "Troppe richieste. Attendi un momento.",
+    "unknown": "Errore sconosciuto. Riprova."
+  },
+  "health": {
+    "online": "Online",
+    "offline": "Offline",
+    "degraded": "Degradato",
+    "checking": "Controllo…"
+  },
+  "onboarding": {
+    "welcome": "Benvenuta in VIO 83 AI Orchestra!",
+    "step1": "Configurazione API Keys",
+    "step2": "Scegli il tuo modello",
+    "step3": "Prima chat",
+    "skip": "Salta configurazione guidata",
+    "next": "Avanti",
+    "back": "Indietro",
+    "finish": "Inizia a usare l'app",
+    "addKey": "Aggiungi chiave API",
+    "keyPlaceholder": "Incolla la tua chiave API qui…",
+    "keyAdded": "Chiave aggiunta con successo!"
+  },
+  "common": {
+    "yes": "Sì",
+    "no": "No",
+    "ok": "OK",
+    "close": "Chiudi",
+    "open": "Apri",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "confirm": "Conferma",
+    "loading": "Caricamento…",
+    "success": "Successo",
+    "error": "Errore",
+    "warning": "Attenzione",
+    "info": "Informazione",
+    "search": "Cerca",
+    "filter": "Filtra",
+    "sort": "Ordina",
+    "refresh": "Aggiorna",
+    "export": "Esporta",
+    "import": "Importa",
+    "copy": "Copia",
+    "paste": "Incolla"
+  }
+}

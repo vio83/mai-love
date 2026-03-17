@@ -23,11 +23,14 @@ import shutil
 import signal
 import subprocess
 import shlex
+import uuid
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional, Any
+from collections import defaultdict
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -863,7 +866,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="VIO 83 AI ORCHESTRA",
     description="Multi-provider AI orchestration platform — Local-first, privacy-first",
-    version="0.2.0",
+    version="0.9.0",
     lifespan=lifespan,
 )
 
@@ -882,12 +885,151 @@ app.add_middleware(
 
 
 # ═══════════════════════════════════════════════
+# PRODUCTION MIDDLEWARE: Structured Logging + Rate Limit
+# ═══════════════════════════════════════════════
+
+_structured_logger = logging.getLogger("vio83.requests")
+_RATE_LIMIT_WINDOW = 60  # secondi
+_RATE_LIMIT_MAX_CHAT = int(os.environ.get("VIO_RATE_LIMIT_CHAT_PER_MIN", "30"))
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+_ADMIN_PIN_ENV = "VIO_ADMIN_PIN"
+_ADMIN_PIN_HEADER = "x-vio-admin-pin"
+
+_ADMIN_PROTECTED_PREFIXES: tuple[str, ...] = (
+    "/runtime/apps/",
+    "/autonomy/config",
+)
+
+_ADMIN_PROTECTED_EXACT: set[tuple[str, str]] = {
+    ("/orchestration/profile", "PUT"),
+    ("/knowledge/scheduler", "PUT"),
+    ("/knowledge/policy", "PUT"),
+    ("/core/cache/clear", "POST"),
+    ("/core/cache/cleanup", "POST"),
+    ("/autonomy/compact", "POST"),
+    ("/autonomy/trigger", "POST"),
+}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_rate_limit(client_id: str, path: str) -> bool:
+    """Rate limit solo per /chat e /chat/stream."""
+    if "/chat" not in path:
+        return True
+    now = time.time()
+    bucket = _rate_buckets[client_id]
+    # Pulisci timestamp vecchi
+    _rate_buckets[client_id] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
+    if len(_rate_buckets[client_id]) >= _RATE_LIMIT_MAX_CHAT:
+        return False
+    _rate_buckets[client_id].append(now)
+    return True
+
+
+def _requires_admin_auth(path: str, method: str) -> bool:
+    req_method = (method or "GET").upper()
+
+    if req_method == "OPTIONS":
+        return False
+
+    if (path, req_method) in _ADMIN_PROTECTED_EXACT:
+        return True
+
+    return any(path.startswith(prefix) for prefix in _ADMIN_PROTECTED_PREFIXES)
+
+
+@app.middleware("http")
+async def structured_request_logger(request: Request, call_next):
+    """Middleware: request ID, structured logging, rate limiting."""
+    request_id = str(uuid.uuid4())[:12]
+    start = time.time()
+    client_ip = _client_ip(request)
+    path = request.url.path
+
+    # Admin auth opzionale: attivo solo se VIO_ADMIN_PIN è valorizzata
+    admin_pin = (os.environ.get(_ADMIN_PIN_ENV, "") or "").strip()
+    if admin_pin and _requires_admin_auth(path, request.method):
+        provided_pin = (request.headers.get(_ADMIN_PIN_HEADER, "") or "").strip()
+        if provided_pin != admin_pin:
+            return Response(
+                content=json.dumps({
+                    "detail": "Admin authentication required",
+                    "hint": f"Invia header {_ADMIN_PIN_HEADER}",
+                }),
+                status_code=401,
+                media_type="application/json",
+                headers={"X-Request-ID": request_id},
+            )
+
+    # Rate limiting per /chat endpoints
+    if not _check_rate_limit(client_ip, path):
+        return Response(
+            content=json.dumps({"detail": "Rate limit exceeded. Max {}/min per client.".format(_RATE_LIMIT_MAX_CHAT)}),
+            status_code=429,
+            media_type="application/json",
+            headers={"Retry-After": "60", "X-Request-ID": request_id},
+        )
+
+    response = await call_next(request)
+    elapsed_ms = int((time.time() - start) * 1000)
+
+    # Header tracciabilità
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Response-Time-Ms"] = str(elapsed_ms)
+
+    # Structured log (solo per endpoint significativi, skip assets statici)
+    if not path.startswith(("/docs", "/openapi", "/favicon")):
+        _structured_logger.info(json.dumps({
+            "rid": request_id,
+            "method": request.method,
+            "path": path,
+            "status": response.status_code,
+            "ms": elapsed_ms,
+            "client": client_ip,
+        }, ensure_ascii=False))
+
+    return response
+
+
+# ═══════════════════════════════════════════════
+# METADATA CACHE (per endpoint lenti: /providers, /health)
+# ═══════════════════════════════════════════════
+
+_metadata_cache: dict[str, tuple[Any, float]] = {}
+_METADATA_TTL = 10.0  # secondi — evita query ripetute in rapida sequenza
+
+
+def _cached_metadata(key: str, ttl: float = _METADATA_TTL):
+    """Decorator per cache temporanea su endpoint metadata read-only."""
+    entry = _metadata_cache.get(key)
+    if entry:
+        value, expires = entry
+        if time.time() < expires:
+            return value
+    return None
+
+
+def _set_metadata_cache(key: str, value: Any, ttl: float = _METADATA_TTL):
+    _metadata_cache[key] = (value, time.time() + ttl)
+
+
+# ═══════════════════════════════════════════════
 # HEALTH
 # ═══════════════════════════════════════════════
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Stato di salute completo del sistema."""
+    cached = _cached_metadata("health", ttl=5.0)
+    if cached:
+        return cached
+
     ollama = await check_ollama_status()
 
     providers = {
@@ -908,13 +1050,35 @@ async def health_check():
         except Exception:
             pass
 
-    return HealthResponse(
+    result = HealthResponse(
         status="ok",
-        version="0.2.0",
+        version="0.9.0",
         providers=providers,
         rag_stats=rag_stats,
         uptime_seconds=round(time.time() - START_TIME, 1),
     )
+    _set_metadata_cache("health", result, ttl=5.0)
+    return result
+
+
+@app.get("/auth/status")
+async def auth_status():
+    """Stato autenticazione admin locale (PIN via header)."""
+    enabled = bool((os.environ.get(_ADMIN_PIN_ENV, "") or "").strip())
+    return {
+        "status": "ok",
+        "admin_auth": {
+            "enabled": enabled,
+            "header": _ADMIN_PIN_HEADER,
+            "protected": [
+                "runtime/apps/*",
+                "orchestration/profile (PUT)",
+                "knowledge policy/scheduler (PUT)",
+                "cache admin actions",
+                "autonomy admin actions",
+            ],
+        },
+    }
 
 
 # ═══════════════════════════════════════════════
@@ -927,6 +1091,16 @@ async def chat(request: ChatRequest):
     try:
         runtime_mode = request.mode or "local"
         messages = [{"role": "user", "content": request.message}]
+
+        # Response cache per messaggi identici senza conversazione (FAQ / ripetizioni)
+        if not request.conversation_id and not request.system_prompt:
+            import hashlib as _hl
+            cache_key = f"chat:{_hl.sha256(request.message.encode()).hexdigest()[:16]}:{request.model or 'auto'}"
+            cache = get_cache()
+            cached_resp = cache.get(cache_key)
+            if cached_resp:
+                _structured_logger.info(json.dumps({"event": "cache_hit", "key": cache_key}))
+                return ChatResponse(**cached_resp)
 
         # Se c'è una conversazione, recupera il contesto
         if request.conversation_id:
@@ -942,20 +1116,30 @@ async def chat(request: ChatRequest):
         if request.system_prompt:
             messages.insert(0, {"role": "system", "content": request.system_prompt})
 
-        # Orchestratore
+        # Orchestratore con timeout guardrail
         effective_max_tokens = _cap_request_tokens(request.max_tokens)
         effective_temperature = _effective_temperature(request.temperature)
 
-        result = await orchestrate(
-            messages=messages,
-            mode=runtime_mode,
-            provider=request.provider or "ollama",
-            model=request.model,
-            ollama_model=request.model or "qwen2.5-coder:3b",
-            auto_routing=True,
-            temperature=effective_temperature,
-            max_tokens=effective_max_tokens,
-        )
+        _orchestrate_timeout = float(os.environ.get("VIO_CHAT_TIMEOUT_SEC", "120"))
+        try:
+            result = await asyncio.wait_for(
+                orchestrate(
+                    messages=messages,
+                    mode=runtime_mode,
+                    provider=request.provider or "ollama",
+                    model=request.model,
+                    ollama_model=request.model or "qwen2.5-coder:3b",
+                    auto_routing=True,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                ),
+                timeout=_orchestrate_timeout,
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Timeout: l'orchestratore non ha risposto entro {_orchestrate_timeout:.0f}s",
+            )
 
         # Salva nel database
         conv_id = request.conversation_id
@@ -987,7 +1171,7 @@ async def chat(request: ChatRequest):
             mode=runtime_mode,
         )
 
-        return ChatResponse(
+        chat_response = ChatResponse(
             content=result["content"],
             provider=result["provider"],
             model=result["model"],
@@ -996,7 +1180,31 @@ async def chat(request: ChatRequest):
             request_type=result.get("request_type"),
         )
 
+        # Salva in cache per FAQ/ripetizioni (solo senza conversazione)
+        if not request.conversation_id and not request.system_prompt:
+            import hashlib as _hl
+            cache_key = f"chat:{_hl.sha256(request.message.encode()).hexdigest()[:16]}:{request.model or 'auto'}"
+            get_cache().set(cache_key, {
+                "content": result["content"],
+                "provider": result["provider"],
+                "model": result["model"],
+                "tokens_used": result.get("tokens_used", 0),
+                "latency_ms": result.get("latency_ms", 0),
+                "request_type": result.get("request_type"),
+            }, l1_ttl=300)
+
+        return chat_response
+
+    except HTTPException:
+        raise
     except Exception as e:
+        error_handler = get_error_handler()
+        error_handler.handle(e, context={
+            "endpoint": "/chat",
+            "mode": request.mode,
+            "provider": request.provider,
+            "model": request.model,
+        })
         log_metric(
             provider="ollama",
             model=request.model or "unknown",

@@ -47,7 +47,7 @@ def _log(msg: str):
 async def ping_google() -> bool:
     """Ping Google with sitemap URL."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
             r = await client.get(f"https://www.google.com/ping?sitemap={SITEMAP_URL}")
             _log(f"Google ping: {r.status_code}")
             return r.status_code == 200
@@ -59,7 +59,7 @@ async def ping_google() -> bool:
 async def ping_bing() -> bool:
     """Ping Bing with sitemap URL."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
             r = await client.get(f"https://www.bing.com/ping?sitemap={SITEMAP_URL}")
             _log(f"Bing ping: {r.status_code}")
             return r.status_code == 200
@@ -80,7 +80,7 @@ async def ping_indexnow() -> bool:
         ],
     }
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
             r = await client.post(
                 "https://api.indexnow.org/indexnow",
                 json=payload,
@@ -96,7 +96,7 @@ async def ping_indexnow() -> bool:
 async def get_github_stats() -> dict:
     """Fetch current GitHub repository stats."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
             r = await client.get(f"https://api.github.com/repos/{GITHUB_REPO}")
             if r.status_code == 200:
                 data = r.json()

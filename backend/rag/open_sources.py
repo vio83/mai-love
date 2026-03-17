@@ -81,6 +81,7 @@ class RateLimitedClient:
                     timeout=30.0,
                     follow_redirects=True,
                     headers={"User-Agent": self.USER_AGENT},
+                    trust_env=False,
                 )
             except (ImportError, Exception):
                 self._client = None

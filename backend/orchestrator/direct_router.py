@@ -363,7 +363,9 @@ def _extract_perplexity_output(data: dict) -> str:
 
 async def _http_post_json(url: str, headers: dict, payload: dict, timeout_s: float = 120.0) -> dict:
     if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=timeout_s) as client:
+        # trust_env=False disabilita SOCKS proxy da variabili d'ambiente
+        # evita "SOCKS proxy not supported" su ambienti macOS con proxy di sistema
+        async with httpx.AsyncClient(timeout=timeout_s, trust_env=False) as client:
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code >= 400:
                 raise Exception(f"HTTP {response.status_code}: {response.text}")
@@ -586,7 +588,7 @@ async def call_ollama(
     ollama_timeout = float(_env_int("VIO_OLLAMA_TIMEOUT_SEC", 45))
 
     if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=ollama_timeout) as client:
+        async with httpx.AsyncClient(timeout=ollama_timeout, trust_env=False) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
@@ -643,7 +645,7 @@ async def call_ollama_streaming(
     streaming_timeout = float(_env_int("VIO_OLLAMA_STREAM_TIMEOUT_SEC", 90))
 
     if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=streaming_timeout) as client:
+        async with httpx.AsyncClient(timeout=streaming_timeout, trust_env=False) as client:
             async with client.stream("POST", url, json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
@@ -687,7 +689,7 @@ async def check_ollama_status(host: str = "http://localhost:11434") -> dict:
 
     try:
         if HAS_HTTPX:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
                 # Check se Ollama è attivo
                 resp = await client.get(f"{host}/api/tags")
                 resp.raise_for_status()

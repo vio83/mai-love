@@ -324,6 +324,12 @@ class ProcessMonitor:
 
     def __init__(self, db_path: str = ""):
         self.db_path = db_path or os.path.join(DATA_DIR, "process_log.db")
+        max_mb = float(os.environ.get("VIO_PROCESS_LOG_MAX_MB", "10") or 10)
+        retention_days = float(os.environ.get("VIO_PROCESS_LOG_RETENTION_DAYS", "7") or 7)
+        self.max_db_size_bytes = max(2 * 1024 * 1024, int(max_mb * 1024 * 1024))
+        self.retention_seconds = max(24 * 3600, int(retention_days * 24 * 3600))
+        self.maintenance_interval_seconds = int(os.environ.get("VIO_PROCESS_LOG_MAINTENANCE_SEC", "3600") or 3600)
+        self._last_maintenance = 0.0
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self._init_db()
 
@@ -371,6 +377,37 @@ class ProcessMonitor:
                 "CREATE INDEX IF NOT EXISTS idx_as_app ON app_sessions(app_name)"
             )
 
+    def _run_maintenance_if_needed(self, force: bool = False):
+        now = time.time()
+        if not force and (now - self._last_maintenance) < self.maintenance_interval_seconds:
+            return
+
+        cutoff = now - self.retention_seconds
+
+        with self._conn() as conn:
+            # Retention: conserva solo ultimi N giorni
+            conn.execute("DELETE FROM process_snapshots WHERE timestamp < ?", (cutoff,))
+            conn.execute("DELETE FROM app_sessions WHERE started_at > 0 AND started_at < ?", (cutoff,))
+
+        db_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
+        if db_size > self.max_db_size_bytes:
+            with self._conn() as conn:
+                # Hard cap: mantieni solo gli snapshot più recenti
+                conn.execute(
+                    "DELETE FROM process_snapshots "
+                    "WHERE id NOT IN (SELECT id FROM process_snapshots ORDER BY timestamp DESC LIMIT 50000)"
+                )
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+            try:
+                conn_vac = sqlite3.connect(self.db_path, timeout=10)
+                conn_vac.execute("VACUUM")
+                conn_vac.close()
+            except Exception:
+                pass
+
+        self._last_maintenance = now
+
     def snapshot_processes(self):
         """Cattura uno snapshot dei processi correnti."""
         try:
@@ -406,6 +443,8 @@ class ProcessMonitor:
                         "(timestamp, pid, name, cpu_pct, mem_mb, status) "
                         "VALUES (?,?,?,?,?,?)", rows
                     )
+
+                self._run_maintenance_if_needed()
 
         except (subprocess.TimeoutExpired, OSError):
             pass
