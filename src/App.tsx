@@ -17,6 +17,7 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const RagPage = lazy(() => import('./pages/RagPage'));
 const ModelsPage = lazy(() => import('./pages/ModelsPage'));
 const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
 export default function App() {
   const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings } = useAppStore();
@@ -76,6 +77,7 @@ export default function App() {
       case 'rag': return <RagPage />;
       case 'models': return <ModelsPage />;
       case 'runtime': return <OrchestraRuntimePage />;
+      case 'privacy': return <PrivacyPage />;
       case 'settings': return <SettingsPanel variant="page" />;
       default: return notFoundFallback;
     }
@@ -90,6 +92,7 @@ export default function App() {
     rag: 'RAG Knowledge',
     models: 'AI Models',
     runtime: 'Runtime 360',
+    privacy: 'Privacy & Legal',
     settings: 'Impostazioni',
   };
 

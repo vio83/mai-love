@@ -876,7 +876,10 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:1420",
         "tauri://localhost",
+        "https://tauri.localhost",
         "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:1420",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -910,6 +913,9 @@ _ADMIN_PROTECTED_EXACT: set[tuple[str, str]] = {
     ("/autonomy/trigger", "POST"),
 }
 
+# Pattern per endpoint DELETE conversazioni (path dinamico /conversations/<id>)
+_ADMIN_DELETE_CONVERSATIONS = True  # DELETE /conversations/* richiede admin PIN
+
 
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
@@ -939,6 +945,10 @@ def _requires_admin_auth(path: str, method: str) -> bool:
         return False
 
     if (path, req_method) in _ADMIN_PROTECTED_EXACT:
+        return True
+
+    # DELETE /conversations/<id> richiede admin PIN
+    if _ADMIN_DELETE_CONVERSATIONS and req_method == "DELETE" and path.startswith("/conversations/"):
         return True
 
     return any(path.startswith(prefix) for prefix in _ADMIN_PROTECTED_PREFIXES)
