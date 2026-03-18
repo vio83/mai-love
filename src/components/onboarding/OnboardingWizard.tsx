@@ -1,5 +1,6 @@
 import { CheckCircle2, Globe, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { translateForLocale } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
 import type { AIProvider } from '../../types';
 
@@ -29,7 +30,10 @@ export default function OnboardingWizard({ onComplete }: Props) {
   const [provider, setProvider] = useState<AIProvider>('groq');
   const [apiKey, setApiKey] = useState('');
   const [localModel, setLocalModel] = useState(settings.ollamaModel || 'qwen2.5-coder:3b');
-  const [language, setLanguage] = useState<'it' | 'en'>(detectLanguage());
+  const [language, setLanguage] = useState<'it' | 'en'>(settings.language === 'en' ? 'en' : detectLanguage());
+
+  const t = (key: string, options?: Record<string, string | number | boolean | null | undefined>) =>
+    translateForLocale(language, key, options);
 
   const selectedProvider = useMemo(
     () => CLOUD_PROVIDER_OPTIONS.find((option) => option.id === provider) || CLOUD_PROVIDER_OPTIONS[0],
@@ -98,17 +102,17 @@ export default function OnboardingWizard({ onComplete }: Props) {
       }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 700 }}>Setup guidato • First launch</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>3 step per portarti subito operativa/o</div>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>{t('onboarding.title')}</div>
+            <div style={{ fontSize: 12, color: '#9ca3af' }}>{t('onboarding.subtitle')}</div>
           </div>
-          <div style={{ fontSize: 12, color: '#86efac' }}>Step {step}/3</div>
+          <div style={{ fontSize: 12, color: '#86efac' }}>{t('onboarding.step', { step, total: 3 })}</div>
         </div>
 
         <div style={{ padding: 22, display: 'grid', gap: 18 }}>
           {step === 1 && (
             <>
               <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Sparkles size={16} color="#86efac" /> Modalità e lingua
+                <Sparkles size={16} color="#86efac" /> {t('onboarding.modeLanguage')}
               </div>
 
               <div style={{ display: 'grid', gap: 10 }}>
@@ -121,7 +125,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
                   color: '#e5e7eb',
                   cursor: 'pointer',
                 }}>
-                  💻 Locale (privacy-first, Ollama)
+                  {t('onboarding.localMode')}
                 </button>
 
                 <button onClick={() => setMode('cloud')} style={{
@@ -133,12 +137,12 @@ export default function OnboardingWizard({ onComplete }: Props) {
                   color: '#e5e7eb',
                   cursor: 'pointer',
                 }}>
-                  ☁️ Cloud (più modelli, richiede API key)
+                  {t('onboarding.cloudMode')}
                 </button>
               </div>
 
               <label style={{ fontSize: 13, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Globe size={14} /> Lingua interfaccia
+                <Globe size={14} /> {t('onboarding.language')}
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as 'it' | 'en')}
@@ -154,7 +158,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
           {step === 2 && mode === 'cloud' && (
             <>
               <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <KeyRound size={16} color="#86efac" /> Configura provider cloud
+                <KeyRound size={16} color="#86efac" /> {t('onboarding.configureCloud')}
               </div>
 
               <select
@@ -176,7 +180,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
               />
 
               <div style={{ fontSize: 12, color: '#93c5fd' }}>
-                La chiave viene salvata localmente nel profilo app. Potrai cambiarla in qualsiasi momento da Impostazioni.
+                {t('onboarding.keyHint')}
               </div>
             </>
           )}
@@ -184,7 +188,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
           {step === 2 && mode === 'local' && (
             <>
               <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <ShieldCheck size={16} color="#86efac" /> Configura modello locale
+                <ShieldCheck size={16} color="#86efac" /> {t('onboarding.configureLocal')}
               </div>
 
               <select
@@ -198,7 +202,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
               </select>
 
               <div style={{ fontSize: 12, color: '#93c5fd' }}>
-                Se il modello non è installato: <code>ollama pull {localModel}</code>
+                {t('onboarding.modelHint', { command: `ollama pull ${localModel}` })}
               </div>
             </>
           )}
@@ -206,19 +210,19 @@ export default function OnboardingWizard({ onComplete }: Props) {
           {step === 3 && (
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <CheckCircle2 size={16} color="#86efac" /> Riepilogo e attivazione
+                <CheckCircle2 size={16} color="#86efac" /> {t('onboarding.summary')}
               </div>
 
               <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 10, padding: 12, fontSize: 13 }}>
-                <div>Modalità: <strong>{mode === 'local' ? 'Locale' : 'Cloud'}</strong></div>
-                <div>Lingua: <strong>{language.toUpperCase()}</strong></div>
-                <div>Provider primario: <strong>{mode === 'cloud' ? provider : 'ollama'}</strong></div>
-                <div>Modello locale: <strong>{localModel}</strong></div>
-                <div>API key cloud: <strong>{mode === 'cloud' ? (apiKey ? 'configurata' : 'non configurata') : 'n/a'}</strong></div>
+                <div>{t('onboarding.summaryMode')}: <strong>{mode === 'local' ? t('mode.local') : t('mode.cloud')}</strong></div>
+                <div>{t('onboarding.summaryLanguage')}: <strong>{language.toUpperCase()}</strong></div>
+                <div>{t('onboarding.summaryProvider')}: <strong>{mode === 'cloud' ? provider : 'ollama'}</strong></div>
+                <div>{t('onboarding.summaryLocalModel')}: <strong>{localModel}</strong></div>
+                <div>{t('onboarding.summaryApiKey')}: <strong>{mode === 'cloud' ? (apiKey ? t('onboarding.summaryConfigured') : t('onboarding.summaryMissing')) : t('onboarding.summaryNa')}</strong></div>
               </div>
 
               <div style={{ fontSize: 12, color: '#9ca3af' }}>
-                Dopo il completamento puoi rifinire tutto in <strong>Impostazioni</strong>.
+                {t('onboarding.afterHint')}
               </div>
             </div>
           )}
@@ -236,7 +240,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
               cursor: 'pointer',
             }}
           >
-            {step === 1 ? 'Salta per ora' : 'Indietro'}
+            {step === 1 ? t('onboarding.skipForNow') : t('onboarding.back')}
           </button>
 
           <button
@@ -252,7 +256,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
               cursor: canGoNext ? 'pointer' : 'not-allowed',
             }}
           >
-            {step < 3 ? 'Avanti' : 'Completa setup'}
+            {step < 3 ? t('onboarding.next') : t('onboarding.complete')}
           </button>
         </div>
       </div>

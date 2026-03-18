@@ -1095,12 +1095,54 @@ async def auth_status():
 # CHAT — Non-streaming
 # ═══════════════════════════════════════════════
 
+def _build_vision_message(text: str, images: list) -> dict:
+    """
+    Costruisce un messaggio in formato OpenAI vision (multi-content).
+    Compatibile con: GPT-4V, Claude 3+, Gemini, Ollama llava.
+    """
+    content = [{"type": "text", "text": text}]
+    for img in images:
+        if img.get("data_url"):
+            # Extract base64 data from data URL
+            data_url = img["data_url"]
+            if "," in data_url:
+                header, b64_data = data_url.split(",", 1)
+                mime = header.split(":")[1].split(";")[0] if ":" in header else "image/png"
+            else:
+                b64_data = data_url
+                mime = img.get("mime_type", "image/png")
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime};base64,{b64_data}", "detail": "high"},
+            })
+        elif img.get("url"):
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": img["url"], "detail": "high"},
+            })
+    return {"role": "user", "content": content}
+
+
+# Vision-capable providers (priority order)
+_VISION_PROVIDERS = ["claude", "openai", "gemini", "groq", "openrouter"]
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Chat principale — instrada la richiesta al provider migliore."""
+    """Chat principale — instrada la richiesta al provider migliore. Supporta vision/multimodal."""
     try:
         runtime_mode = request.mode or "local"
-        messages = [{"role": "user", "content": request.message}]
+
+        # === VISION MODE: immagini allegate ===
+        has_images = bool(request.images)
+        if has_images:
+            # Force cloud mode for vision (Ollama llava supportato ma limitato)
+            runtime_mode = "cloud"
+            images_dicts = [img.dict() for img in request.images]
+            vision_message = _build_vision_message(request.message, images_dicts)
+            messages = [vision_message]
+        else:
+            messages = [{"role": "user", "content": request.message}]
 
         # Response cache per messaggi identici senza conversazione (FAQ / ripetizioni)
         if not request.conversation_id and not request.system_prompt:
@@ -1130,16 +1172,24 @@ async def chat(request: ChatRequest):
         effective_max_tokens = _cap_request_tokens(request.max_tokens)
         effective_temperature = _effective_temperature(request.temperature)
 
+        # Per vision: scegli provider cloud con vision capability
+        chosen_provider = request.provider or ("ollama" if runtime_mode == "local" else "claude")
+        if has_images:
+            # Se il provider scelto non supporta vision, usa claude come fallback
+            if chosen_provider not in _VISION_PROVIDERS:
+                chosen_provider = "claude"
+            effective_max_tokens = max(effective_max_tokens, 1024)  # vision needs more tokens
+
         _orchestrate_timeout = float(os.environ.get("VIO_CHAT_TIMEOUT_SEC", "120"))
         try:
             result = await asyncio.wait_for(
                 orchestrate(
                     messages=messages,
                     mode=runtime_mode,
-                    provider=request.provider or "ollama",
+                    provider=chosen_provider,
                     model=request.model,
                     ollama_model=request.model or "qwen2.5-coder:3b",
-                    auto_routing=True,
+                    auto_routing=not has_images,  # no auto-routing for vision (provider forced)
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
                 ),
@@ -2236,6 +2286,66 @@ async def api_autonomy_config(payload: dict[str, Any] = Body(...)):
         "updated_keys": list(updates.keys()),
         "config": config,
     }
+
+
+# ═══════════════════════════════════════════════
+# PLUGIN / MCP ENDPOINTS
+# ═══════════════════════════════════════════════
+
+from backend.plugins.registry import get_registry as _get_plugin_registry
+
+@app.get("/plugins")
+async def list_plugins():
+    """Lista tutti i plugin installati con metadata e tools."""
+    registry = _get_plugin_registry()
+    return {
+        "status": "ok",
+        "count": len(registry.list_plugins()),
+        "plugins": registry.list_plugins(),
+    }
+
+
+@app.get("/plugins/{plugin_id}")
+async def get_plugin(plugin_id: str):
+    """Dettaglio di un singolo plugin."""
+    registry = _get_plugin_registry()
+    plugin = registry.get_plugin(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' non trovato")
+    return plugin.info.to_dict()
+
+
+@app.post("/plugins/{plugin_id}/execute")
+async def execute_plugin_tool(plugin_id: str, body: dict = Body(...)):
+    """
+    Esegui un tool di un plugin.
+
+    Body: { "tool": "tool_name", "params": { ... } }
+    """
+    tool_name = body.get("tool", "")
+    params = body.get("params", {})
+    if not tool_name:
+        raise HTTPException(status_code=400, detail="Campo 'tool' obbligatorio")
+
+    registry = _get_plugin_registry()
+    start = time.perf_counter()
+    result = registry.execute(plugin_id, tool_name, params)
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 3)
+
+    return {
+        "plugin_id": plugin_id,
+        "tool": tool_name,
+        "params": params,
+        "result": result,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
+@app.get("/plugins/tools/context")
+async def get_tools_context():
+    """Restituisce tutti i tool disponibili come stringa per il contesto AI."""
+    registry = _get_plugin_registry()
+    return {"context": registry.get_tools_for_prompt()}
 
 
 # ═══════════════════════════════════════════════

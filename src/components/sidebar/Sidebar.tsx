@@ -1,33 +1,39 @@
 // VIO 83 AI ORCHESTRA - Sidebar con Navigazione Multi-Pagina
 import {
-    BarChart3,
-    BookOpen,
-    ChevronLeft,
-    Cpu,
-    GitBranch,
-    LayoutDashboard, MessageSquare,
-    MessageSquarePlus,
-    Music,
-    Orbit,
-    Settings,
-    Shield,
-    Trash2,
+  BarChart3,
+  BookOpen,
+  ChevronLeft,
+  Cpu,
+  GitBranch,
+  LayoutDashboard, MessageSquare,
+  MessageSquarePlus,
+  Music,
+  Orbit,
+  Puzzle,
+  Scale,
+  Settings,
+  Shield,
+  Trash2,
 } from 'lucide-react';
+import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
 import type { AppPage } from '../../types';
 
-const NAV_ITEMS: { id: AppPage; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-  { id: 'workflow', label: 'Workflow Builder', icon: GitBranch },
-  { id: 'crosscheck', label: 'Cross-Check', icon: Shield },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'rag', label: 'RAG Knowledge', icon: BookOpen },
-  { id: 'models', label: 'AI Models', icon: Cpu },
-  { id: 'runtime', label: 'Runtime 360', icon: Orbit },
+const NAV_ITEMS: { id: AppPage; labelKey: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare },
+  { id: 'workflow', labelKey: 'nav.workflow', icon: GitBranch },
+  { id: 'crosscheck', labelKey: 'nav.crosscheck', icon: Shield },
+  { id: 'analytics', labelKey: 'nav.analytics', icon: BarChart3 },
+  { id: 'rag', labelKey: 'nav.rag', icon: BookOpen },
+  { id: 'models', labelKey: 'nav.models', icon: Cpu },
+  { id: 'runtime', labelKey: 'nav.runtime', icon: Orbit },
+  { id: 'privacy', labelKey: 'nav.privacy', icon: Scale },
+  { id: 'plugins', labelKey: 'nav.plugins', icon: Puzzle },
 ];
 
 export default function Sidebar() {
+  const { t } = useI18n();
   const {
     conversations,
     activeConversationId,
@@ -114,7 +120,7 @@ export default function Sidebar() {
               }}
             >
               <Icon size={16} />
-              {item.label}
+              {t(item.labelKey)}
             </button>
           );
         })}
@@ -147,7 +153,7 @@ export default function Sidebar() {
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <MessageSquarePlus size={14} />
-              Nuova conversazione
+              {t('sidebar.newConversation')}
             </button>
           </div>
 
@@ -164,7 +170,7 @@ export default function Sidebar() {
                 textAlign: 'center',
                 padding: '16px',
               }}>
-                Nessuna conversazione
+                {t('sidebar.noConversations')}
               </p>
             ) : (
               conversations.map(conv => (
@@ -256,7 +262,7 @@ export default function Sidebar() {
           }}
         >
           <Settings size={16} />
-          Impostazioni
+          {t('nav.settings')}
         </button>
       </div>
     </div>

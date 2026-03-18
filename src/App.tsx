@@ -5,6 +5,7 @@ import ParticleBackground from './components/layout/ParticleBackground';
 import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import Sidebar from './components/sidebar/Sidebar';
+import { useI18n } from './hooks/useI18n';
 import { detectLocale } from './i18n';
 import { useAppStore } from './stores/appStore';
 import './styles/vio-dark.css';
@@ -18,9 +19,12 @@ const RagPage = lazy(() => import('./pages/RagPage'));
 const ModelsPage = lazy(() => import('./pages/ModelsPage'));
 const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const PluginsPage = lazy(() => import('./pages/PluginsPage'));
+const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
   const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings } = useAppStore();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!settings.onboardingCompleted) {
@@ -43,7 +47,7 @@ export default function App() {
       fontSize: '13px',
       background: 'var(--vio-bg-primary)',
     }}>
-      Caricamento runtime…
+      {t('app.loading')}
     </div>
   );
 
@@ -61,8 +65,8 @@ export default function App() {
       textAlign: 'center',
     }}>
       <div style={{ fontSize: '28px' }}>🧭</div>
-      <div style={{ fontWeight: 700, color: 'var(--vio-text-primary)' }}>Pagina non trovata</div>
-      <div style={{ fontSize: '13px' }}>La sezione richiesta non esiste o è stata rinominata.</div>
+      <div style={{ fontWeight: 700, color: 'var(--vio-text-primary)' }}>{t('app.notFoundTitle')}</div>
+      <div style={{ fontSize: '13px' }}>{t('app.notFoundDescription')}</div>
     </div>
   );
 
@@ -78,22 +82,24 @@ export default function App() {
       case 'models': return <ModelsPage />;
       case 'runtime': return <OrchestraRuntimePage />;
       case 'privacy': return <PrivacyPage />;
+      case 'plugins': return <PluginsPage />;
       case 'settings': return <SettingsPanel variant="page" />;
       default: return notFoundFallback;
     }
   };
 
   const pageTitle: Record<string, string> = {
-    dashboard: 'Dashboard',
-    chat: 'AI Chat',
-    workflow: 'Workflow Builder',
-    crosscheck: 'Cross-Check',
-    analytics: 'Analytics',
-    rag: 'RAG Knowledge',
-    models: 'AI Models',
-    runtime: 'Runtime 360',
-    privacy: 'Privacy & Legal',
-    settings: 'Impostazioni',
+    dashboard: t('nav.dashboard'),
+    chat: t('nav.chat'),
+    workflow: t('nav.workflow'),
+    crosscheck: t('nav.crosscheck'),
+    analytics: t('nav.analytics'),
+    rag: t('nav.rag'),
+    models: t('nav.models'),
+    runtime: t('nav.runtime'),
+    privacy: t('nav.privacy'),
+    plugins: 'Plugin & MCP',
+    settings: t('nav.settings'),
   };
 
   return (
@@ -138,10 +144,10 @@ export default function App() {
               <Menu size={20} />
             </button>
             <span style={{ fontSize: '14px', color: 'var(--vio-green)', fontWeight: 600 }}>
-              VIO 83 AI Orchestra
+              {t('app.name')}
             </span>
             <span style={{ fontSize: '12px', color: 'var(--vio-text-dim)' }}>
-              — {pageTitle[currentPage] || 'Chat'}
+              — {pageTitle[currentPage] || t('nav.chat')}
             </span>
             <span style={{
               fontSize: '11px',
@@ -151,7 +157,7 @@ export default function App() {
               border: `1px solid ${settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)'}`,
               color: settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)',
             }}>
-              {settings.orchestrator.mode === 'cloud' ? '☁️ Cloud' : '💻 Locale'}
+              {settings.orchestrator.mode === 'cloud' ? t('mode.cloud') : t('mode.local')}
             </span>
           </div>
         )}
@@ -170,6 +176,13 @@ export default function App() {
       {/* First-run onboarding */}
       {showOnboarding && (
         <OnboardingWizard onComplete={() => updateSettings({ onboardingCompleted: true })} />
+      )}
+
+      {/* Auto-updater banner (lazy, graceful if plugin absent) */}
+      {!showOnboarding && (
+        <Suspense fallback={null}>
+          <UpdaterBanner />
+        </Suspense>
       )}
     </div>
   );

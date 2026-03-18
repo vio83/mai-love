@@ -9,6 +9,7 @@ import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+import { useI18n } from '../../hooks/useI18n';
 import type { AIProvider, Message } from '../../types';
 
 SyntaxHighlighter.registerLanguage('ts', typescript);
@@ -55,6 +56,7 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message }: ChatMessageProps) {
+  const { t, lang } = useI18n();
   const isUser = message.role === 'user';
 
   return (
@@ -97,7 +99,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             fontWeight: 600,
             color: isUser ? 'var(--vio-text-secondary)' : 'var(--vio-green)',
           }}>
-            {isUser ? 'Tu' : 'VIO 83 Orchestra'}
+            {isUser ? t('chat.you') : t('chat.orchestra')}
           </span>
 
           {message.provider && (
@@ -189,7 +191,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                   />
                 ) : null}
                 <div style={{ fontSize: '12px', color: 'var(--vio-text-secondary)', wordBreak: 'break-word' }}>
-                  📎 {att.name}
+                  📎 {t('chat.attachment')}: {att.name}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--vio-text-dim)' }}>
                   {att.type || 'file'} • {(att.size / 1024).toFixed(1)} KB
@@ -209,7 +211,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           color: 'var(--vio-text-dim)',
         }}>
           <Clock size={11} />
-          {new Date(message.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.timestamp).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' })}
 
           {message.model && (
             <>

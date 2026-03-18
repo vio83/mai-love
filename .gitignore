@@ -19,3 +19,15 @@ data/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
+
+# Tauri updater private keys — MAI su Git
+.tauri-keys/
+
+# Release artifacts
+*.dmg
+*.app.tar.gz
+*.app.tar.gz.sig
+
+# Environment files (already above, redundant safety)
+.env.release

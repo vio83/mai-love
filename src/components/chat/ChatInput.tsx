@@ -1,14 +1,16 @@
-// VIO 83 AI ORCHESTRA - Input Chat con selettore modello, allegati, stop
+// VIO 83 AI ORCHESTRA - Input Chat con selettore modello, allegati, stop, voice
 import { Cpu, FileText, HardDrive, Image, Plus, Send, Square, X, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import VoiceMode from './VoiceMode';
+import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
 import type { Attachment } from '../../types';
 
 // Modelli Ollama disponibili localmente (su MacBook Air M1 8GB)
 const OLLAMA_MODELS = [
-  { id: 'llama3.2:3b', name: 'Llama 3.2 3B', desc: 'Più potente — generale', ram: '~2GB' },
-  { id: 'qwen2.5-coder:3b', name: 'Qwen Coder 3B', desc: 'Migliore per codice', ram: '~2GB' },
-  { id: 'gemma2:2b', name: 'Gemma 2 2B', desc: 'Leggero — rapido', ram: '~1.5GB' },
+  { id: 'llama3.2:3b', name: 'Llama 3.2 3B', descKey: 'chat.modelDescGeneral', ram: '~2GB' },
+  { id: 'qwen2.5-coder:3b', name: 'Qwen Coder 3B', descKey: 'chat.modelDescCode', ram: '~2GB' },
+  { id: 'gemma2:2b', name: 'Gemma 2 2B', descKey: 'chat.modelDescFast', ram: '~1.5GB' },
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -16,9 +18,11 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 interface ChatInputProps {
   onSend: (message: string, attachments?: Attachment[]) => void;
   disabled?: boolean;
+  lastAssistantMessage?: string; // for TTS
 }
 
-export default function ChatInput({ onSend, disabled }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, lastAssistantMessage }: ChatInputProps) {
+  const { t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,7 +55,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     // Aggiungi descrizione allegati nel messaggio se non c'è testo
     let content = msg;
     if (!content && atts) {
-      content = atts.map(a => `[Allegato: ${a.name}]`).join('\n');
+      content = atts.map((a) => `[${t('chat.attachment')}: ${a.name}]`).join('\n');
     }
 
     onSend(content, atts);
@@ -78,7 +82,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
 
     Array.from(files).forEach(file => {
       if (file.size > MAX_FILE_SIZE) {
-        alert(`File "${file.name}" troppo grande (max 10MB)`);
+        alert(t('chat.fileTooLarge', { name: file.name }));
         return;
       }
 
@@ -175,14 +179,14 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           }}
         >
           <HardDrive size={14} />
-          Locale (No-Hybrid)
+          {t('chat.localNoHybrid')}
         </button>
 
         {OLLAMA_MODELS.map(model => (
           <button
             key={model.id}
             onClick={() => setOllamaModel(model.id)}
-            title={`${model.desc} (${model.ram})`}
+            title={`${t(model.descKey)} (${model.ram})`}
             style={{
               padding: '4px 10px',
               borderRadius: '16px',
@@ -221,8 +225,17 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           fontSize: '11px',
           color: 'var(--vio-magenta)',
         }}>
-          <Zap size={12} /> Auto-routing locale attivo
+          <Zap size={12} /> {t('chat.autoRoutingLocal')}
         </span>
+
+        {/* Voice Mode: STT + TTS (Web Speech API, zero install) */}
+        <div style={{ marginLeft: 'auto' }}>
+          <VoiceMode
+            onTranscript={(text) => setInput(prev => prev ? prev + ' ' + text : text)}
+            textToSpeak={lastAssistantMessage}
+            disabled={disabled}
+          />
+        </div>
       </div>
 
       {/* Attachments preview */}
@@ -286,7 +299,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isStreaming}
-          title="Allega file (foto, video, documenti, codice...)"
+          title={t('chat.attachFile')}
           style={{
             width: '42px',
             height: '42px',
@@ -313,7 +326,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={`Scrivi un messaggio... (${currentModelInfo?.name || 'Ollama'})`}
+          placeholder={`${t('chat.placeholder')} (${currentModelInfo?.name || 'Ollama'})`}
           disabled={disabled}
           rows={1}
           style={{
@@ -340,7 +353,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         {isStreaming ? (
           <button
             onClick={handleStop}
-            title="Ferma generazione"
+            title={t('chat.stopGeneration')}
             style={{
               width: '42px',
               height: '42px',
@@ -363,7 +376,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           <button
             onClick={handleSend}
             disabled={!canSend}
-            title="Invia messaggio"
+            title={t('chat.sendMessage')}
             style={{
               width: '42px',
               height: '42px',

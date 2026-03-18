@@ -1,6 +1,7 @@
 // VIO 83 AI ORCHESTRA - Vista Chat Principale con Streaming
 import { Music } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 import { sendToOrchestra } from '../../services/ai/orchestrator';
 import { useAppStore } from '../../stores/appStore';
 import type { AIProvider, Attachment, Message } from '../../types';
@@ -8,6 +9,7 @@ import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 
 export default function ChatView() {
+  const { t } = useI18n();
   const {
     conversations,
     activeConversationId,
@@ -140,17 +142,19 @@ export default function ChatView() {
         const abortedMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: '⏹️ Generazione interrotta dall’utente.',
+          content: t('chat.aborted'),
           timestamp: Date.now(),
         };
         addMessage(convId, abortedMessage);
         return;
       }
 
+      const fallbackMessage = err.message || t('chat.errorFallback');
+
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `**Errore:** ${err.message || 'Impossibile contattare Ollama locale.'}\n\n**Soluzioni:**\n1. Verifica che Ollama sia attivo: \`ollama serve\`\n2. Verifica i modelli installati: \`ollama list\`\n3. Scarica il modello consigliato: \`ollama pull qwen2.5-coder:3b\``,
+        content: `${t('chat.errorTitle', { message: fallbackMessage })}\n\n${t('chat.errorSolutions')}`,
         timestamp: Date.now(),
       };
       addMessage(convId, errorMessage);
@@ -187,12 +191,12 @@ export default function ChatView() {
 
           <p style={{ color: 'var(--vio-text-secondary)', fontSize: '14px', textAlign: 'center', maxWidth: '500px', lineHeight: '1.6' }}>
             {settings.orchestrator.mode === 'cloud'
-              ? `Modalità Cloud attiva — provider: ${settings.orchestrator.primaryProvider}. API keys configurate nelle Impostazioni.`
-              : 'AI locale, completamente offline. I tuoi dati non lasciano mai il Mac.'}
+              ? t('chat.cloudActive', { provider: settings.orchestrator.primaryProvider })
+              : t('chat.localActive')}
           </p>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {['Scrivi codice Python', 'Analizza questi dati', 'Spiega la meccanica quantistica', 'Crea una REST API'].map((suggestion, i) => (
+            {[t('chat.suggestionCode'), t('chat.suggestionData'), t('chat.suggestionExplain'), t('chat.suggestionApi')].map((suggestion, i) => (
               <button key={i} onClick={() => handleSend(suggestion)}
                 style={{
                   padding: '8px 16px', borderRadius: '20px',
@@ -247,7 +251,7 @@ export default function ChatView() {
               <Music size={16} color="var(--vio-green)" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ color: 'var(--vio-green)', fontSize: '13px' }}>L'orchestra sta elaborando</span>
+              <span style={{ color: 'var(--vio-green)', fontSize: '13px' }}>{t('chat.processing')}</span>
               <span style={{ color: 'var(--vio-green)', animation: 'pulse 1.5s infinite' }}>...</span>
               <span style={{ color: 'var(--vio-cyan)', fontSize: '12px' }}>⏱ {formatElapsed(elapsedMs)}</span>
             </div>

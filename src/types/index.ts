@@ -3,7 +3,7 @@
 export type AIProvider = 'claude' | 'gpt4' | 'grok' | 'mistral' | 'deepseek' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'perplexity' | 'ollama';
 
 // Pagine disponibili nell'app
-export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'settings';
+export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'privacy' | 'plugins' | 'settings';
 
 export type AIMode = 'cloud' | 'local';
 

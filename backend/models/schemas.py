@@ -8,9 +8,19 @@ VIO 83 AI ORCHESTRA - Pydantic Schemas
 Definizione modelli dati per API e validazione.
 """
 
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from pydantic import BaseModel, Field
 from datetime import datetime
+
+
+# === Multimodal / Vision ===
+
+class ImageAttachment(BaseModel):
+    """Immagine allegata a un messaggio (base64 data URL o URL remota)."""
+    name: str
+    mime_type: str = "image/png"
+    data_url: Optional[str] = None   # "data:image/png;base64,..."
+    url: Optional[str] = None         # URL remota
 
 
 # === Request Models ===
@@ -27,6 +37,7 @@ class ChatRequest(BaseModel):
     temperature: float = Field(0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(512, ge=1, le=128000)
     system_prompt: Optional[str] = None
+    images: Optional[List[ImageAttachment]] = None  # Vision / multimodal
 
 
 class ClassifyRequest(BaseModel):

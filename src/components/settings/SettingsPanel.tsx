@@ -1,5 +1,6 @@
 import { AlertCircle, Bot, Check, Eye, EyeOff, Globe, HardDrive, X, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
 import type { AIProvider } from '../../types';
 import { RuntimeAppsSettings } from './RuntimeAppsSettings';
@@ -18,12 +19,23 @@ const PROVIDER_INFO: Record<string, { name: string; color: string; placeholder: 
 };
 
 const LOCAL_MODELS = [
-  { id: 'qwen2.5-coder:3b', name: 'Qwen 2.5 Coder 3B', ram: '2.5 GB', best: 'Codice' },
-  { id: 'llama3.2:3b', name: 'Llama 3.2 3B', ram: '2.5 GB', best: 'Generale' },
-  { id: 'mistral:latest', name: 'Mistral (latest)', ram: '5 GB', best: 'Ragionamento' },
-  { id: 'deepseek-r1:latest', name: 'DeepSeek R1 (latest)', ram: '5+ GB', best: 'Reasoning avanzato' },
-  { id: 'codellama:latest', name: 'CodeLlama (latest)', ram: '4+ GB', best: 'Codice specialistico' },
-  { id: 'gemma2:2b', name: 'Gemma 2 2B', ram: '2 GB', best: 'Velocità' },
+  { id: 'qwen2.5-coder:3b', name: 'Qwen 2.5 Coder 3B', ram: '2.5 GB', bestKey: 'settingsPanel.modelBestCode' },
+  { id: 'llama3.2:3b', name: 'Llama 3.2 3B', ram: '2.5 GB', bestKey: 'settingsPanel.modelBestGeneral' },
+  { id: 'mistral:latest', name: 'Mistral (latest)', ram: '5 GB', bestKey: 'settingsPanel.modelBestReasoning' },
+  { id: 'deepseek-r1:latest', name: 'DeepSeek R1 (latest)', ram: '5+ GB', bestKey: 'settingsPanel.modelBestAdvancedReasoning' },
+  { id: 'codellama:latest', name: 'CodeLlama (latest)', ram: '4+ GB', bestKey: 'settingsPanel.modelBestCodeSpecialist' },
+  { id: 'gemma2:2b', name: 'Gemma 2 2B', ram: '2 GB', bestKey: 'settingsPanel.modelBestSpeed' },
+];
+
+const ROUTING_MATRIX = [
+  { typeKey: 'settingsPanel.routeCode', provider: 'Claude / Groq / Qwen' },
+  { typeKey: 'settingsPanel.routeLegal', provider: 'Claude / Perplexity / Mistral' },
+  { typeKey: 'settingsPanel.routeMedical', provider: 'Claude / Gemini / Perplexity' },
+  { typeKey: 'settingsPanel.routeWriting', provider: 'Claude / GPT-5 / Mistral' },
+  { typeKey: 'settingsPanel.routeResearch', provider: 'Perplexity / Claude / Grok' },
+  { typeKey: 'settingsPanel.routeRealtime', provider: 'Grok / Perplexity / Gemini' },
+  { typeKey: 'settingsPanel.routeReasoning', provider: 'Claude / DeepSeek / Phi-3' },
+  { typeKey: 'settingsPanel.routeAutomation', provider: 'Claude / Groq / Ollama' },
 ];
 
 type SettingsPanelProps = {
@@ -31,6 +43,7 @@ type SettingsPanelProps = {
 };
 
 export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
+  const { t } = useI18n();
   const { settings, toggleSettings, updateSettings, setCurrentPage, activateFullOrchestration } = useAppStore();
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -175,7 +188,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
           <div className="flex items-center gap-3">
             <Zap size={20} style={{ color: '#00ff00' }} />
             <h2 className="text-lg font-semibold text-white">
-              {variant === 'page' ? 'Settings Command Center' : 'Impostazioni Orchestra'}
+              {variant === 'page' ? t('settingsPanel.commandCenterPage') : t('settingsPanel.commandCenter')}
             </h2>
           </div>
           <button onClick={handleClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
@@ -186,10 +199,10 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
         {/* Tabs */}
         <div className="flex px-6 pt-4 gap-1">
           {[
-            { id: 'cloud' as const, label: 'Cloud API', icon: Globe },
-            { id: 'local' as const, label: 'Locale', icon: HardDrive },
-            { id: 'apps' as const, label: 'App AI', icon: Bot },
-            { id: 'general' as const, label: 'Generale', icon: Zap },
+            { id: 'cloud' as const, label: t('settingsPanel.tabCloud'), icon: Globe },
+            { id: 'local' as const, label: t('settingsPanel.tabLocal'), icon: HardDrive },
+            { id: 'apps' as const, label: t('settingsPanel.tabApps'), icon: Bot },
+            { id: 'general' as const, label: t('settingsPanel.tabGeneral'), icon: Zap },
           ].map(tab => (
             <button
               key={tab.id}
@@ -216,7 +229,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
           {activeTab === 'cloud' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-500 mb-4">
-                Inserisci le API key dei provider cloud. In questa build vengono salvate nello storage locale dell'app; l'integrazione Keychain richiede il layer Tauri nativo.
+                {t('settingsPanel.cloudDescription')}
               </p>
               {Object.entries(PROVIDER_INFO).map(([key, info]) => (
                 <div key={key} className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
@@ -227,7 +240,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                     </div>
                     <a href={info.url} target="_blank" rel="noopener noreferrer"
                        className="text-xs hover:underline" style={{ color: info.color }}>
-                      Ottieni API Key →
+                      {t('settingsPanel.getApiKey')}
                     </a>
                   </div>
                   <div className="flex gap-2">
@@ -256,12 +269,12 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                         border: `1px solid ${saved[key] ? '#00ff0040' : info.color + '40'}`,
                       }}
                     >
-                      {saved[key] ? <Check size={14} /> : 'Salva'}
+                      {saved[key] ? <Check size={14} /> : t('settings.save')}
                     </button>
                   </div>
                   {savedKeysByProvider[key] && (
                     <p className="mt-2 text-xs" style={{ color: '#6b7280' }}>
-                      Chiave presente in configurazione locale.
+                      {t('settingsPanel.keyPresent')}
                     </p>
                   )}
                 </div>
@@ -273,7 +286,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
           {activeTab === 'local' && (
             <div className="space-y-4">
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
-                <label className="text-sm text-gray-400 mb-2 block">Ollama Host</label>
+                <label className="text-sm text-gray-400 mb-2 block">{t('settingsPanel.ollamaHost')}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -291,13 +304,13 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                       border: '1px solid #00ff0030',
                     }}
                   >
-                    {hostSaved ? <Check size={14} /> : 'Salva'}
+                    {hostSaved ? <Check size={14} /> : t('settings.save')}
                   </button>
                 </div>
               </div>
 
               <p className="text-sm text-gray-500">
-                Modelli disponibili per 8GB RAM. Scarica con: <code className="text-green-400">ollama pull nome-modello</code>
+                {t('settingsPanel.localModelsHint', { command: 'ollama pull nome-modello' })}
               </p>
 
               {LOCAL_MODELS.map(model => (
@@ -305,7 +318,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                      style={{ backgroundColor: '#111', border: '1px solid #222' }}>
                   <div>
                     <p className="text-white text-sm font-medium">{model.name}</p>
-                    <p className="text-gray-500 text-xs mt-1">RAM: {model.ram} · Ottimale per: {model.best}</p>
+                    <p className="text-gray-500 text-xs mt-1">RAM: {model.ram} · {t('settingsPanel.bestFor')}: {t(model.bestKey)}</p>
                   </div>
                   <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#00ff0010', color: '#00ff00' }}>
                     {model.id}
@@ -317,10 +330,9 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                 <div className="flex items-start gap-2">
                   <AlertCircle size={16} style={{ color: '#00ff00', marginTop: 2 }} />
                   <div>
-                    <p className="text-sm text-green-400 font-medium">Nota: 8GB RAM</p>
+                    <p className="text-sm text-green-400 font-medium">{t('settingsPanel.ramNoteTitle')}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Con 8GB di RAM, usa un solo modello alla volta. I modelli 3B sono i più performanti.
-                      Per modelli 7B+, chiudi le altre applicazioni prima dell'uso.
+                      {t('settingsPanel.ramNoteDescription')}
                     </p>
                   </div>
                 </div>
@@ -335,9 +347,9 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
           {activeTab === 'general' && (
             <div className="space-y-4">
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
-                <p className="text-white text-sm font-medium mb-2">Routing Intelligente</p>
+                <p className="text-white text-sm font-medium mb-2">{t('settingsPanel.routingTitle')}</p>
                 <p className="text-gray-500 text-xs mb-3">
-                  L'orchestra seleziona automaticamente il modello migliore per ogni tipo di richiesta.
+                  {t('settingsPanel.routingDescription')}
                 </p>
                 <button
                   onClick={activateFullOrchestration}
@@ -348,51 +360,38 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                     color: '#00ff00',
                   }}
                 >
-                  ATTIVA STACK COMPLETO (LOCAL/PROXY)
+                  {t('settingsPanel.activateStack')}
                 </button>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {[
-                    { type: 'Codice', provider: 'Claude / Groq / Qwen' },
-                    { type: 'Legale', provider: 'Claude / Perplexity / Mistral' },
-                    { type: 'Medicina', provider: 'Claude / Gemini / Perplexity' },
-                    { type: 'Scrittura', provider: 'Claude / GPT-5 / Mistral' },
-                    { type: 'Ricerca', provider: 'Perplexity / Claude / Grok' },
-                    { type: 'Realtime', provider: 'Grok / Perplexity / Gemini' },
-                    { type: 'Ragionamento', provider: 'Claude / DeepSeek / Phi-3' },
-                    { type: 'Automazione', provider: 'Claude / Groq / Ollama' },
-                  ].map(r => (
-                    <div key={r.type} className="flex justify-between px-3 py-2 rounded-lg" style={{ backgroundColor: '#0a0a0a' }}>
-                      <span className="text-gray-400">{r.type}</span>
-                      <span style={{ color: '#00ff00' }}>{r.provider}</span>
+                  {ROUTING_MATRIX.map((route) => (
+                    <div key={route.typeKey} className="flex justify-between px-3 py-2 rounded-lg" style={{ backgroundColor: '#0a0a0a' }}>
+                      <span className="text-gray-400">{t(route.typeKey)}</span>
+                      <span style={{ color: '#00ff00' }}>{route.provider}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
-                <p className="text-white text-sm font-medium mb-2">Cross-Check</p>
+                <p className="text-white text-sm font-medium mb-2">{t('settingsPanel.crosscheckTitle')}</p>
                 <p className="text-gray-500 text-xs">
-                  Quando attivato, una seconda AI verifica la risposta della prima.
-                  Utile per risposte critiche ma aumenta latenza e costi.
+                  {t('settingsPanel.crosscheckDescription')}
                 </p>
               </div>
 
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
-                <p className="text-white text-sm font-medium mb-2">RAG — Verifica Fonti Certificate</p>
+                <p className="text-white text-sm font-medium mb-2">{t('settingsPanel.ragTitle')}</p>
                 <p className="text-gray-500 text-xs">
-                  Il sistema RAG confronta le risposte AI con un database di fonti certificate
-                  (accademiche, bibliotecarie, ufficiali). Badge qualità: 🥇 Gold, 🥈 Silver, 🥉 Bronze.
+                  {t('settingsPanel.ragDescription')}
                 </p>
               </div>
 
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-white text-sm font-medium mb-2">Strict Evidence Policy</p>
+                    <p className="text-white text-sm font-medium mb-2">{t('settingsPanel.strictEvidenceTitle')}</p>
                     <p className="text-gray-500 text-xs">
-                      Se attiva, l'orchestratore privilegia evidenze certificate via RAG. In assenza di fonti,
-                      passa automaticamente a modalità degradato-controllata: non inventa dati, segnala i limiti,
-                      ma continua a produrre output (niente blocchi duri).
+                      {t('settingsPanel.strictEvidenceDescription')}
                     </p>
                   </div>
                   <button
@@ -412,22 +411,22 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                   <p className="mt-2 text-[11px]"
                     style={{ color: strictPolicySyncState === 'saved' ? '#00ff00' : strictPolicySyncState === 'saving' ? '#67e8f9' : '#f87171' }}
                   >
-                    {strictPolicySyncState === 'saving' && 'Sincronizzazione policy con backend…'}
-                    {strictPolicySyncState === 'saved' && 'Policy strict sincronizzata con successo.'}
-                    {strictPolicySyncState === 'error' && 'Sync backend non riuscita: resta attivo lo stato locale.'}
+                    {strictPolicySyncState === 'saving' && t('settingsPanel.syncSaving')}
+                    {strictPolicySyncState === 'saved' && t('settingsPanel.syncSaved')}
+                    {strictPolicySyncState === 'error' && t('settingsPanel.syncError')}
                   </p>
                 )}
               </div>
 
               <div className="rounded-xl p-4" style={{ backgroundColor: '#111', border: '1px solid #222' }}>
-                <p className="text-white text-sm font-medium mb-3">Info Sistema</p>
+                <p className="text-white text-sm font-medium mb-3">{t('settingsPanel.systemInfo')}</p>
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-gray-500">Versione</span><span className="text-white">0.9.0-beta</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Framework</span><span className="text-white">Tauri 2.0 + React 18</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Orchestratore</span><span className="text-white">Direct Router + FastAPI</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Vector DB</span><span className="text-white">ChromaDB</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Ollama Host</span><span className="text-white">{settings.ollamaHost}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Autore</span><span style={{ color: '#00ff00' }}>PadronaVio</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.version')}</span><span className="text-white">0.9.0-beta</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.framework')}</span><span className="text-white">Tauri 2.0 + React 18</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.orchestrator')}</span><span className="text-white">Direct Router + FastAPI</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.vectorDb')}</span><span className="text-white">ChromaDB</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.ollamaHost')}</span><span className="text-white">{settings.ollamaHost}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('settingsPanel.author')}</span><span style={{ color: '#00ff00' }}>PadronaVio</span></div>
                 </div>
               </div>
             </div>
