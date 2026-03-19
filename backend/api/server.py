@@ -760,6 +760,7 @@ from backend.core.parallel import TaskPool, ParallelQueryEngine
 from backend.core.errors import get_error_handler, ErrorHandler, OrchestraException
 from backend.core.security import get_vault, EnvironmentValidator
 from backend.core.jet_engine import get_jet_engine, JetEngine, JetDecision
+from backend.core.feather_memory import get_feather_memory, FeatherMemory
 
 
 @asynccontextmanager
@@ -805,6 +806,11 @@ async def lifespan(app: FastAPI):
     jet = get_jet_engine()
     jet_stats = jet.stats()
     print(f"✈️  JetEngine™ Mach 1.6+: TurboCache {jet_stats['turbo_cache']['max_size']} slot | local-first | parallel-sprint ATTIVI")
+
+    # === FEATHER MEMORY™: macchina 400kg → piuma ===
+    fm = get_feather_memory()
+    fm_stats = fm.stats
+    print(f"🪶 FeatherMemory™: pool {fm_stats['pool']['max_conversations']} conv | 50MB max | 100x compression ATTIVO")
 
     # Knowledge Base v2 (sempre disponibile — SQLite FTS5 fallback)
     if KB_AVAILABLE:
@@ -1390,6 +1396,19 @@ async def chat_stream(request: ChatRequest):
     if request.system_prompt:
         messages.insert(0, {"role": "system", "content": request.system_prompt})
 
+    # 🪶 FeatherMemory™: comprimi messaggi + alloca token ottimale
+    _fm = get_feather_memory()
+    _fm_prepared = _fm.prepare(
+        message=request.message,
+        conversation_id=request.conversation_id,
+        history=[{"role":m["role"],"content":m["content"]} for m in messages] if len(messages) > 1 else None,
+        provider="ollama",
+        intent="simple",
+    )
+    # Usa messaggi compressi al posto dei raw
+    if _fm_prepared["compression"]["savings_percent"] > 5:
+        messages = _fm_prepared["messages"]
+
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     from backend.orchestrator.direct_router import classify_request as _classify
     from backend.orchestrator.system_prompt import build_local_system_prompt
@@ -1502,6 +1521,12 @@ async def ultra_stats():
         }
     except Exception as e:
         stats["piuma_engine"] = {"error": str(e)}
+    # FeatherMemory stats
+    try:
+        fm = get_feather_memory()
+        stats["feather_memory"] = fm.stats
+    except Exception as e:
+        stats["feather_memory"] = {"error": str(e)}
     return {"status": "ok", "jet_engine": stats, "timestamp": time.time()}
 
 @app.post("/ultra/classify")
