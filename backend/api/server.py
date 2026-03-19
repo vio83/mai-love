@@ -892,6 +892,41 @@ async def lifespan(app: FastAPI):
     app.state.autonomous_runtime = AUTONOMOUS_RUNTIME
     print("🧠 Autonomous Runtime: trigger→route→session namespace + memoria Markdown attivo")
 
+    # === AUTO-LEARNING ENGINES: cervello auto-crescente ===
+    try:
+        from backend.core.auto_learner import get_auto_learner
+        al = get_auto_learner()
+        al_stats = al.get_quality_stats()
+        print(f"📖 AutoLearner: {al_stats['patterns_learned']} pattern appresi | satisfaction: {al_stats['satisfaction_rate']:.0%}")
+    except Exception as e:
+        print(f"⚠️  AutoLearner init: {e}")
+
+    try:
+        from backend.core.self_optimizer import get_self_optimizer
+        so = get_self_optimizer()
+        so_stats = so.get_stats()
+        print(f"🎯 SelfOptimizer: {so_stats['providers_tracked']} provider tracked | {so_stats['domains_optimized']} domini ottimizzati")
+    except Exception as e:
+        print(f"⚠️  SelfOptimizer init: {e}")
+
+    try:
+        from backend.core.world_knowledge import get_world_knowledge
+        wk = get_world_knowledge()
+        wk_stats = wk.get_stats()
+        print(f"🌍 WorldKnowledge: {wk_stats['total_facts']} fatti | {wk_stats['db_size_kb']:.0f}KB | domini: {len(wk_stats['domains'])}")
+    except Exception as e:
+        print(f"⚠️  WorldKnowledge init: {e}")
+
+    try:
+        from backend.core.reasoning_engine import get_reasoning_engine
+        re_engine = get_reasoning_engine()
+        re_stats = re_engine.get_stats()
+        print(f"🧩 ReasoningEngine: {re_stats['total_reasonings']} ragionamenti | {re_stats['strategies_count']} strategie | quality: {re_stats['avg_reasoning_quality']:.2f}")
+    except Exception as e:
+        print(f"⚠️  ReasoningEngine init: {e}")
+
+    print("✅ VIO 83 AI ORCHESTRA — TUTTI I MOTORI AUTO-CRESCENTI ATTIVI")
+
     yield
 
     # === SHUTDOWN ===
@@ -1696,6 +1731,37 @@ async def api_ollama_models():
     if not status["available"]:
         raise HTTPException(status_code=503, detail="Ollama non raggiungibile")
     return {"models": status["models"]}
+
+
+# ═══════════════════════════════════════════════
+# AUTO-LEARNING ENGINES STATUS
+# ═══════════════════════════════════════════════
+
+@app.get("/intelligence/status")
+async def intelligence_status():
+    """Stato dei motori auto-crescenti: learning, optimization, knowledge, reasoning."""
+    result = {}
+    try:
+        from backend.core.auto_learner import get_auto_learner
+        result["auto_learner"] = get_auto_learner().get_quality_stats()
+    except Exception as e:
+        result["auto_learner"] = {"error": str(e)}
+    try:
+        from backend.core.self_optimizer import get_self_optimizer
+        result["self_optimizer"] = get_self_optimizer().get_stats()
+    except Exception as e:
+        result["self_optimizer"] = {"error": str(e)}
+    try:
+        from backend.core.world_knowledge import get_world_knowledge
+        result["world_knowledge"] = get_world_knowledge().get_stats()
+    except Exception as e:
+        result["world_knowledge"] = {"error": str(e)}
+    try:
+        from backend.core.reasoning_engine import get_reasoning_engine
+        result["reasoning_engine"] = get_reasoning_engine().get_stats()
+    except Exception as e:
+        result["reasoning_engine"] = {"error": str(e)}
+    return result
 
 
 # ═══════════════════════════════════════════════

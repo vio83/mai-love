@@ -48,6 +48,12 @@ from backend.orchestrator.system_prompt import (
     build_local_system_prompt,
 )
 
+# === AUTO-LEARNING + SELF-OPTIMIZATION + REASONING ENGINES ===
+from backend.core.auto_learner import get_auto_learner
+from backend.core.self_optimizer import get_self_optimizer
+from backend.core.world_knowledge import get_world_knowledge
+from backend.core.reasoning_engine import get_reasoning_engine
+
 # Alias per retrocompatibilità (server.py lo importa come VIO83_SYSTEM_PROMPT)
 VIO83_SYSTEM_PROMPT = VIO83_MASTER_PROMPT
 
@@ -752,6 +758,45 @@ async def check_ollama_status(host: str = "http://localhost:11434") -> dict:
 
 # === ORCHESTRATOR PRINCIPALE ===
 
+def _post_call_learn(messages: list[dict], result: dict, request_type: str) -> None:
+    """
+    Post-processing auto-apprendimento dopo ogni chiamata AI.
+    Non blocca mai l'orchestrazione — tutto in try/except.
+    """
+    try:
+        # 1. Auto-Learner: analizza conversazione ed estrai pattern
+        learner = get_auto_learner()
+        learner.analyze_conversation(messages)
+
+        # 2. World Knowledge: ingerisci nuovi fatti dalla risposta
+        wk = get_world_knowledge()
+        # Aggiungi la risposta ai messaggi per l'ingestione
+        full_msgs = messages + [{"role": "assistant", "content": result.get("content", "")}]
+        wk.ingest_from_conversation(full_msgs)
+
+        # 3. Self-Optimizer: registra metriche reali
+        optimizer = get_self_optimizer()
+        optimizer.record_result(
+            provider=result.get("provider", "ollama"),
+            model=result.get("model", ""),
+            request_type=request_type,
+            latency_ms=result.get("latency_ms", 0),
+            tokens_used=result.get("tokens_used", 0),
+            success=True,
+        )
+
+        # 4. Reasoning Engine: registra outcome
+        reasoning = get_reasoning_engine()
+        complexity = reasoning.assess_complexity(messages[-1].get("content", "") if messages else "")
+        reasoning.record_outcome(
+            request_type=request_type,
+            complexity=complexity,
+            user_satisfied=True,  # Default — sarà aggiornato se l'utente corregge
+        )
+    except Exception:
+        pass  # Mai bloccare per errori di learning
+
+
 async def orchestrate(
     messages: list[dict],
     mode: str = "local",
@@ -793,7 +838,43 @@ async def orchestrate(
             system_prompt = build_local_system_prompt(request_type)
         else:
             system_prompt = build_system_prompt(request_type)
+
+        # === AUTO-LEARNING: arricchisci prompt con conoscenza appresa ===
+        try:
+            learner = get_auto_learner()
+            system_prompt = learner.enhance_prompt(last_msg, system_prompt, request_type)
+        except Exception:
+            pass  # Non bloccare mai l'orchestrazione per errori di learning
+
+        # === WORLD KNOWLEDGE: inietta contesto aggiornato ===
+        try:
+            wk = get_world_knowledge()
+            wk_context = wk.build_context_injection(last_msg, request_type)
+            if wk_context:
+                system_prompt += wk_context
+        except Exception:
+            pass
+
+        # === REASONING ENGINE: guida strutturata per query complesse ===
+        try:
+            reasoning = get_reasoning_engine()
+            reasoning_ctx = reasoning.build_reasoning_context(last_msg, request_type)
+            if reasoning_ctx:
+                system_prompt += reasoning_ctx
+        except Exception:
+            pass
+
         messages = [{"role": "system", "content": system_prompt}] + messages
+
+    # === SELF-OPTIMIZER: parametri auto-tuned ===
+    try:
+        optimizer = get_self_optimizer()
+        opt_params = optimizer.get_optimal_params(effective_provider, model or "", request_type)
+        if opt_params.get("provider_quality", 0) > 0.3:
+            effective_temperature = opt_params.get("temperature", effective_temperature)
+            effective_max_tokens = max(effective_max_tokens, opt_params.get("max_tokens", effective_max_tokens))
+    except Exception:
+        pass
 
     # In modalità locale, usa sempre Ollama
     if mode == "local" or effective_provider == "ollama" or force_local:
@@ -827,6 +908,10 @@ async def orchestrate(
                 result["request_type"] = request_type
                 result["execution_profile"] = _execution_profile()
                 result["forced_local"] = force_local
+
+                # === POST-CALL: Auto-learning + Self-optimization ===
+                _post_call_learn(messages, result, request_type)
+
                 return result
             except Exception as e:
                 last_error = e
@@ -851,6 +936,10 @@ async def orchestrate(
         result["request_type"] = request_type
         result["execution_profile"] = _execution_profile()
         result["forced_local"] = force_local
+
+        # === POST-CALL: Auto-learning + Self-optimization ===
+        _post_call_learn(messages, result, request_type)
+
         return result
     except Exception as e:
         routing_cfg = REQUEST_TYPE_ROUTING.get(request_type, {})
