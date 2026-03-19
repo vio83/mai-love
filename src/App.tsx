@@ -11,6 +11,7 @@ import './styles/vio-dark.css';
 
 // Lazy-load heavy components for faster initial paint
 const ParticleBackground = lazy(() => import('./components/layout/ParticleBackground'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ChatView = lazy(() => import('./components/chat/ChatView'));
@@ -26,7 +27,7 @@ const OpenClawPage = lazy(() => import('./pages/OpenClawPage'));
 const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
-  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings } = useAppStore();
+  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings, authToken } = useAppStore();
   const { t } = useI18n();
 
   useEffect(() => {
@@ -72,6 +73,15 @@ export default function App() {
       <div style={{ fontSize: '13px' }}>{t('app.notFoundDescription')}</div>
     </div>
   );
+
+  // Auth guard — mostra pagina login se non autenticato
+  if (!authToken) {
+    return (
+      <Suspense fallback={loadingFallback}>
+        <AuthPage />
+      </Suspense>
+    );
+  }
 
   // Render the active page
   const renderPage = () => {

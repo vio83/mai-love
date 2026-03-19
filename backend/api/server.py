@@ -55,6 +55,9 @@ from backend.orchestrator.direct_router import (
     check_ollama_status,
 )
 from backend.automation.autonomous_runtime import AutonomousRuntime
+from backend.core.user_auth import get_user_auth, UserProfile
+from backend.core.api_key_manager import get_key_vault
+from backend.core.subscription_manager import get_subscription_manager
 
 # RAG è disabilitato per compatibilità Python 3.14
 RAG_AVAILABLE = False
@@ -1120,6 +1123,301 @@ def _cached_metadata(key: str, ttl: float = _METADATA_TTL):
 
 def _set_metadata_cache(key: str, value: Any, ttl: float = _METADATA_TTL):
     _metadata_cache[key] = (value, time.time() + ttl)
+
+
+# ═══════════════════════════════════════════════
+# USER AUTH — Registrazione, Login, Verifica
+# ═══════════════════════════════════════════════
+
+
+def _extract_user_token(request: Request) -> Optional[str]:
+    """Estrae il token utente dall'header Authorization (Bearer ...)."""
+    auth_header = (request.headers.get("authorization", "") or "").strip()
+    if auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return None
+
+
+async def _require_user(request: Request) -> UserProfile:
+    """Verifica autenticazione utente, solleva 401 se non valido."""
+    token = _extract_user_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="Token di autenticazione richiesto")
+    auth = get_user_auth()
+    user = auth.verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Token non valido o scaduto")
+    return user
+
+
+@app.post("/auth/register")
+async def api_auth_register(request: Request):
+    """
+    Registrazione utente con email + password + codice acquisto.
+    L'email diventa l'impronta digitale unica dell'utente.
+    """
+    body = await request.json()
+    email = str(body.get("email", "")).strip()
+    password = str(body.get("password", "")).strip()
+    purchase_code = str(body.get("purchase_code", "")).strip()
+    plan_id = str(body.get("plan_id", "free_local")).strip()
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email e password obbligatori")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password minimo 8 caratteri")
+
+    # Verifica piano valido
+    sub_mgr = get_subscription_manager()
+    if not sub_mgr.get_plan(plan_id):
+        raise HTTPException(status_code=400, detail=f"Piano non valido: {plan_id}")
+
+    auth = get_user_auth()
+    result = auth.register(
+        email=email,
+        password=password,
+        purchase_code=purchase_code,
+        plan_id=plan_id,
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    user = result.user
+    assert user is not None
+
+    # Auto-genera le VIO API keys per i provider del piano
+    vault = get_key_vault()
+    allowed_providers = sub_mgr.get_allowed_providers(plan_id)
+    keys = vault.generate_keys_for_user(
+        user_id=user.user_id,
+        email_hash=user.email_hash,
+        plan_providers=allowed_providers,
+    )
+
+    return {
+        "status": "ok",
+        "message": result.message,
+        "token": result.token,
+        "user": {
+            "user_id": user.user_id,
+            "email": user.email,
+            "email_hash": user.email_hash,
+            "plan_id": user.plan_id,
+        },
+        "keys_generated": len(keys),
+        "providers": allowed_providers,
+    }
+
+
+@app.post("/auth/login")
+async def api_auth_login(request: Request):
+    """Login utente con email + password."""
+    body = await request.json()
+    email = str(body.get("email", "")).strip()
+    password = str(body.get("password", "")).strip()
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email e password obbligatori")
+
+    auth = get_user_auth()
+    result = auth.login(email=email, password=password)
+
+    if not result.success:
+        raise HTTPException(status_code=401, detail=result.message)
+    user = result.user
+    assert user is not None
+
+    return {
+        "status": "ok",
+        "message": result.message,
+        "token": result.token,
+        "user": {
+            "user_id": user.user_id,
+            "email": user.email,
+            "email_hash": user.email_hash,
+            "plan_id": user.plan_id,
+        },
+    }
+
+
+@app.get("/auth/verify")
+async def api_auth_verify(request: Request):
+    """Verifica token corrente e restituisce profilo utente."""
+    user = await _require_user(request)
+    sub_mgr = get_subscription_manager()
+    plan = sub_mgr.get_plan(user.plan_id)
+
+    return {
+        "status": "ok",
+        "authenticated": True,
+        "user": {
+            "user_id": user.user_id,
+            "email": user.email,
+            "email_hash": user.email_hash,
+            "plan_id": user.plan_id,
+            "activated_at": user.activated_at,
+            "last_login": user.last_login,
+        },
+        "plan": {
+            "name": plan.name if plan else "unknown",
+            "providers": plan.providers if plan else [],
+            "features": plan.features if plan else [],
+        },
+    }
+
+
+@app.post("/auth/logout")
+async def api_auth_logout(request: Request):
+    """Logout — revoca il token corrente."""
+    token = _extract_user_token(request)
+    if not token:
+        raise HTTPException(status_code=400, detail="Nessun token fornito")
+    auth = get_user_auth()
+    auth.logout(token)
+    return {"status": "ok", "message": "Logout effettuato"}
+
+
+# ═══════════════════════════════════════════════
+# VIO API KEYS — Gestione chiavi per utente
+# ═══════════════════════════════════════════════
+
+
+@app.get("/keys/list")
+async def api_keys_list(request: Request):
+    """Lista tutte le VIO API keys dell'utente (mascherate)."""
+    user = await _require_user(request)
+    vault = get_key_vault()
+    keys = vault.get_user_keys(user.user_id)
+    return {
+        "status": "ok",
+        "user_id": user.user_id,
+        "keys": keys,
+        "total": len(keys),
+    }
+
+
+@app.post("/keys/regenerate")
+async def api_keys_regenerate(request: Request):
+    """Rigenera la VIO key per un provider specifico."""
+    user = await _require_user(request)
+    body = await request.json()
+    provider = str(body.get("provider", "")).strip()
+
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider obbligatorio")
+
+    # Verificare che il provider sia nel piano dell'utente
+    sub_mgr = get_subscription_manager()
+    if not sub_mgr.can_use_provider(user.plan_id, provider):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Provider '{provider}' non incluso nel tuo piano ({user.plan_id})"
+        )
+
+    vault = get_key_vault()
+    new_key = vault.regenerate_key(
+        user_id=user.user_id,
+        email_hash=user.email_hash,
+        provider=provider,
+    )
+
+    if not new_key:
+        raise HTTPException(status_code=500, detail="Errore rigenerazione chiave")
+
+    return {
+        "status": "ok",
+        "provider": provider,
+        "vio_key": new_key.vio_key[:12] + "..." + new_key.vio_key[-4:],
+        "created_at": new_key.created_at,
+    }
+
+
+@app.post("/keys/revoke")
+async def api_keys_revoke(request: Request):
+    """Revoca la VIO key per un provider specifico."""
+    user = await _require_user(request)
+    body = await request.json()
+    provider = str(body.get("provider", "")).strip()
+
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider obbligatorio")
+
+    vault = get_key_vault()
+    vault.revoke_key(user.user_id, provider)
+    return {"status": "ok", "provider": provider, "revoked": True}
+
+
+# ═══════════════════════════════════════════════
+# SUBSCRIPTION — Piani e abbonamenti
+# ═══════════════════════════════════════════════
+
+
+@app.get("/subscription/plans")
+async def api_subscription_plans():
+    """Lista tutti i piani disponibili (pubblico, no auth)."""
+    sub_mgr = get_subscription_manager()
+    return {
+        "status": "ok",
+        "plans": sub_mgr.get_all_plans(),
+    }
+
+
+@app.get("/subscription/current")
+async def api_subscription_current(request: Request):
+    """Piano corrente dell'utente autenticato."""
+    user = await _require_user(request)
+    sub_mgr = get_subscription_manager()
+    plan = sub_mgr.get_plan(user.plan_id)
+    rate = sub_mgr.check_rate_limit(user.user_id, user.plan_id)
+
+    return {
+        "status": "ok",
+        "plan_id": user.plan_id,
+        "plan": {
+            "name": plan.name if plan else "unknown",
+            "name_it": plan.name_it if plan else "sconosciuto",
+            "providers": plan.providers if plan else [],
+            "features": plan.features if plan else [],
+            "max_requests_day": plan.max_requests_day if plan else 0,
+            "max_requests_month": plan.max_requests_month if plan else 0,
+            "price_monthly_eur": plan.price_monthly_eur if plan else 0,
+        },
+        "usage": rate,
+    }
+
+
+@app.post("/subscription/upgrade")
+async def api_subscription_upgrade(request: Request):
+    """Upgrade piano utente (dopo verifica pagamento)."""
+    user = await _require_user(request)
+    body = await request.json()
+    new_plan_id = str(body.get("plan_id", "")).strip()
+
+    sub_mgr = get_subscription_manager()
+    new_plan = sub_mgr.get_plan(new_plan_id)
+    if not new_plan:
+        raise HTTPException(status_code=400, detail=f"Piano non valido: {new_plan_id}")
+
+    # Aggiorna piano utente
+    auth = get_user_auth()
+    auth.update_plan(user.user_id, new_plan_id)
+
+    # Rigenera chiavi per i nuovi provider
+    vault = get_key_vault()
+    allowed = sub_mgr.get_allowed_providers(new_plan_id)
+    new_keys = vault.generate_keys_for_user(
+        user_id=user.user_id,
+        email_hash=user.email_hash,
+        plan_providers=allowed,
+    )
+
+    return {
+        "status": "ok",
+        "old_plan": user.plan_id,
+        "new_plan": new_plan_id,
+        "providers": allowed,
+        "keys_generated": len(new_keys),
+    }
 
 
 # ═══════════════════════════════════════════════

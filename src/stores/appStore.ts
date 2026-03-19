@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA - Global State Management (Zustand)
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AIMode, AIProvider, AppPage, AppSettings, Conversation, Message } from '../types';
+import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
 
 interface AppState {
   // Current conversation
@@ -10,6 +10,10 @@ interface AppState {
 
   // AI Settings
   settings: AppSettings;
+
+  // Auth State (impronta digitale)
+  authToken: string | null;
+  authUser: AuthUser | null;
 
   // UI State
   sidebarOpen: boolean;
@@ -35,6 +39,8 @@ interface AppState {
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
   activateFullOrchestration: () => void;
+  setAuth: (token: string, user: AuthUser) => void;
+  clearAuth: () => void;
 }
 
 const defaultSettings: AppSettings = {
@@ -84,6 +90,8 @@ export const useAppStore = create<AppState>()(
       conversations: [],
       activeConversationId: null,
       settings: defaultSettings,
+      authToken: null,
+      authUser: null,
       sidebarOpen: true,
       settingsOpen: false,
       isStreaming: false,
@@ -228,6 +236,9 @@ export const useAppStore = create<AppState>()(
           },
         }));
       },
+
+      setAuth: (token, user) => set({ authToken: token, authUser: user }),
+      clearAuth: () => set({ authToken: null, authUser: null }),
     }),
     {
       name: 'vio83-ai-orchestra-storage',

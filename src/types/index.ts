@@ -5,6 +5,20 @@ export type AIProvider = 'claude' | 'gpt4' | 'grok' | 'mistral' | 'deepseek' | '
 // Pagine disponibili nell'app
 export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'privacy' | 'plugins' | 'openclaw' | 'settings';
 
+// ─── User Auth (impronta digitale) ───
+export interface AuthUser {
+  user_id: string;
+  email: string;
+  email_hash: string;  // SHA-256 impronta digitale
+  plan_id: string;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  token: string | null;
+  user: AuthUser | null;
+}
+
 export type AIMode = 'cloud' | 'local';
 
 export interface AIModel {
