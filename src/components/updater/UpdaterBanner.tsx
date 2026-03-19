@@ -78,9 +78,14 @@ export default function UpdaterBanner() {
       const update = await check();
       if (!update?.available) return;
 
+      let downloaded = 0;
       await update.downloadAndInstall((event) => {
-        if (event.event === 'Progress' && event.data.chunkLength && event.data.contentLength) {
-          setProgress(Math.round((event.data.chunkLength / event.data.contentLength) * 100));
+        if (event.event === 'Progress' && event.data.chunkLength) {
+          downloaded += event.data.chunkLength;
+          const total = (event.data as Record<string, number>).contentLength;
+          if (total && total > 0) {
+            setProgress(Math.round((downloaded / total) * 100));
+          }
         }
       });
 

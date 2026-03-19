@@ -18,6 +18,9 @@
  * The app will fall back gracefully to Italian if i18next is not available.
  */
 
+import enTranslations from './locales/en.json';
+import itTranslations from './locales/it.json';
+
 // Graceful import — avoids hard crash if package not yet installed
 let i18nReady = false;
 
@@ -65,11 +68,7 @@ export function setStoredLocale(locale: SupportedLocale): void {
 export async function initI18n(): Promise<boolean> {
   try {
     // Dynamic import so TypeScript doesn't error if package missing
-    const [i18nModule, itTranslations, enTranslations] = await Promise.all([
-      import('i18next'),
-      import('./locales/it.json'),
-      import('./locales/en.json'),
-    ]);
+    const i18nModule = await import('i18next');
 
     const i18n = i18nModule.default;
     const { initReactI18next } = await import('react-i18next');

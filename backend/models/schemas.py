@@ -38,6 +38,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(512, ge=1, le=128000)
     system_prompt: Optional[str] = None
     images: Optional[List[ImageAttachment]] = None  # Vision / multimodal
+    agent_mode: bool = False  # OpenClaw agent: multi-step tool calling
 
 
 class ClassifyRequest(BaseModel):

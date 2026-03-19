@@ -13,7 +13,7 @@
   "editor.insertSpaces": true,
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
-  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "editor.defaultFormatter": "vscode.typescript-language-features",
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
     "source.organizeImports": "explicit"
@@ -31,22 +31,21 @@
   "editor.linkedEditing": true,
   "editor.stickyScroll.enabled": true,
 
-  // === TYPESCRIPT ===
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "typescript.suggest.autoImports": true,
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
+  // === TYPESCRIPT / JAVASCRIPT ===
+  "js/ts.preferences.importModuleSpecifier": "relative",
+  "js/ts.suggest.autoImports": true,
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.tsserver.useSyntaxServer": "auto",
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
 
-  // === JAVASCRIPT ===
-  "javascript.preferences.importModuleSpecifier": "relative",
-  "javascript.updateImportsOnFileMove.enabled": "always",
+  // (JavaScript settings unified under js/ts.* above)
 
   // === REACT / JSX / TSX ===
   "emmet.includeLanguages": {
@@ -138,7 +137,7 @@
   },
 
   // === THEME (Vio Dark Fluorescent) ===
-  "workbench.colorTheme": "Vio Dark Fluorescent Theme",
+  "workbench.colorTheme": "One Dark Pro",
   "workbench.iconTheme": "material-icon-theme",
   "workbench.startupEditor": "none",
 
@@ -158,6 +157,28 @@
 
   // === SPELL CHECKER ===
   "cSpell.language": "en,it",
+  "cSpell.enabledFileTypes": {
+    "typescript": true,
+    "typescriptreact": true,
+    "javascript": true,
+    "python": true,
+    "json": true,
+    "markdown": true,
+    "yaml": true,
+    "html": true,
+    "css": true,
+    "rust": true
+  },
+  "cSpell.ignorePaths": [
+    "node_modules",
+    "dist",
+    "target",
+    "package-lock.json",
+    "*.min.js",
+    "*.min.css",
+    "data/**",
+    "**/__pycache__/**"
+  ],
   "cSpell.words": [
     "vio83",
     "tauri",
@@ -173,6 +194,89 @@
     "pydantic",
     "uvicorn",
     "fastapi",
-    "padronavio"
+    "padronavio",
+    "openclaw",
+    "openrouter",
+    "legalroom",
+    "crosscheck",
+    "orchestrator",
+    "autopilot",
+    "autostart",
+    "autodistiller",
+    "webapp",
+    "vite",
+    "vitest",
+    "eslint",
+    "tsconfig",
+    "shlex",
+    "sysctl",
+    "memsize",
+    "tokenizer",
+    "embeddings",
+    "fulltext",
+    "stylesheet",
+    "codellama",
+    "qwen",
+    "llama",
+    "gemma",
+    "smollm",
+    "tailwindcss",
+    "framer",
+    "animaciones",
+    "astro",
+    "svelte",
+    "nextjs",
+    "uname",
+    "hostname",
+    "subprocess",
+    "asyncio",
+    "lifespan",
+    "onboarding",
+    "onresult",
+    "onerror",
+    "onstart",
+    "onend",
+    "clearinterval",
+    "setinterval",
+    "settimeout",
+    "cleartimeout",
+    "randomuuid",
+    "webkit",
+    "webkitSpeechRecognition",
+    "Porcu",
+    "Viorica",
+    "Cagliari",
+    "AGPL",
+    "normattiva",
+    "gazzettaufficiale",
+    "eurlex",
+    "eurostat",
+    "GDPR",
+    "EDPB",
+    "WIPO",
+    "OECD",
+    "AIFA",
+    "CISA",
+    "NIST",
+    "IETF",
+    "kofi",
+    "linkedin",
+    "cognitivo",
+    "neuroscienze",
+    "psicometria",
+    "macroeconomia",
+    "microeconomia",
+    "oncologia",
+    "cardiologia",
+    "neurologia",
+    "psichiatria",
+    "epidemiologia",
+    "farmacologia",
+    "healthz",
+    "relaunch",
+    "uuidv4",
+    "noEmit",
+    "autofetch",
+    "smartcommit"
   ]
 }

@@ -3,6 +3,18 @@
 
 import type { AIMode, AIProvider, AIResponse, Message } from '../../types';
 
+const CONTEXT_WINDOW_MAX_MESSAGES = 14;
+const CONTEXT_WINDOW_MAX_CHARS = 12_000;
+const RESPONSE_CACHE_TTL_MS = 45_000;
+const RESPONSE_CACHE_MAX_ENTRIES = 120;
+
+type CachedResponseEntry = {
+  response: AIResponse;
+  timestamp: number;
+};
+
+const RESPONSE_CACHE = new Map<string, CachedResponseEntry>();
+
 // Model mapping per cloud providers — REAL model IDs verified March 2026
 const CLOUD_MODELS: Record<string, string> = {
   claude: 'anthropic/claude-sonnet-4-20250514',
@@ -133,9 +145,90 @@ function resolveGenerationBudget(messageLength: number, deepMode: boolean): numb
     return 768;
   }
 
-  if (messageLength <= 120) return 160;
-  if (messageLength <= 400) return 288;
+  if (messageLength <= 120) return 128;
+  if (messageLength <= 400) return 224;
   return 448;
+}
+
+function optimizeConversationWindow(messages: Message[]): Message[] {
+  if (messages.length <= 1) return messages;
+
+  const selected: Message[] = [];
+  let totalChars = 0;
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    const content = (msg.content || '').trim();
+    const msgChars = content.length;
+
+    const mustInclude = selected.length === 0; // always keep latest message
+    const withinMessageCap = selected.length < CONTEXT_WINDOW_MAX_MESSAGES;
+    const withinCharCap = (totalChars + msgChars) <= CONTEXT_WINDOW_MAX_CHARS;
+
+    if (!mustInclude && (!withinMessageCap || !withinCharCap)) {
+      break;
+    }
+
+    selected.push(msg);
+    totalChars += msgChars;
+  }
+
+  return selected.reverse();
+}
+
+function buildResponseCacheKey(input: {
+  mode: AIMode;
+  provider: AIProvider;
+  model: string;
+  requestType: RequestType;
+  deepMode: boolean;
+  strictEvidenceMode: boolean;
+  messages: Message[];
+}): string {
+  const compactMessages = input.messages.slice(-8).map((m) => ({
+    role: m.role,
+    content: (m.content || '').slice(-1200),
+  }));
+
+  return JSON.stringify({
+    mode: input.mode,
+    provider: input.provider,
+    model: input.model,
+    requestType: input.requestType,
+    deepMode: input.deepMode,
+    strictEvidenceMode: input.strictEvidenceMode,
+    messages: compactMessages,
+  });
+}
+
+function getCachedResponse(key: string): AIResponse | null {
+  const cached = RESPONSE_CACHE.get(key);
+  if (!cached) return null;
+
+  if ((Date.now() - cached.timestamp) > RESPONSE_CACHE_TTL_MS) {
+    RESPONSE_CACHE.delete(key);
+    return null;
+  }
+
+  return {
+    ...cached.response,
+    latencyMs: Math.max(1, cached.response.latencyMs || 1),
+  };
+}
+
+function setCachedResponse(key: string, response: AIResponse): void {
+  if (RESPONSE_CACHE.size >= RESPONSE_CACHE_MAX_ENTRIES) {
+    const oldestKey = RESPONSE_CACHE.keys().next().value;
+    if (oldestKey) RESPONSE_CACHE.delete(oldestKey);
+  }
+
+  RESPONSE_CACHE.set(key, {
+    response: {
+      ...response,
+      crossCheckResult: undefined,
+    },
+    timestamp: Date.now(),
+  });
 }
 
 // Cache dei modelli Ollama installati (evita fetch /api/tags ad ogni messaggio)
@@ -160,27 +253,6 @@ async function fetchInstalledOllamaModels(host: string, forceRefresh: boolean = 
   } catch {
     return _ollamaModelCache.models;
   }
-}
-
-async function resolveWorkingLocalModel(host: string, preferredModel: string): Promise<string> {
-  const preferred = normalizeLocalModel(preferredModel);
-  const installed = await fetchInstalledOllamaModels(host);
-
-  if (installed.length === 0) {
-    return preferred;
-  }
-
-  if (installed.includes(preferred)) {
-    return preferred;
-  }
-
-  const aliasTarget = LOCAL_MODEL_ALIASES[preferredModel];
-  if (aliasTarget && installed.includes(aliasTarget)) {
-    return aliasTarget;
-  }
-
-  const fallback = LOCAL_FALLBACK_MODELS.find((candidate) => installed.includes(candidate));
-  return fallback || installed[0] || preferred;
 }
 
 async function pickRetryLocalModel(host: string, excludedModels: Set<string>): Promise<string | null> {
@@ -254,7 +326,7 @@ async function callOllama(
   maxPredict: number = 512,
 ): Promise<AIResponse> {
   const start = Date.now();
-  let resolvedModel = await resolveWorkingLocalModel(host, model);
+  let resolvedModel = normalizeLocalModel(model);
   const attemptedModels = new Set<string>([resolvedModel]);
 
   // Se abbiamo callback streaming, usiamo stream: true
@@ -277,6 +349,13 @@ async function callOllama(
 
       if (!response.ok) {
         if (response.status === 404) {
+          const aliasTarget = LOCAL_MODEL_ALIASES[resolvedModel];
+          if (aliasTarget && !attemptedModels.has(aliasTarget)) {
+            resolvedModel = aliasTarget;
+            attemptedModels.add(resolvedModel);
+            continue;
+          }
+
           const retryModel = await pickRetryLocalModel(host, attemptedModels);
           if (retryModel) {
             resolvedModel = retryModel;
@@ -349,6 +428,13 @@ async function callOllama(
 
     if (!response.ok) {
       if (response.status === 404) {
+        const aliasTarget = LOCAL_MODEL_ALIASES[resolvedModel];
+        if (aliasTarget && !attemptedModels.has(aliasTarget)) {
+          resolvedModel = aliasTarget;
+          attemptedModels.add(resolvedModel);
+          continue;
+        }
+
         const retryModel = await pickRetryLocalModel(host, attemptedModels);
         if (retryModel) {
           resolvedModel = retryModel;
@@ -548,7 +634,8 @@ export async function sendToOrchestra(
   onToken?: (token: string) => void,
   signal?: AbortSignal,
 ): Promise<AIResponse> {
-  const lastMessage = messages[messages.length - 1];
+  const optimizedMessages = optimizeConversationWindow(messages);
+  const lastMessage = optimizedMessages[optimizedMessages.length - 1];
   if (!lastMessage) throw new Error('Nessun messaggio da inviare');
 
   // Dual-mode: rispetta la scelta dell'utente (local o cloud)
@@ -562,7 +649,11 @@ export async function sendToOrchestra(
 
   const messageLength = (lastMessage.content || '').trim().length;
   const deepMode = Boolean(config.crossCheckEnabled || config.ragEnabled || config.strictEvidenceMode);
-  const generationBudget = resolveGenerationBudget(messageLength, deepMode);
+  const wantsDeepDetail = /approfond|dettagl|detail|complete|completo|exhaustive/i.test(lastMessage.content || '');
+  const baseGenerationBudget = resolveGenerationBudget(messageLength, deepMode);
+  const generationBudget = wantsDeepDetail
+    ? Math.min(Math.round(baseGenerationBudget * 1.6), deepMode ? 1024 : 768)
+    : baseGenerationBudget;
 
   // Routing intelligente — classifica PRIMA di costruire il prompt
   const provider = effectiveProvider;
@@ -575,6 +666,22 @@ export async function sendToOrchestra(
   }
   console.log(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
 
+  const cacheKey = buildResponseCacheKey({
+    mode: effectiveMode,
+    provider,
+    model: activeOllamaModel,
+    requestType,
+    deepMode,
+    strictEvidenceMode: Boolean(config.strictEvidenceMode),
+    messages: optimizedMessages,
+  });
+
+  const cachedResponse = getCachedResponse(cacheKey);
+  if (cachedResponse) {
+    if (onToken && cachedResponse.content) onToken(cachedResponse.content);
+    return cachedResponse;
+  }
+
   // Prepara messaggi con system prompt SPECIALIZZATO per tipo di richiesta
   // Per modelli locali < 7B usa prompt compatto (~400 token vs ~4000)
   const isLocal = effectiveMode === 'local' || provider === 'ollama';
@@ -584,7 +691,7 @@ export async function sendToOrchestra(
   let strictEvidenceBanner = '';
   let ragContext: { contextText: string; sourceCount: number } = { contextText: '', sourceCount: 0 };
 
-  if (config.ragEnabled) {
+  if (config.ragEnabled && (config.strictEvidenceMode || messageLength > 48)) {
     ragContext = await fetchLocalRagContext(lastMessage.content);
   }
 
@@ -642,7 +749,7 @@ export async function sendToOrchestra(
 
   const apiMessages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
+    ...optimizedMessages.map(m => ({ role: m.role, content: m.content })),
   ];
 
   // Tenta provider principale
@@ -665,6 +772,8 @@ export async function sendToOrchestra(
     if (strictEvidenceDegraded && strictEvidenceBanner) {
       response.content = `${strictEvidenceBanner}\n\n${response.content}`;
     }
+
+    setCachedResponse(cacheKey, response);
 
     // Track metrics per category
     recordMetric({
@@ -718,6 +827,7 @@ export async function sendToOrchestra(
         if (strictEvidenceDegraded && strictEvidenceBanner) {
           fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
         }
+        setCachedResponse(cacheKey, fallbackResponse);
         return fallbackResponse;
       } catch (e) {
         console.warn(`[Orchestra] Fallback ${fallback} fallito:`, e);
@@ -732,6 +842,7 @@ export async function sendToOrchestra(
         if (strictEvidenceDegraded && strictEvidenceBanner) {
           fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
         }
+        setCachedResponse(cacheKey, fallbackResponse);
         return fallbackResponse;
       } catch (e) {
         console.warn('[Orchestra] Anche Ollama fallito:', e);

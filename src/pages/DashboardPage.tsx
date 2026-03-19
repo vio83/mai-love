@@ -2,7 +2,8 @@
 import { motion } from 'framer-motion';
 import { Activity, Clock, Cpu, DollarSign, TrendingUp, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { CATEGORY_TO_REQUEST_TYPE, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
+import { useI18n } from '../hooks/useI18n';
+import { getCategoryCatalog, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
 import { useAppStore } from '../stores/appStore';
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -19,37 +20,12 @@ const PROVIDER_COLORS: Record<string, string> = {
   ollama: '#00FF00',
 };
 
-const CATEGORY_LOAD = [
-  { name: 'Code & Engineering', icon: '💻', count: 1234 },
-  { name: 'Analisi Dati', icon: '📊', count: 867 },
-  { name: 'Ricerca Scientifica', icon: '🔬', count: 645 },
-  { name: 'Scrittura Creativa', icon: '✍️', count: 534 },
-  { name: 'Conversazione', icon: '💬', count: 478 },
-  { name: 'Traduzione', icon: '🌍', count: 312 },
-  { name: 'Matematica & Logica', icon: '🧮', count: 201 },
-  { name: 'Real-time Intelligence', icon: '⚡', count: 189 },
-  { name: 'Local Privacy & Security', icon: '🔒', count: 567 },
-  { name: 'Legal & Compliance', icon: '⚖️', count: 356 },
-  { name: 'Medicina & Salute', icon: '🩺', count: 298 },
-  { name: 'Business & Finanza', icon: '💼', count: 274 },
-  { name: 'Productivity & Vita Quotidiana', icon: '🏡', count: 263 },
-  { name: 'DevOps & SRE', icon: '🛠️', count: 244 },
-  { name: 'Cybersecurity', icon: '🛡️', count: 239 },
-  { name: 'Automazione & Agenti AI', icon: '🤖', count: 415 },
-  { name: 'Education & Learning', icon: '🎓', count: 231 },
-  { name: 'Ricerca Web & Fact-checking', icon: '🧭', count: 222 },
-  { name: 'Hardware, IoT & Robotica', icon: '🦾', count: 184 },
-  { name: 'Energia, Clima & Ambiente', icon: '🌱', count: 176 },
-  { name: 'Arte, Design & Multimedia', icon: '🎨', count: 214 },
-  { name: 'Policy, Governance & Public Sector', icon: '🏛️', count: 167 },
-  { name: 'Open Source & GitHub Ops', icon: '🐙', count: 258 },
-  { name: 'VS Code / Cowork Runtime', icon: '🧩', count: 193 },
-];
-
 export default function DashboardPage() {
   const { conversations, settings } = useAppStore();
   const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
   const [recentActivity, setRecentActivity] = useState<Array<{ time: string; action: string; model: string }>>([]);
+  const { t, lang } = useI18n();
+  const categoryCatalog = useMemo(() => getCategoryCatalog(lang), [lang]);
 
   // Refresh metrics ogni 5 secondi per catturare nuove chat in tempo reale
   useEffect(() => {
@@ -75,18 +51,17 @@ export default function DashboardPage() {
   const totalTokens = metrics.totalTokens;
   const totalCost = metrics.totalCostUsd;
   const avgLatency = totalRequests > 0
-    ? (Object.values(metrics.providers) as Array<{totalLatencyMs: number; count: number}>).reduce((acc, p) => acc + p.totalLatencyMs, 0) / Math.max(1, (Object.values(metrics.providers) as Array<{count: number}>).reduce((acc, p) => acc + p.count, 0)) / 1000
+    ? (Object.values(metrics.providers) as Array<{ totalLatencyMs: number; count: number }>).reduce((acc, p) => acc + p.totalLatencyMs, 0) / Math.max(1, (Object.values(metrics.providers) as Array<{ count: number }>).reduce((acc, p) => acc + p.count, 0)) / 1000
     : 0;
 
   // Categorie con conteggi reali
-  const categoriesWithRealCounts = CATEGORY_LOAD.map(cat => {
-    const reqType = CATEGORY_TO_REQUEST_TYPE[cat.name] || 'conversation';
-    const metric = metrics.categories[reqType];
+  const categoriesWithRealCounts = categoryCatalog.map((cat) => {
+    const metric = metrics.categories[cat.requestType];
     return { ...cat, count: metric?.count || 0 };
   }).sort((a, b) => b.count - a.count);
 
   // Provider con usage reale
-  const providerEntries = Object.values(metrics.providers) as Array<{provider: string; count: number}>;
+  const providerEntries = Object.values(metrics.providers) as Array<{ provider: string; count: number }>;
   const totalProviderCount = providerEntries.reduce((acc, p) => acc + p.count, 0) || 1;
   const isCloud = settings.orchestrator.mode === 'cloud';
   const activeProvider = settings.orchestrator.primaryProvider;
@@ -100,25 +75,25 @@ export default function DashboardPage() {
     { id: 'groq', name: 'Groq', usage: 0, status: (isCloud && activeProvider === 'groq' ? 'active' : 'online') as string },
     { id: 'ollama', name: 'Ollama Locale', usage: 0, status: (!isCloud ? 'active' : 'standby') as string },
   ].map(p => {
-    const pm = (metrics.providers as Record<string, {count: number}>)[p.id];
+    const pm = (metrics.providers as Record<string, { count: number }>)[p.id];
     return { ...p, usage: pm ? Math.round((pm.count / totalProviderCount) * 100) : 0 };
   });
 
   const derivedActivities = useMemo(() => conversations.slice(0, 8).map(conv => ({
-    time: new Date(conv.updatedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+    time: new Date(conv.updatedAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' }),
     action: conv.title.slice(0, 60),
     model: conv.model || 'ollama',
-  })), [conversations]);
+  })), [conversations, lang]);
 
   useEffect(() => {
     setRecentActivity(derivedActivities);
   }, [derivedActivities]);
 
   const statCards = [
-    { icon: Activity, label: 'Richieste Totali', value: totalRequests.toLocaleString(), change: totalRequests > 0 ? `${totalRequests} reali` : 'nessuna ancora', color: 'var(--vio-green)' },
-    { icon: Zap, label: 'Token Consumati', value: totalTokens.toLocaleString(), change: totalTokens > 0 ? 'tracciato' : 'in attesa', color: 'var(--vio-cyan)' },
-    { icon: DollarSign, label: 'Costo Totale', value: `$${totalCost.toFixed(2)}`, change: totalCost === 0 ? 'locale gratis' : 'reale', color: 'var(--vio-magenta)' },
-    { icon: Clock, label: 'Latenza Media', value: `${avgLatency.toFixed(1)}s`, change: avgLatency > 0 ? 'calcolata' : 'n/a', color: 'var(--vio-yellow)' },
+    { icon: Activity, label: t('dashboardPage.totalRequests'), value: totalRequests.toLocaleString(), change: totalRequests > 0 ? t('dashboardPage.realCount', { count: String(totalRequests) }) : t('dashboardPage.noneYet'), color: 'var(--vio-green)' },
+    { icon: Zap, label: t('dashboardPage.tokensUsed'), value: totalTokens.toLocaleString(), change: totalTokens > 0 ? t('dashboardPage.tracked') : t('dashboardPage.pending'), color: 'var(--vio-cyan)' },
+    { icon: DollarSign, label: t('dashboardPage.totalCost'), value: `$${totalCost.toFixed(2)}`, change: totalCost === 0 ? t('dashboardPage.localFree') : t('dashboardPage.real'), color: 'var(--vio-magenta)' },
+    { icon: Clock, label: t('dashboardPage.avgLatency'), value: `${avgLatency.toFixed(1)}s`, change: avgLatency > 0 ? t('dashboardPage.calculated') : t('dashboardPage.na'), color: 'var(--vio-yellow)' },
   ];
 
   // (providers calcolati sopra da realProviders con metriche reali)
@@ -135,10 +110,10 @@ export default function DashboardPage() {
           fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)',
           margin: '0 0 4px', letterSpacing: '-0.5px',
         }}>
-          Command Center
+          {t('dashboardPage.title')}
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          Panoramica in tempo reale —{' '}
+          {t('dashboardPage.subtitle')} —{' '}
           {settings.orchestrator.mode === 'cloud'
             ? `cloud (${settings.orchestrator.primaryProvider})`
             : 'Ollama locale'}
@@ -181,7 +156,7 @@ export default function DashboardPage() {
               color: card.change.startsWith('+') ? 'var(--vio-green)' : 'var(--vio-cyan)',
             }}>
               <TrendingUp size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />
-              {card.change} vs settimana scorsa
+              {card.change} {t('dashboardPage.vsLastWeek')}
             </div>
           </motion.div>
         ))}
@@ -203,7 +178,7 @@ export default function DashboardPage() {
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
             <Cpu size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-green)' }} />
-            Distribuzione Modelli
+            {t('dashboardPage.modelDist')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {providers.map(p => (
@@ -247,11 +222,11 @@ export default function DashboardPage() {
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
             <Activity size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-magenta)' }} />
-            Attività Recente
+            {t('dashboardPage.recentActivity')}
           </h3>
           {recentActivity.length === 0 ? (
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', textAlign: 'center', padding: '30px 0' }}>
-              Nessuna attività recente. Inizia una conversazione!
+              {t('dashboardPage.noActivity')}
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -298,11 +273,11 @@ export default function DashboardPage() {
           }}
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
-            Stato Orchestrazione
+            {t('dashboardPage.orchestrationStatus')}
           </h3>
           <div style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ color: 'var(--vio-text-secondary)', fontSize: '12px' }}>Readiness reale</span>
+              <span style={{ color: 'var(--vio-text-secondary)', fontSize: '12px' }}>{t('dashboardPage.readiness')}</span>
               <span style={{ color: 'var(--vio-green)', fontSize: '12px', fontWeight: 700 }}>{orchestrationReadiness}%</span>
             </div>
             <div style={{ height: '8px', background: 'var(--vio-bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
@@ -347,11 +322,11 @@ export default function DashboardPage() {
           }}
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
-            Categorie Più Richieste
+            {t('dashboardPage.topCategories')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {categoriesWithRealCounts.map((category) => (
-              <div key={category.name}>
+              <div key={category.id}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span>{category.icon}</span>
                   <span style={{ color: 'var(--vio-text-secondary)', fontSize: '12px', flex: 1 }}>{category.name}</span>
@@ -392,7 +367,7 @@ export default function DashboardPage() {
               Vio AI Orchestra v2.0
             </h3>
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '12px', margin: 0 }}>
-              La piattaforma di orchestrazione multi-AI più potente al mondo — by vio83
+              {t('dashboardPage.appTagline')}
             </p>
           </div>
           <div style={{

@@ -2,7 +2,8 @@
 import { motion } from 'framer-motion';
 import { BarChart3, Brain, Coins, Gauge, Star, TrendingUp, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { CATEGORY_TO_REQUEST_TYPE, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
+import { useI18n } from '../hooks/useI18n';
+import { getCategoryCatalog, getMetricsSnapshot, type MetricsSnapshot } from '../services/metrics/categoryTracker';
 
 const PROVIDER_COLORS: Record<string, string> = {
   claude: '#D97706', gpt4: '#10B981', grok: '#3B82F6',
@@ -20,20 +21,6 @@ const MODEL_CAPABILITIES = [
   { name: 'Groq (Llama 3.3)', id: 'groq', quality: 85, speed: 99, cost: 0 },
   { name: 'Ollama Locale', id: 'ollama', quality: 82, speed: 75, cost: 0 },
 ];
-
-const CATEGORY_ICONS: Record<string, string> = {
-  'Code & Engineering': '💻', 'Analisi Dati': '📊', 'Ricerca Scientifica': '🔬',
-  'Scrittura Creativa': '✍️', 'Conversazione': '💬', 'Traduzione': '🌍',
-  'Matematica & Logica': '🧮', 'Real-time Intelligence': '⚡',
-  'Local Privacy & Security': '🔒', 'Legal & Compliance': '⚖️',
-  'Medicina & Salute': '🩺', 'Business & Finanza': '💼',
-  'Productivity & Vita Quotidiana': '🏡', 'DevOps & SRE': '🛠️',
-  'Cybersecurity': '🛡️', 'Automazione & Agenti AI': '🤖',
-  'Education & Learning': '🎓', 'Ricerca Web & Fact-checking': '🧭',
-  'Hardware, IoT & Robotica': '🦾', 'Energia, Clima & Ambiente': '🌱',
-  'Arte, Design & Multimedia': '🎨', 'Policy, Governance & Public Sector': '🏛️',
-  'Open Source & GitHub Ops': '🐙', 'VS Code / Cowork Runtime': '🧩',
-};
 
 function Bar({ value, maxValue, color, label }: { value: number; maxValue: number; color: string; label: string }) {
   const pct = (value / maxValue) * 100;
@@ -56,6 +43,8 @@ function Bar({ value, maxValue, color, label }: { value: number; maxValue: numbe
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
+  const { t, lang } = useI18n();
+  const categoryCatalog = getCategoryCatalog(lang);
 
   useEffect(() => {
     const interval = setInterval(() => setMetrics(getMetricsSnapshot()), 5000);
@@ -77,11 +66,9 @@ export default function AnalyticsPage() {
   const totalCost = metrics.totalCostUsd;
 
   // Categorie reali dalle 24 macro-categorie
-  const categoryNames = Object.keys(CATEGORY_TO_REQUEST_TYPE);
-  const categoryStats = categoryNames.map(name => {
-    const reqType = CATEGORY_TO_REQUEST_TYPE[name] || 'conversation';
-    const metric = metrics.categories[reqType];
-    return { name, icon: CATEGORY_ICONS[name] || '📂', count: metric?.count || 0 };
+  const categoryStats = categoryCatalog.map((category) => {
+    const metric = metrics.categories[category.requestType];
+    return { id: category.id, name: category.name, icon: category.icon, count: metric?.count || 0 };
   });
   const totalCategoryCount = categoryStats.reduce((acc, cat) => acc + cat.count, 0);
   const categoryStatsWithPct = categoryStats
@@ -104,10 +91,10 @@ export default function AnalyticsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
           <div>
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-              Analytics & Intelligence
+              {t('analyticsPage.title')}
             </h1>
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: 0 }}>
-              Performance profonda di tutti i modelli AI
+              {t('analyticsPage.subtitle')}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '4px', background: 'var(--vio-bg-secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--vio-border)' }}>
@@ -128,10 +115,10 @@ export default function AnalyticsPage() {
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
-          { icon: BarChart3, label: 'Richieste', value: totalRequests.toLocaleString(), color: 'var(--vio-green)' },
-          { icon: Brain, label: 'Token', value: `${(totalTokens / 1000000).toFixed(1)}M`, color: 'var(--vio-cyan)' },
-          { icon: Coins, label: 'Costo', value: `$${totalCost.toFixed(2)}`, color: 'var(--vio-magenta)' },
-          { icon: Gauge, label: 'Latenza Media', value: `${avgLatency}s`, color: 'var(--vio-yellow)' },
+          { icon: BarChart3, label: t('analyticsPage.requests'), value: totalRequests.toLocaleString(), color: 'var(--vio-green)' },
+          { icon: Brain, label: t('analyticsPage.tokens'), value: `${(totalTokens / 1000000).toFixed(1)}M`, color: 'var(--vio-cyan)' },
+          { icon: Coins, label: t('analyticsPage.cost'), value: `$${totalCost.toFixed(2)}`, color: 'var(--vio-magenta)' },
+          { icon: Gauge, label: t('analyticsPage.avgLatency'), value: `${avgLatency}s`, color: 'var(--vio-yellow)' },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -154,10 +141,10 @@ export default function AnalyticsPage() {
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
             <Star size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-green)' }} />
-            Qualità per Modello
+            {t('analyticsPage.qualityByModel')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {modelStats.sort((a, b) => b.quality - a.quality).map(m => (
+            {[...modelStats].sort((a, b) => b.quality - a.quality).map(m => (
               <Bar key={m.name} value={m.quality} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0]} />
             ))}
           </div>
@@ -168,10 +155,10 @@ export default function AnalyticsPage() {
         >
           <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
             <Zap size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-cyan)' }} />
-            Velocità per Modello
+            {t('analyticsPage.speedByModel')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {modelStats.sort((a, b) => b.speed - a.speed).map(m => (
+            {[...modelStats].sort((a, b) => b.speed - a.speed).map(m => (
               <Bar key={m.name} value={m.speed} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0]} />
             ))}
           </div>
@@ -184,11 +171,11 @@ export default function AnalyticsPage() {
       >
         <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '15px', fontWeight: 600, margin: '0 0 16px' }}>
           <TrendingUp size={16} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--vio-magenta)' }} />
-          Distribuzione Macro-Categorie (espansa 2026)
+          {t('analyticsPage.categoryDist')}
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
           {categoryStatsWithPct.map((cat, i) => (
-            <div key={cat.name} style={{
+            <div key={cat.id} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
               padding: '10px 12px', borderRadius: '8px', background: 'var(--vio-bg-tertiary)',
             }}>

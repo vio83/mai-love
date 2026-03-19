@@ -1,6 +1,7 @@
 // VIO 83 AI ORCHESTRA — Cross-Check: Verifica Multi-Modello
 import { motion } from 'framer-motion';
 import { AlertTriangle, Brain, CheckCircle, Percent, Shield, XCircle } from 'lucide-react';
+import { useI18n } from '../hooks/useI18n';
 
 const crossChecks = [
   {
@@ -47,13 +48,14 @@ const crossChecks = [
   },
 ];
 
-const levelConfig = {
-  full_agree: { icon: CheckCircle, label: 'Accordo Pieno', color: 'var(--vio-green)', bg: 'rgba(0,255,0,0.1)' },
-  partial: { icon: AlertTriangle, label: 'Parziale', color: 'var(--vio-yellow)', bg: 'rgba(255,255,0,0.1)' },
-  disagree: { icon: XCircle, label: 'Disaccordo', color: 'var(--vio-red)', bg: 'rgba(255,50,50,0.1)' },
+const levelConfigBase = {
+  full_agree: { icon: CheckCircle, labelKey: 'crosscheckPage.fullAgree', color: 'var(--vio-green)', bg: 'rgba(0,255,0,0.1)' },
+  partial: { icon: AlertTriangle, labelKey: 'crosscheckPage.partial', color: 'var(--vio-yellow)', bg: 'rgba(255,255,0,0.1)' },
+  disagree: { icon: XCircle, labelKey: 'crosscheckPage.disagree', color: 'var(--vio-red)', bg: 'rgba(255,50,50,0.1)' },
 };
 
 export default function CrossCheckPage() {
+  const { t, lang } = useI18n();
   const totalChecks = crossChecks.length;
   const fullAgree = crossChecks.filter(c => c.level === 'full_agree').length;
   const partial = crossChecks.filter(c => c.level === 'partial').length;
@@ -63,20 +65,20 @@ export default function CrossCheckPage() {
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-          Cross-Check Verification
+          {t('crosscheckPage.title')}
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          Validazione consenso multi-modello — fiducia attraverso verifica
+          {t('crosscheckPage.subtitle')}
         </p>
       </motion.div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
-          { icon: Shield, label: 'Verifiche Totali', value: `${totalChecks}`, color: 'var(--vio-green)' },
-          { icon: CheckCircle, label: 'Accordo Pieno', value: `${((fullAgree / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-green)' },
-          { icon: AlertTriangle, label: 'Parziale', value: `${((partial / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-yellow)' },
-          { icon: XCircle, label: 'Disaccordo', value: `${((disagree / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-red)' },
+          { icon: Shield, label: t('crosscheckPage.totalChecks'), value: `${totalChecks}`, color: 'var(--vio-green)' },
+          { icon: CheckCircle, label: t('crosscheckPage.fullAgree'), value: `${((fullAgree / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-green)' },
+          { icon: AlertTriangle, label: t('crosscheckPage.partial'), value: `${((partial / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-yellow)' },
+          { icon: XCircle, label: t('crosscheckPage.disagree'), value: `${((disagree / totalChecks) * 100).toFixed(0)}%`, color: 'var(--vio-red)' },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -92,7 +94,8 @@ export default function CrossCheckPage() {
       {/* Cross-check Results */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {crossChecks.map((c, i) => {
-          const cfg = levelConfig[c.level];
+          const cfgBase = levelConfigBase[c.level];
+          const cfg = { ...cfgBase, label: t(cfgBase.labelKey) };
           const LevelIcon = cfg.icon;
 
           return (
@@ -139,7 +142,7 @@ export default function CrossCheckPage() {
                   </span>
                 ))}
                 <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', marginLeft: 'auto', alignSelf: 'center' }}>
-                  {new Date(c.timestamp).toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                  {new Date(c.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                 </span>
               </div>
             </motion.div>

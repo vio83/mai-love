@@ -1,19 +1,20 @@
 // VIO 83 AI ORCHESTRA - Sidebar con Navigazione Multi-Pagina
 import {
-  BarChart3,
-  BookOpen,
-  ChevronLeft,
-  Cpu,
-  GitBranch,
-  LayoutDashboard, MessageSquare,
-  MessageSquarePlus,
-  Music,
-  Orbit,
-  Puzzle,
-  Scale,
-  Settings,
-  Shield,
-  Trash2,
+    BarChart3,
+    BookOpen,
+    ChevronLeft,
+    Cpu,
+    GitBranch,
+    LayoutDashboard, MessageSquare,
+    MessageSquarePlus,
+    Music,
+    Orbit,
+    Puzzle,
+    Scale,
+    Settings,
+    Shield,
+    Trash2,
+    Zap
 } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
@@ -30,6 +31,7 @@ const NAV_ITEMS: { id: AppPage; labelKey: string; icon: typeof LayoutDashboard }
   { id: 'runtime', labelKey: 'nav.runtime', icon: Orbit },
   { id: 'privacy', labelKey: 'nav.privacy', icon: Scale },
   { id: 'plugins', labelKey: 'nav.plugins', icon: Puzzle },
+  { id: 'openclaw', labelKey: 'nav.openclaw', icon: Zap },
 ];
 
 export default function Sidebar() {

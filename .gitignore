@@ -31,3 +31,7 @@ data/
 
 # Environment files (already above, redundant safety)
 .env.release
+
+# Local generated archives / accidental artifacts
+VIO83-AI-ORCHESTRA-v*-FULL-SOURCE.zip
+ziVwrPfD

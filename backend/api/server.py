@@ -1108,6 +1108,35 @@ async def auth_status():
 # CHAT — Non-streaming
 # ═══════════════════════════════════════════════
 
+_CHAT_CONTEXT_MAX_MESSAGES = int(os.environ.get("VIO_CHAT_CONTEXT_MAX_MESSAGES", "16"))
+_CHAT_CONTEXT_MAX_CHARS = int(os.environ.get("VIO_CHAT_CONTEXT_MAX_CHARS", "14000"))
+
+
+def _trim_chat_messages(messages: list[dict[str, Any]], max_messages: int = _CHAT_CONTEXT_MAX_MESSAGES, max_chars: int = _CHAT_CONTEXT_MAX_CHARS) -> list[dict[str, Any]]:
+    """Mantiene solo la finestra recente di messaggi per ridurre latenza e token cost."""
+    if len(messages) <= 1:
+        return messages
+
+    selected: list[dict[str, Any]] = []
+    total_chars = 0
+
+    for message in reversed(messages):
+        content = str(message.get("content", "") or "")
+        message_len = len(content)
+        must_keep = len(selected) == 0  # ultimo messaggio sempre presente
+
+        if not must_keep:
+            if len(selected) >= max_messages:
+                break
+            if total_chars + message_len > max_chars:
+                break
+
+        selected.append(message)
+        total_chars += message_len
+
+    selected.reverse()
+    return selected
+
 def _build_vision_message(text: str, images: list) -> dict:
     """
     Costruisce un messaggio in formato OpenAI vision (multi-content).
@@ -1180,13 +1209,13 @@ async def chat(request: ChatRequest):
         else:
             messages = [{"role": "user", "content": request.message}]
 
+        conv = get_conversation(request.conversation_id) if request.conversation_id else None
+
         # ✈️  JetEngine™: cache semantica ultra-veloce + routing intelligente
         _jet = get_jet_engine()
         _history_len = 0
-        if request.conversation_id:
-            _conv_preview = get_conversation(request.conversation_id)
-            if _conv_preview and _conv_preview.get("messages"):
-                _history_len = len(_conv_preview["messages"])
+        if conv and conv.get("messages"):
+            _history_len = len(conv["messages"])
 
         _jet_decision = _jet.decide(
             message=request.message,
@@ -1200,23 +1229,33 @@ async def chat(request: ChatRequest):
         # TurboCache hit → risposta istantanea (<2ms)
         if _jet_decision.cache_hit and not request.conversation_id and not request.system_prompt:
             _structured_logger.info(json.dumps({"event": "jet_cache_hit", "intent": _jet_decision.profile.intent}))
-            return ChatResponse(**_jet_decision.cached_resp)
+            cached_resp = _jet_decision.cached_resp or {}
+            return ChatResponse(
+                content=str(cached_resp.get("content", "")),
+                provider=str(cached_resp.get("provider", "ollama")),
+                model=str(cached_resp.get("model", request.model or "qwen2.5-coder:3b")),
+                tokens_used=int(cached_resp.get("tokens_used", 0) or 0),
+                latency_ms=int(cached_resp.get("latency_ms", 0) or 0),
+                request_type=str(cached_resp.get("request_type", "general")),
+            )
+
+        chosen_provider = request.provider or ("ollama" if runtime_mode == "local" else "claude")
 
         # Applica routing JetEngine™ (local-first / parallel-sprint)
         if not has_images and not request.provider:
-            chosen_provider = _jet_decision.routing.provider
-            if chosen_provider == "cache":
-                chosen_provider = "ollama" if runtime_mode == "local" else "claude"
+            routed_provider = _jet_decision.routing.provider
+            if routed_provider != "cache":
+                chosen_provider = routed_provider
 
         # Se c'è una conversazione, recupera il contesto
-        if request.conversation_id:
-            conv = get_conversation(request.conversation_id)
-            if conv and conv.get("messages"):
-                messages = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in conv["messages"]
-                ]
-                messages.append({"role": "user", "content": request.message})
+        if conv and conv.get("messages"):
+            messages = [
+                {"role": m["role"], "content": m["content"]}
+                for m in conv["messages"]
+            ]
+            messages.append({"role": "user", "content": request.message})
+
+        messages = _trim_chat_messages(messages)
 
         # System prompt
         if request.system_prompt:
@@ -1227,7 +1266,6 @@ async def chat(request: ChatRequest):
         effective_temperature = _effective_temperature(request.temperature)
 
         # Per vision: scegli provider cloud con vision capability
-        chosen_provider = request.provider or ("ollama" if runtime_mode == "local" else "claude")
         if has_images:
             # Se il provider scelto non supporta vision, usa claude come fallback
             if chosen_provider not in _VISION_PROVIDERS:
@@ -1347,6 +1385,8 @@ async def chat_stream(request: ChatRequest):
             ]
             messages.append({"role": "user", "content": request.message})
 
+    messages = _trim_chat_messages(messages)
+
     if request.system_prompt:
         messages.insert(0, {"role": "system", "content": request.system_prompt})
 
@@ -1452,9 +1492,13 @@ async def ultra_stats():
     try:
         from backend.core.ultra_engine import get_ultra_engine
         ue = get_ultra_engine()
+        cache_obj = getattr(ue, "cache", None)
+        cache_store = getattr(cache_obj, "_cache", {}) if cache_obj is not None else {}
+        provider_memory_obj = getattr(ue, "provider_memory", None)
+        provider_stats = getattr(provider_memory_obj, "_stats", {}) if provider_memory_obj is not None else {}
         stats["piuma_engine"] = {
-            "cache_size": len(ue.cache._cache),
-            "provider_memory": len(ue.provider_memory._stats),
+            "cache_size": len(cache_store) if isinstance(cache_store, dict) else 0,
+            "provider_memory": len(provider_stats) if isinstance(provider_stats, dict) else 0,
         }
     except Exception as e:
         stats["piuma_engine"] = {"error": str(e)}

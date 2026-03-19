@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { GitBranch, Play, Plus, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../hooks/useI18n';
 
 interface WFNode {
   id: string;
@@ -36,6 +37,7 @@ const savedWorkflows = [
 ];
 
 export default function WorkflowPage() {
+  const { t } = useI18n();
   const [nodes] = useState(INITIAL_NODES);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
@@ -47,10 +49,10 @@ export default function WorkflowPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-              Workflow Builder
+              {t('workflowPage.title')}
             </h1>
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: 0 }}>
-              Progetta pipeline di orchestrazione multi-AI visualmente
+              {t('workflowPage.subtitle')}
             </p>
           </div>
           <button style={{
@@ -58,7 +60,7 @@ export default function WorkflowPage() {
             padding: '10px 18px', color: '#000', fontSize: '13px', fontWeight: 600,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
           }}>
-            <Plus size={16} /> Nuovo Workflow
+            <Plus size={16} /> {t('workflowPage.newWorkflow')}
           </button>
         </div>
       </motion.div>
@@ -138,7 +140,7 @@ export default function WorkflowPage() {
 
       {/* Saved Workflows */}
       <h3 style={{ color: 'var(--vio-text-primary)', fontSize: '16px', fontWeight: 600, marginBottom: '14px' }}>
-        Workflow Salvati
+        {t('workflowPage.savedWorkflows')}
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {savedWorkflows.map((wf, i) => (
@@ -165,7 +167,7 @@ export default function WorkflowPage() {
                   color: 'var(--vio-green)',
                   border: '1px solid var(--vio-green-dim)40',
                 }}>
-                  Attivo
+                  {t('workflowPage.active')}
                 </span>
                 <button style={{
                   background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
@@ -177,8 +179,8 @@ export default function WorkflowPage() {
             </div>
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '12px', margin: '0 0 8px' }}>{wf.desc}</p>
             <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--vio-text-dim)' }}>
-              <span><RotateCcw size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />{wf.runs.toLocaleString()} esecuzioni</span>
-              <span>Ultimo: {wf.lastRun}</span>
+              <span><RotateCcw size={11} style={{ verticalAlign: 'middle', marginRight: '3px' }} />{wf.runs.toLocaleString()} {t('workflowPage.runs')}</span>
+              <span>{t('workflowPage.lastRun')} {wf.lastRun}</span>
             </div>
           </motion.div>
         ))}

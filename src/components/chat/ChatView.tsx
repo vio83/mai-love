@@ -22,6 +22,9 @@ export default function ChatView() {
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamBufferRef = useRef('');
+  const flushRafRef = useRef<number | null>(null);
+  const lastAutoScrollAtRef = useRef(0);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingProvider, setStreamingProvider] = useState('');
   const [streamingStartedAt, setStreamingStartedAt] = useState<number | null>(null);
@@ -30,8 +33,18 @@ export default function ChatView() {
 
   // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeConversation?.messages, streamingContent]);
+    if (!messagesEndRef.current) return;
+
+    const now = performance.now();
+    if (isStreaming && now - lastAutoScrollAtRef.current < 140) {
+      return;
+    }
+
+    lastAutoScrollAtRef.current = now;
+    messagesEndRef.current.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' });
+  }, [activeConversation?.messages, streamingContent, isStreaming]);
+
+  useEffect(() => () => resetStreamBuffer(), []);
 
   useEffect(() => {
     if (!isStreaming || !streamingStartedAt) {
@@ -57,6 +70,29 @@ export default function ChatView() {
     return `${seconds}s`;
   };
 
+  const flushBufferedStream = () => {
+    if (!streamBufferRef.current) return;
+    const chunk = streamBufferRef.current;
+    streamBufferRef.current = '';
+    setStreamingContent(prev => prev + chunk);
+  };
+
+  const scheduleStreamFlush = () => {
+    if (flushRafRef.current !== null) return;
+    flushRafRef.current = window.requestAnimationFrame(() => {
+      flushRafRef.current = null;
+      flushBufferedStream();
+    });
+  };
+
+  const resetStreamBuffer = () => {
+    if (flushRafRef.current !== null) {
+      window.cancelAnimationFrame(flushRafRef.current);
+      flushRafRef.current = null;
+    }
+    streamBufferRef.current = '';
+  };
+
   const handleSend = async (content: string, attachments?: Attachment[]) => {
     let convId = activeConversationId;
     if (!convId) {
@@ -79,6 +115,7 @@ export default function ChatView() {
     setStreaming(true);
     setStreamingStartedAt(Date.now());
     setStreamingContent('');
+    resetStreamBuffer();
     setStreamingProvider('ollama');
 
     try {
@@ -105,7 +142,9 @@ export default function ChatView() {
 
       // Streaming callback — aggiorna il testo in tempo reale
       const onToken = (token: string) => {
-        setStreamingContent(prev => prev + token);
+        if (!token) return;
+        streamBufferRef.current += token;
+        scheduleStreamFlush();
       };
 
       const response = await sendToOrchestra(allMessages, {
@@ -120,6 +159,8 @@ export default function ChatView() {
         ollamaHost: settings.ollamaHost,
         ollamaModel: settings.ollamaModel || 'qwen2.5-coder:3b',
       }, onToken, controller.signal);
+
+      flushBufferedStream();
 
       // Aggiungi risposta finale
       const aiMessage: Message = {
@@ -164,6 +205,7 @@ export default function ChatView() {
       setStreamingStartedAt(null);
       setElapsedMs(0);
       setStreamingContent('');
+      resetStreamBuffer();
     }
   };
 

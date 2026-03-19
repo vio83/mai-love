@@ -3,6 +3,7 @@
 // Usa Web Speech API nativa del browser — ZERO librerie esterne, ZERO install
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '../../hooks/useI18n';
 
 interface VoiceModeProps {
   onTranscript: (text: string) => void;
@@ -18,25 +19,29 @@ const hasSpeechRecognition =
 const hasSpeechSynthesis =
   typeof window !== 'undefined' && 'speechSynthesis' in window;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognitionInstance = any;
+
 export default function VoiceMode({ onTranscript, textToSpeak, disabled }: VoiceModeProps) {
+  const { t, lang } = useI18n();
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Init Speech Recognition
   useEffect(() => {
     if (!hasSpeechRecognition) return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SR() as SpeechRecognition;
+    const recognition = new SR();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     // Auto-detect lang from browser
-    recognition.lang = navigator.language || 'it-IT';
+    recognition.lang = lang === 'en' ? 'en-US' : 'it-IT';
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -44,7 +49,8 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
       setTranscript('');
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       let interim = '';
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -62,10 +68,11 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
       }
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setError(event.error === 'no-speech' ? 'Nessun audio rilevato' :
-               event.error === 'not-allowed' ? 'Microfono non autorizzato' :
-               `Errore: ${event.error}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
+      setError(event.error === 'no-speech' ? t('voice.noSpeech') :
+        event.error === 'not-allowed' ? t('voice.micNotAllowed') :
+          `${t('common.error')}: ${event.error}`);
       setIsListening(false);
     };
 
@@ -85,14 +92,14 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
     if (!hasSpeechSynthesis || !ttsEnabled || !textToSpeak) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = navigator.language || 'it-IT';
+    utterance.lang = lang === 'en' ? 'en-US' : 'it-IT';
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
     // Try to use an Italian/English voice if available
     const voices = window.speechSynthesis.getVoices();
-    const preferredLang = navigator.language?.split('-')[0] || 'it';
+    const preferredLang = lang || 'it';
     const matchingVoice = voices.find(v => v.lang.startsWith(preferredLang)) || voices[0];
     if (matchingVoice) utterance.voice = matchingVoice;
 
@@ -149,7 +156,7 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
         <button
           onClick={toggleListening}
           disabled={disabled}
-          title={isListening ? 'Ferma registrazione' : 'Parla (STT)'}
+          title={isListening ? t('voice.stopRecording') : t('voice.speak')}
           style={{
             ...btnBase,
             backgroundColor: isListening ? '#ef4444' : 'var(--vio-bg-tertiary)',
@@ -178,7 +185,7 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
       {hasSpeechSynthesis && (
         <button
           onClick={toggleTts}
-          title={ttsEnabled ? 'Disattiva lettura risposte' : 'Attiva lettura risposte (TTS)'}
+          title={ttsEnabled ? t('voice.disableTts') : t('voice.enableTts')}
           style={{
             ...btnBase,
             backgroundColor: ttsEnabled ? 'rgba(0,255,0,0.15)' : 'var(--vio-bg-tertiary)',

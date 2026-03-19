@@ -67,7 +67,8 @@ KEYWORDS = {
     "research": ["ricerca", "paper", "citazioni", "fonti", "survey", "benchmark",
                  "state of the art", "deep research", "letteratura", "bibliografia"],
     "automation": ["workflow", "automazione", "agent", "agente", "tool", "mcp",
-                   "n8n", "pipeline", "orchestrazione", "browser automation", "task runner"],
+                   "n8n", "pipeline", "orchestrazione", "browser automation", "task runner",
+                   "openclaw", "esegui tool", "run tool", "multi-step", "usa plugin"],
     "creative": ["scrivi", "write", "storia", "story", "poesia", "poem",
                  "creativo", "creative", "articolo", "article", "blog",
                  "racconto", "romanzo", "canzone", "email", "lettera"],
@@ -227,7 +228,7 @@ def classify_request(message: str) -> str:
         if score > 0:
             scores[req_type] = score
     if scores:
-        return max(scores, key=scores.get)
+        return max(scores, key=lambda k: scores[k])
     return "conversation"
 
 

@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { Cpu, Eye, Star, Wifi, WifiOff, Wrench, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../hooks/useI18n';
 import { useAppStore } from '../stores/appStore';
 import type { AIModelInfo } from '../types';
 
@@ -152,6 +153,7 @@ function prettyStackKey(raw: string): string {
 export default function ModelsPage() {
   const settings = useAppStore(s => s.settings);
   const isCloud = settings.orchestrator.mode === 'cloud';
+  const { t } = useI18n();
 
   const models = useMemo(() => ALL_MODELS.map(m => {
     if (m.mode === 'local') return m;
@@ -204,12 +206,12 @@ export default function ModelsPage() {
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-          AI Models Registry
+          {t('modelsPage.title')}
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
           {isCloud
-            ? `Registro modelli — Cloud attivo (${settings.orchestrator.primaryProvider}), locale disponibile`
-            : 'Registro modelli — Ollama locale attivo, modelli cloud disponibili'}
+            ? t('modelsPage.registryCloud', { provider: settings.orchestrator.primaryProvider })
+            : t('modelsPage.registryLocal')}
         </p>
       </motion.div>
 
@@ -225,19 +227,19 @@ export default function ModelsPage() {
         }}
       >
         <h2 style={{ color: 'var(--vio-text-primary)', fontSize: '16px', margin: '0 0 8px', fontWeight: 700 }}>
-          Elite Stacks · Best by Task
+          {t('modelsPage.eliteTitle')}
         </h2>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '12px', margin: '0 0 14px' }}>
-          Fonte live: <code style={{ color: 'var(--vio-cyan)' }}>/orchestration/elite-stacks</code>
+          {t('modelsPage.eliteSource')} <code style={{ color: 'var(--vio-cyan)' }}>/orchestration/elite-stacks</code>
         </p>
 
         {eliteLoading && (
-          <div style={{ color: 'var(--vio-cyan)', fontSize: '12px' }}>Caricamento stack elite…</div>
+          <div style={{ color: 'var(--vio-cyan)', fontSize: '12px' }}>{t('modelsPage.loadingElite')}</div>
         )}
 
         {!eliteLoading && eliteError && (
           <div style={{ color: 'var(--vio-red)', fontSize: '12px' }}>
-            Impossibile caricare gli elite stacks: {eliteError}
+            {t('modelsPage.eliteError')} {eliteError}
           </div>
         )}
 
@@ -386,13 +388,13 @@ export default function ModelsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Star size={12} color="var(--vio-text-dim)" />
-                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', width: '50px' }}>Qualità</span>
+                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', width: '50px' }}>{t('modelsPage.quality')}</span>
                   <ProgressBar value={m.qualityScore} color={color} />
                   <span style={{ color: 'var(--vio-text-primary)', fontSize: '11px', fontWeight: 600, width: '28px', textAlign: 'right' }}>{m.qualityScore}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Zap size={12} color="var(--vio-text-dim)" />
-                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', width: '50px' }}>Velocità</span>
+                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', width: '50px' }}>{t('modelsPage.speed')}</span>
                   <ProgressBar value={m.speedScore} color="var(--vio-cyan)" />
                   <span style={{ color: 'var(--vio-text-primary)', fontSize: '11px', fontWeight: 600, width: '28px', textAlign: 'right' }}>{m.speedScore}</span>
                 </div>
@@ -418,7 +420,7 @@ export default function ModelsPage() {
                   color: m.costPer1kOutput === 0 ? 'var(--vio-green)' : 'var(--vio-text-dim)',
                   fontSize: '11px', fontWeight: m.costPer1kOutput === 0 ? 700 : 400,
                 }}>
-                  {m.costPer1kOutput === 0 ? 'GRATIS' : `$${m.costPer1kOutput}/1K tok`}
+                  {m.costPer1kOutput === 0 ? t('modelsPage.free') : `$${m.costPer1kOutput}/1K tok`}
                 </span>
               </div>
             </motion.div>

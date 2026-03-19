@@ -20,6 +20,7 @@ const ModelsPage = lazy(() => import('./pages/ModelsPage'));
 const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const PluginsPage = lazy(() => import('./pages/PluginsPage'));
+const OpenClawPage = lazy(() => import('./pages/OpenClawPage'));
 const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
       case 'runtime': return <OrchestraRuntimePage />;
       case 'privacy': return <PrivacyPage />;
       case 'plugins': return <PluginsPage />;
+      case 'openclaw': return <OpenClawPage />;
       case 'settings': return <SettingsPanel variant="page" />;
       default: return notFoundFallback;
     }
@@ -98,7 +100,8 @@ export default function App() {
     models: t('nav.models'),
     runtime: t('nav.runtime'),
     privacy: t('nav.privacy'),
-    plugins: 'Plugin & MCP',
+    plugins: t('nav.plugins'),
+    openclaw: t('nav.openclaw'),
     settings: t('nav.settings'),
   };
 

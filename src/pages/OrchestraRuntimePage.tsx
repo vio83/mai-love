@@ -1,14 +1,15 @@
 import { motion } from 'framer-motion';
 import { Activity, AlertTriangle, Bot, CheckCircle2, CircleAlert, Clock3, Cpu, Gauge, Globe, Link2, PlayCircle, Power, RefreshCw, ShieldCheck, Wifi } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../hooks/useI18n';
 import {
-  ERROR_RATE_WINDOW_MINUTES,
-  getRuntimeAutopilotState,
-  runRuntimeOptimizationTick,
-  type RuntimeAutopilotState,
-  type RuntimeTarget,
-  setRuntimeTargetAutoOptimize,
-  setRuntimeTickInterval
+    ERROR_RATE_WINDOW_MINUTES,
+    getRuntimeAutopilotState,
+    runRuntimeOptimizationTick,
+    type RuntimeAutopilotState,
+    type RuntimeTarget,
+    setRuntimeTargetAutoOptimize,
+    setRuntimeTickInterval
 } from '../runtime/runtimeAutopilot';
 import { useAppStore } from '../stores/appStore';
 
@@ -230,6 +231,7 @@ export default function OrchestraRuntimePage() {
   const [exportingAudit, setExportingAudit] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { settings, activateFullOrchestration, updateSettings } = useAppStore();
+  const { t, lang } = useI18n();
 
   const notify = (message: string, kind: ToastKind = 'success') => {
     setToast({ message, kind });
@@ -367,9 +369,9 @@ export default function OrchestraRuntimePage() {
         syncStrictWithStore(Boolean(scheduler.policy.strict_evidence_mode));
       }
 
-      notify('Knowledge stack aggiornato con successo', 'success');
+      notify(t('runtimePage.knowledgeSuccess'), 'success');
     } catch {
-      notify('Aggiornamento knowledge stack fallito', 'error');
+      notify(t('runtimePage.knowledgeFail'), 'error');
     } finally {
       setRefreshingKnowledge(false);
     }
@@ -389,13 +391,13 @@ export default function OrchestraRuntimePage() {
         if (scheduler?.status === 'ok') {
           setKnowledgeScheduler(scheduler as KnowledgeSchedulerPayload);
           syncStrictWithStore(Boolean(scheduler.policy.strict_evidence_mode));
-          notify(`Scheduler aggiornato: refresh ogni ${hours}h`, 'success');
+          notify(t('runtimePage.schedulerUpdated', { hours: String(hours) }), 'success');
         }
       } else {
-        notify('Impossibile aggiornare lo scheduler', 'error');
+        notify(t('runtimePage.schedulerFail'), 'error');
       }
     } catch {
-      notify('Errore rete durante update scheduler', 'error');
+      notify(t('runtimePage.schedulerNetError'), 'error');
     } finally {
       setUpdatingKnowledgePolicy(false);
     }
@@ -422,12 +424,12 @@ export default function OrchestraRuntimePage() {
         if (registry?.status === 'ok') setKnowledgeRegistry(registry as KnowledgeRegistryPayload);
 
         syncStrictWithStore(nextStrict);
-        notify(`Policy aggiornata: strict ${nextStrict ? 'ON' : 'OFF'}, soglia ≥ ${nextMinScore}`, 'success');
+        notify(t('runtimePage.policyUpdated', { strict: nextStrict ? 'ON' : 'OFF', score: String(nextMinScore) }), 'success');
       } else {
-        notify('Aggiornamento policy fallito', 'error');
+        notify(t('runtimePage.policyFail'), 'error');
       }
     } catch {
-      notify('Errore rete durante update policy', 'error');
+      notify(t('runtimePage.policyNetError'), 'error');
     } finally {
       setUpdatingKnowledgePolicy(false);
     }
@@ -530,20 +532,20 @@ export default function OrchestraRuntimePage() {
 
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-          VioAiOrchestra Runtime 360
+          {t('runtimePage.title')}
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 24px' }}>
-          Runtime operativo locale/proxy con autopilot di ottimizzazione per Ollama, OpenClaw, LegalRoom e n8n.
+          {t('runtimePage.subtitle')}
         </p>
       </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '18px' }}>
         {[
-          { icon: ShieldCheck, label: 'Target online', value: `${onlineCount}/${state.targets.length}`, color: 'var(--vio-green)' },
-          { icon: Gauge, label: 'Score medio', value: `${avgOptimization}%`, color: 'var(--vio-cyan)' },
-          { icon: AlertTriangle, label: `Errori ${ERROR_RATE_WINDOW_MINUTES}m`, value: `${globalErrorRate30m.total} (${globalErrorRate30m.perHour}/h)`, color: 'var(--vio-red)' },
-          { icon: Clock3, label: 'Tick interval', value: formatInterval(state.tickIntervalMs), color: 'var(--vio-magenta)' },
-          { icon: RefreshCw, label: 'Last optimization', value: new Date(state.lastOptimizationAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }), color: 'var(--vio-yellow)' },
+          { icon: ShieldCheck, label: t('runtimePage.targetOnline'), value: `${onlineCount}/${state.targets.length}`, color: 'var(--vio-green)' },
+          { icon: Gauge, label: t('runtimePage.avgScore'), value: `${avgOptimization}%`, color: 'var(--vio-cyan)' },
+          { icon: AlertTriangle, label: t('runtimePage.errors', { minutes: String(ERROR_RATE_WINDOW_MINUTES) }), value: `${globalErrorRate30m.total} (${globalErrorRate30m.perHour}/h)`, color: 'var(--vio-red)' },
+          { icon: Clock3, label: t('runtimePage.tickInterval'), value: formatInterval(state.tickIntervalMs), color: 'var(--vio-magenta)' },
+          { icon: RefreshCw, label: t('runtimePage.lastOpt'), value: new Date(state.lastOptimizationAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' }), color: 'var(--vio-yellow)' },
         ].map((item, index) => (
           <motion.div
             key={item.label}
@@ -582,7 +584,7 @@ export default function OrchestraRuntimePage() {
             fontWeight: 700,
           }}
         >
-          <Power size={14} /> {orchestrationAllOn ? 'STACK COMPLETO ATTIVO' : 'ATTIVA TUTTO SU ON'}
+          <Power size={14} /> {orchestrationAllOn ? t('runtimePage.stackActive') : t('runtimePage.activateAll')}
         </button>
         <button
           onClick={runNow}
@@ -602,7 +604,7 @@ export default function OrchestraRuntimePage() {
             opacity: runningTick ? 0.6 : 1,
           }}
         >
-          <PlayCircle size={14} /> {runningTick ? 'Ottimizzazione in corso…' : 'Esegui ottimizzazione ora'}
+          <PlayCircle size={14} /> {runningTick ? t('runtimePage.runningOpt') : t('runtimePage.runOptNow')}
         </button>
         <button
           onClick={exportRuntimeAudit}
@@ -622,7 +624,7 @@ export default function OrchestraRuntimePage() {
             opacity: exportingAudit ? 0.65 : 1,
           }}
         >
-          <Cpu size={14} /> {exportingAudit ? 'Export audit…' : 'Export JSON audit'}
+          <Cpu size={14} /> {exportingAudit ? t('runtimePage.exportingAudit') : t('runtimePage.exportAudit')}
         </button>
         <button
           onClick={refreshKnowledgeStack}
@@ -642,7 +644,7 @@ export default function OrchestraRuntimePage() {
             opacity: refreshingKnowledge ? 0.65 : 1,
           }}
         >
-          <Globe size={14} /> {refreshingKnowledge ? 'Aggiornamento fonti…' : 'Refresh Knowledge Stack'}
+          <Globe size={14} /> {refreshingKnowledge ? t('runtimePage.refreshingKnowledge') : t('runtimePage.refreshKnowledge')}
         </button>
         {[1, 6, 24].map((hours) => (
           <button
@@ -667,7 +669,7 @@ export default function OrchestraRuntimePage() {
         <div style={{ background: 'var(--vio-bg-secondary)', border: '1px solid var(--vio-border)', borderRadius: 'var(--vio-radius-lg)', padding: '18px' }}>
           <h3 style={{ color: 'var(--vio-text-primary)', margin: '0 0 12px', fontSize: '15px' }}>
             <Link2 size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-            Integrazioni runtime attive
+            {t('runtimePage.integrations')}
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -717,7 +719,7 @@ export default function OrchestraRuntimePage() {
                     );
                   })()}
                   <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', flex: 1 }}>
-                    score: {target.optimizationScore}% • hb: {new Date(target.lastHeartbeat).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                    score: {target.optimizationScore}% • hb: {new Date(target.lastHeartbeat).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <button
                     onClick={() => toggleAutoOptimize(target)}
@@ -758,7 +760,7 @@ export default function OrchestraRuntimePage() {
         <div style={{ background: 'var(--vio-bg-secondary)', border: '1px solid var(--vio-border)', borderRadius: 'var(--vio-radius-lg)', padding: '18px' }}>
           <h3 style={{ color: 'var(--vio-text-primary)', margin: '0 0 12px', fontSize: '15px' }}>
             <Bot size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-            Repliche agenti locali
+            {t('runtimePage.agents')}
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -772,7 +774,7 @@ export default function OrchestraRuntimePage() {
           </div>
 
           <p style={{ color: 'var(--vio-text-dim)', fontSize: '11px', lineHeight: 1.5, marginTop: '12px' }}>
-            Ciclo continuo verificabile di monitoraggio e tuning — vedi Health Panel qui sotto per latenza e storico errori.
+            {t('runtimePage.agentNote')}
           </p>
         </div>
       </div>
@@ -785,7 +787,7 @@ export default function OrchestraRuntimePage() {
         style={{ marginTop: '20px', background: 'var(--vio-bg-secondary)', border: '1px solid var(--vio-border)', borderRadius: 'var(--vio-radius-lg)', padding: '18px' }}
       >
         <h3 style={{ color: 'var(--vio-text-primary)', margin: '0 0 14px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Activity size={14} /> Health Panel — Latenza & Storico Errori
+          <Activity size={14} /> {t('runtimePage.healthPanel')}
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: '12px' }}>
@@ -874,7 +876,7 @@ export default function OrchestraRuntimePage() {
                 {/* Trend latenza mini sparkline (20 tick) */}
                 <div style={{ marginBottom: '10px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Trend latenza (20 tick)</span>
+                    <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.trendLatency')}</span>
                     <span style={{ color: 'var(--vio-cyan)', fontSize: '10px' }}>avg20: {avgLatency20 || 0}ms</span>
                   </div>
                   <svg width="120" height="26" viewBox="0 0 120 26" role="img" aria-label={`Sparkline latenza ${target.name}`}>
@@ -925,7 +927,7 @@ export default function OrchestraRuntimePage() {
                           }}
                         >
                           <span style={{ color: 'var(--vio-text-dim)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                            {new Date(err.ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            {new Date(err.ts).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
                           <span style={{ color: 'var(--vio-red)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {err.msg}
@@ -950,7 +952,7 @@ export default function OrchestraRuntimePage() {
           style={{ marginTop: '20px', background: 'var(--vio-bg-secondary)', border: '1px solid rgba(0,255,255,0.28)', borderRadius: 'var(--vio-radius-lg)', padding: '18px' }}
         >
           <h3 style={{ color: 'var(--vio-text-primary)', margin: '0 0 12px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Globe size={14} color="var(--vio-cyan)" /> Global Verified Knowledge Stack
+            <Globe size={14} color="var(--vio-cyan)" /> {t('runtimePage.knowledgeStack')}
             <span style={{ marginLeft: 'auto', color: 'var(--vio-text-dim)', fontSize: '10px', fontWeight: 400 }}>
               {knowledgeRegistry.version}
             </span>
@@ -958,29 +960,29 @@ export default function OrchestraRuntimePage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginBottom: '12px' }}>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Domini</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.domains')}</div>
               <div style={{ color: 'var(--vio-cyan)', fontSize: '16px', fontWeight: 700 }}>{knowledgeRegistry.coverage.domain_count}</div>
             </div>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Sotto-domini</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.subdomains')}</div>
               <div style={{ color: 'var(--vio-green)', fontSize: '16px', fontWeight: 700 }}>{knowledgeRegistry.coverage.subdomain_count}</div>
             </div>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Fonti certificate</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.certifiedSources')}</div>
               <div style={{ color: 'var(--vio-yellow)', fontSize: '16px', fontWeight: 700 }}>{knowledgeRegistry.coverage.trusted_source_count}</div>
             </div>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Legal watch</div>
-              <div style={{ color: 'var(--vio-magenta)', fontSize: '16px', fontWeight: 700 }}>{knowledgeRegistry.legal_watch_jurisdictions.length} aree</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.legalWatch')}</div>
+              <div style={{ color: 'var(--vio-magenta)', fontSize: '16px', fontWeight: 700 }}>{knowledgeRegistry.legal_watch_jurisdictions.length} {t('runtimePage.areas')}</div>
             </div>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Affidabilità media</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.avgReliability')}</div>
               <div style={{ color: 'var(--vio-green)', fontSize: '16px', fontWeight: 700 }}>
                 {(knowledgeScores?.average_reliability ?? knowledgeRegistry.scores?.average_reliability ?? 0).toFixed(1)}%
               </div>
             </div>
             <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)' }}>
-              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Policy evidence</div>
+              <div style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.policyEvidence')}</div>
               <div style={{ color: strictEvidenceMode ? 'var(--vio-green)' : 'var(--vio-yellow)', fontSize: '16px', fontWeight: 700 }}>
                 {strictEvidenceMode ? 'STRICT ON' : 'STRICT OFF'}
               </div>
@@ -989,11 +991,11 @@ export default function OrchestraRuntimePage() {
 
           <div style={{ border: '1px solid var(--vio-border)', borderRadius: '10px', padding: '10px', background: 'var(--vio-bg-tertiary)', marginBottom: '10px' }}>
             <div style={{ color: 'var(--vio-text-primary)', fontSize: '11px', fontWeight: 700, marginBottom: '8px' }}>
-              Scheduler & Policy governance
+              {t('runtimePage.schedulerTitle')}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Refresh auto:</span>
+              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.autoRefresh')}</span>
               {[1, 3, 6, 12, 24].map((hours) => {
                 const active = (knowledgeScheduler?.scheduler.refresh_interval_hours ?? 6) === hours;
                 return (
@@ -1019,7 +1021,7 @@ export default function OrchestraRuntimePage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Min score:</span>
+              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.minScore')}</span>
               {[60, 70, 80, 90].map((score) => {
                 const active = Math.round(knowledgeScheduler?.policy.minimum_domain_score ?? knowledgeScores?.minimum_required ?? 70) === score;
                 const strict = strictEvidenceMode;
@@ -1046,7 +1048,7 @@ export default function OrchestraRuntimePage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>Strict evidence:</span>
+              <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px' }}>{t('runtimePage.strictEvidence')}</span>
               <button
                 onClick={() => updateKnowledgePolicy(
                   !strictEvidenceMode,
@@ -1069,8 +1071,8 @@ export default function OrchestraRuntimePage() {
               </button>
 
               <span style={{ color: 'var(--vio-text-dim)', fontSize: '10px', marginLeft: 'auto' }}>
-                next refresh: {knowledgeScheduler?.scheduler.next_scheduled_refresh_at
-                  ? new Date(knowledgeScheduler.scheduler.next_scheduled_refresh_at).toLocaleString('it-IT')
+                {t('runtimePage.nextRefresh')} {knowledgeScheduler?.scheduler.next_scheduled_refresh_at
+                  ? new Date(knowledgeScheduler.scheduler.next_scheduled_refresh_at).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT')
                   : 'n/d'}
               </span>
             </div>
@@ -1085,7 +1087,7 @@ export default function OrchestraRuntimePage() {
                 fail: {knowledgeWatch.refresh_state.fail_count ?? 0}
               </span>
               <span style={{ border: '1px solid var(--vio-border)', borderRadius: '999px', padding: '3px 8px', fontSize: '10px', color: 'var(--vio-text-dim)' }}>
-                last refresh: {knowledgeWatch.refresh_state.last_refresh_at ? new Date(knowledgeWatch.refresh_state.last_refresh_at).toLocaleString('it-IT') : 'n/d'}
+                last refresh: {knowledgeWatch.refresh_state.last_refresh_at ? new Date(knowledgeWatch.refresh_state.last_refresh_at).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT') : 'n/d'}
               </span>
             </div>
           )}

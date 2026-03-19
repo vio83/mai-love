@@ -1,5 +1,6 @@
 // VIO 83 AI ORCHESTRA — Privacy & Legal Page
 import { ExternalLink, Lock, Server, ShieldCheck, Trash2 } from 'lucide-react';
+import { useI18n } from '../hooks/useI18n';
 
 const PROVIDERS = [
   { name: 'Anthropic (Claude)', url: 'https://www.anthropic.com/privacy' },
@@ -9,15 +10,6 @@ const PROVIDERS = [
   { name: 'Mistral AI', url: 'https://mistral.ai/privacy-policy/' },
   { name: 'DeepSeek', url: 'https://www.deepseek.com/privacy' },
   { name: 'xAI (Grok)', url: 'https://x.ai/legal/privacy-policy' },
-];
-
-const LOCAL_DATA = [
-  { item: 'Messaggi chat', file: 'data/vio83_orchestra.db', retention: 'Fino a cancellazione' },
-  { item: 'Preferenze app', file: 'data/vio83_orchestra.db', retention: 'Permanente' },
-  { item: 'Metriche aggregate', file: 'data/vio83_orchestra.db', retention: '90 giorni (auto)' },
-  { item: 'Log di processo', file: 'data/process_log.db', retention: '7 giorni (rotazione)' },
-  { item: 'Cache risposte AI', file: 'data/cache.db', retention: 'TTL configurabile' },
-  { item: 'Knowledge base', file: 'data/knowledge_distilled.db', retention: 'Fino a cancellazione' },
 ];
 
 const cardStyle: React.CSSProperties = {
@@ -47,6 +39,17 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function PrivacyPage() {
+  const { t } = useI18n();
+
+  const LOCAL_DATA = [
+    { item: t('privacyPage.chatMessages'), file: 'data/vio83_orchestra.db', retention: t('privacyPage.untilDeletion') },
+    { item: t('privacyPage.appPreferences'), file: 'data/vio83_orchestra.db', retention: t('privacyPage.permanent') },
+    { item: t('privacyPage.aggregateMetrics'), file: 'data/vio83_orchestra.db', retention: t('privacyPage.ninetyDays') },
+    { item: t('privacyPage.processLogs'), file: 'data/process_log.db', retention: t('privacyPage.sevenDays') },
+    { item: t('privacyPage.aiCache'), file: 'data/cache.db', retention: t('privacyPage.configurableTtl') },
+    { item: t('privacyPage.knowledgeBase'), file: 'data/knowledge_distilled.db', retention: t('privacyPage.untilDeletion') },
+  ];
+
   return (
     <div style={{
       height: '100%',
@@ -61,10 +64,10 @@ export default function PrivacyPage() {
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <ShieldCheck size={24} color="var(--vio-green)" />
-            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Privacy & Legal</h1>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>{t('privacyPage.title')}</h1>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--vio-text-secondary)', margin: 0 }}>
-            VIO 83 AI Orchestra v0.9.0-beta — Viorica Porcu — AGPL-3.0 / Licenza Commerciale
+            {t('privacyPage.versionLine')}
           </p>
         </div>
 
@@ -80,12 +83,10 @@ export default function PrivacyPage() {
           <Lock size={20} color="var(--vio-green)" style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
             <div style={{ fontWeight: 700, marginBottom: '4px', color: 'var(--vio-green)' }}>
-              Local-First by Design
+              {t('privacyPage.localFirst')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--vio-text-secondary)', lineHeight: '1.6' }}>
-              Tutti i dati vengono salvati <strong>esclusivamente sul tuo Mac</strong>, in database SQLite locali
-              in <code style={{ color: 'var(--vio-cyan)' }}>~/Projects/vio83-ai-orchestra/data/</code>.
-              Nessun dato viene inviato a server del progetto. Nessuna telemetria, nessun tracking, nessuna pubblicità.
+              {t('privacyPage.localFirstDesc')}
             </div>
           </div>
         </div>
@@ -94,12 +95,12 @@ export default function PrivacyPage() {
         <div style={cardStyle}>
           <div style={headerStyle}>
             <Server size={16} color="var(--vio-cyan)" />
-            Dati salvati localmente
+            {t('privacyPage.localData')}
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr>
-                {['Dato', 'File', 'Durata'].map((h) => (
+                {[t('privacyPage.thData'), t('privacyPage.thFile'), t('privacyPage.thRetention')].map((h) => (
                   <th key={h} style={{ ...labelStyle, textAlign: 'left', padding: '6px 10px 6px 0', borderBottom: '1px solid var(--vio-border)' }}>
                     {h}
                   </th>
@@ -128,15 +129,15 @@ export default function PrivacyPage() {
         <div style={cardStyle}>
           <div style={headerStyle}>
             <ShieldCheck size={16} color="var(--vio-green)" />
-            I tuoi diritti (GDPR Art. 15–22)
+            {t('privacyPage.gdprTitle')}
           </div>
           <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
             {[
-              { right: 'Accesso', how: 'Apri i file .db in data/ con DB Browser for SQLite' },
-              { right: 'Cancellazione', how: 'Elimina i file in data/ o usa "Cancella tutto" in Impostazioni' },
-              { right: 'Portabilità', how: 'Esporta conversazioni dalla sezione Analytics' },
-              { right: 'Opposizione', how: 'Disattiva cache: VIO_CACHE_ENABLED=false nel .env' },
-              { right: 'Rettifica', how: 'Modifica direttamente il database locale' },
+              { right: t('privacyPage.gdprAccess'), how: t('privacyPage.gdprAccessHow') },
+              { right: t('privacyPage.gdprDeletion'), how: t('privacyPage.gdprDeletionHow') },
+              { right: t('privacyPage.gdprPortability'), how: t('privacyPage.gdprPortabilityHow') },
+              { right: t('privacyPage.gdprObjection'), how: t('privacyPage.gdprObjectionHow') },
+              { right: t('privacyPage.gdprRectification'), how: t('privacyPage.gdprRectificationHow') },
             ].map(({ right, how }) => (
               <div key={right} style={{ display: 'flex', gap: '10px', padding: '8px', background: 'var(--vio-bg-primary)', borderRadius: '6px' }}>
                 <span style={{ color: 'var(--vio-green)', fontWeight: 700, minWidth: '90px' }}>{right}</span>
@@ -145,7 +146,7 @@ export default function PrivacyPage() {
             ))}
           </div>
           <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--vio-text-dim)' }}>
-            Contatto GDPR: <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>
+            {t('privacyPage.gdprContact')} <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>
           </div>
         </div>
 
@@ -153,11 +154,10 @@ export default function PrivacyPage() {
         <div style={cardStyle}>
           <div style={headerStyle}>
             <ExternalLink size={16} color="var(--vio-cyan)" />
-            Provider Cloud (opzionali)
+            {t('privacyPage.cloudProviders')}
           </div>
           <p style={{ fontSize: '13px', color: 'var(--vio-text-secondary)', marginBottom: '12px' }}>
-            Quando configuri una API key e invii un messaggio, il testo viene trasmesso
-            direttamente al provider via HTTPS. Si applicano le loro policy:
+            {t('privacyPage.cloudProvidersDesc')}
           </p>
           <div style={{ display: 'grid', gap: '6px' }}>
             {PROVIDERS.map(({ name, url }) => (
@@ -188,7 +188,7 @@ export default function PrivacyPage() {
             ))}
           </div>
           <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(34,197,94,0.05)', borderRadius: '6px', fontSize: '12px', color: 'var(--vio-green)' }}>
-            💻 La modalità <strong>Ollama locale</strong> non trasmette nulla fuori dal dispositivo.
+            💻 {t('privacyPage.localModeNote')}
           </div>
         </div>
 
@@ -196,17 +196,15 @@ export default function PrivacyPage() {
         <div style={cardStyle}>
           <div style={headerStyle}>
             <Lock size={16} color="var(--vio-text-dim)" />
-            Sicurezza
+            {t('privacyPage.security')}
           </div>
           <div style={{ display: 'grid', gap: '6px', fontSize: '13px', color: 'var(--vio-text-secondary)' }}>
-            <div>• Database accessibili solo dall'utente macOS loggato (permessi <code style={{ color: 'var(--vio-cyan)' }}>rw-------</code>)</div>
-            <div>• API keys salvate nel <code style={{ color: 'var(--vio-cyan)' }}>.env</code> locale — <strong style={{ color: 'var(--vio-text-primary)' }}>non condividere mai questo file</strong></div>
-            <div>• Backend API accessibile solo da <code style={{ color: 'var(--vio-cyan)' }}>localhost:4000</code></div>
-            <div>• Comunicazioni cloud via HTTPS con TLS 1.2+</div>
-            <div>• Rate limiting: 30 richieste/minuto per endpoint chat</div>
+            {(t('privacyPage.securityItems') as unknown as string[]).map((item: string, idx: number) => (
+              <div key={idx}>• {item}</div>
+            ))}
           </div>
           <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--vio-text-dim)' }}>
-            Segnalazione vulnerabilità: <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>
+            {t('privacyPage.vulnReport')} <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>
           </div>
         </div>
 
@@ -214,10 +212,10 @@ export default function PrivacyPage() {
         <div style={{ ...cardStyle, borderColor: 'rgba(239,68,68,0.3)' }}>
           <div style={{ ...headerStyle }}>
             <Trash2 size={16} color="#ef4444" />
-            Cancella tutti i dati locali
+            {t('privacyPage.deleteAll')}
           </div>
           <p style={{ fontSize: '13px', color: 'var(--vio-text-secondary)', marginBottom: '12px' }}>
-            Per eliminare completamente tutti i dati locali:
+            {t('privacyPage.deleteDesc')}
           </p>
           <pre style={{
             background: 'var(--vio-bg-primary)',
@@ -242,13 +240,13 @@ pm2 start ecosystem.config.cjs`}
 
         {/* Footer legale */}
         <div style={{ fontSize: '12px', color: 'var(--vio-text-dim)', textAlign: 'center', paddingTop: '8px', lineHeight: '1.8' }}>
-          <div>VIO 83 AI Orchestra è distribuita con doppia licenza: <strong>AGPL-3.0</strong> (open source) e licenza commerciale proprietaria.</div>
-          <div>Le risposte AI non costituiscono consulenza medica, legale o finanziaria.</div>
+          <div>{t('privacyPage.footerLicense')}</div>
+          <div>{t('privacyPage.footerDisclaimer')}</div>
           <div>
             <a href="https://github.com/vio83/vio83-ai-orchestra" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--vio-cyan)', marginRight: '16px' }}>GitHub</a>
             <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>
           </div>
-          <div style={{ marginTop: '4px' }}>© 2026 Viorica Porcu — Giurisdizione: Tribunale di Cagliari, Italia</div>
+          <div style={{ marginTop: '4px' }}>{t('privacyPage.footerJurisdiction')}</div>
         </div>
 
       </div>

@@ -30,7 +30,7 @@ interface ExecuteResult {
   elapsed: number;
 }
 
-const API = 'http://localhost:8000';
+const API = 'http://localhost:4000';
 
 export default function PluginsPage() {
   const { t } = useI18n();
@@ -52,7 +52,7 @@ export default function PluginsPage() {
       const data = await resp.json();
       setPlugins(data.plugins || []);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Errore caricamento plugin');
+      setError(e instanceof Error ? e.message : t('pluginsPage.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -119,15 +119,15 @@ export default function PluginsPage() {
         <div>
           <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Cpu size={20} color="var(--vio-green)" />
-            Plugin & Integrazioni
+            {t('pluginsPage.title')}
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--vio-text-dim)' }}>
-            Sistema MCP-compatibile — {plugins.length} plugin installati
+            {t('pluginsPage.subtitle', { count: String(plugins.length) })}
           </p>
         </div>
         <button
           onClick={fetchPlugins}
-          title="Ricarica plugin"
+          title={t('pluginsPage.reload')}
           style={{
             background: 'none',
             border: '1px solid var(--vio-border)',
@@ -142,7 +142,7 @@ export default function PluginsPage() {
           }}
         >
           <RefreshCw size={14} />
-          Ricarica
+          {t('pluginsPage.reload')}
         </button>
       </div>
 
@@ -157,13 +157,13 @@ export default function PluginsPage() {
         }}>
           {loading ? (
             <div style={{ color: 'var(--vio-text-dim)', fontSize: '13px', padding: 12 }}>
-              Caricamento plugin...
+              {t('pluginsPage.loading')}
             </div>
           ) : error ? (
             <div style={{ color: '#ef4444', fontSize: '12px', padding: 12 }}>
               ⚠ {error}
               <br />
-              <small>Assicurati che il backend sia in esecuzione</small>
+              <small>{t('pluginsPage.backendHint')}</small>
             </div>
           ) : (
             plugins.map(plugin => (
@@ -212,7 +212,7 @@ export default function PluginsPage() {
               color: 'var(--vio-text-dim)',
             }}>
               <Cpu size={40} />
-              <div>Seleziona un plugin per esplorarlo ed eseguire i suoi tool</div>
+              <div>{t('pluginsPage.selectPlugin')}</div>
             </div>
           ) : (
             <>
@@ -246,7 +246,7 @@ export default function PluginsPage() {
               {/* Tool selector */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--vio-text-dim)', marginBottom: 6, display: 'block' }}>
-                  Tool da eseguire
+                  {t('pluginsPage.toolToExecute')}
                 </label>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {selected.tools.map(tool => (
@@ -291,8 +291,8 @@ export default function PluginsPage() {
                       <div key={paramName} style={{ marginBottom: 10 }}>
                         <label style={{ fontSize: '11px', color: 'var(--vio-text-dim)', display: 'block', marginBottom: 4 }}>
                           {paramName}
-                          {def.type && <span style={{ color: 'var(--vio-magenta)', marginLeft: 4 }}>({def.type as string})</span>}
-                          {def.description && <span> — {def.description as string}</span>}
+                          {def.type ? <span style={{ color: 'var(--vio-magenta)', marginLeft: 4 }}>({`${def.type}`})</span> : null}
+                          {def.description ? <span> — {`${def.description}`}</span> : null}
                         </label>
                         <input
                           type="text"
@@ -335,7 +335,7 @@ export default function PluginsPage() {
                     }}
                   >
                     <Play size={14} />
-                    {executing ? 'Esecuzione...' : `Esegui ${selectedTool}`}
+                    {executing ? t('pluginsPage.executing') : t('pluginsPage.execute', { tool: selectedTool })}
                   </button>
                 </div>
               )}
@@ -345,7 +345,7 @@ export default function PluginsPage() {
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--vio-text-dim)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Terminal size={12} />
-                    Risultato — {lastResult.elapsed}ms
+                    {t('pluginsPage.result')} — {lastResult.elapsed}ms
                   </div>
                   <pre style={{
                     backgroundColor: 'var(--vio-bg-secondary)',
@@ -369,7 +369,7 @@ export default function PluginsPage() {
                 <div style={{ marginTop: 16 }}>
                   <div style={{ fontSize: '11px', color: 'var(--vio-text-dim)', marginBottom: 6 }}>
                     <Search size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                    Esempi:
+                    {t('pluginsPage.examples')}
                   </div>
                   {currentTool.examples.map((ex, i) => (
                     <code key={i} style={{

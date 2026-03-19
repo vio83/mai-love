@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { Award, BookOpen, Clock, Database, FolderOpen, Search, Upload, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../hooks/useI18n';
 
 const ragSources = [
   { id: '1', name: 'ArXiv Papers (CS & AI)', docs: 4230, status: 'indexed' as const, quality: 'gold' as const, icon: '📄', category: 'Informatica' },
@@ -14,22 +15,23 @@ const ragSources = [
   { id: '8', name: 'Libri Tecnici (O\'Reilly)', docs: 340, status: 'indexed' as const, quality: 'silver' as const, icon: '📕', category: 'Libri' },
 ];
 
-const qualityConfig = {
-  gold: { label: 'Gold', color: '#FBB924', desc: 'Peer-reviewed, documentazione ufficiale' },
-  silver: { label: 'Silver', color: '#94A3B8', desc: 'Fonti affidabili, non peer-reviewed' },
-  bronze: { label: 'Bronze', color: '#D97706', desc: 'Community-sourced, verificato' },
-  unverified: { label: 'N/V', color: '#666', desc: 'Non ancora verificato' },
-};
-
-const statusConfig = {
-  indexed: { label: '✓ Indicizzato', color: 'var(--vio-green)', bg: 'rgba(0,255,0,0.1)' },
-  indexing: { label: '⟳ Indicizzando...', color: 'var(--vio-cyan)', bg: 'rgba(0,255,255,0.1)' },
-  queued: { label: '⏳ In Coda', color: 'var(--vio-text-dim)', bg: 'var(--vio-bg-tertiary)' },
-  error: { label: '✕ Errore', color: 'var(--vio-red)', bg: 'rgba(255,50,50,0.1)' },
-};
-
 export default function RagPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useI18n();
+
+  const qualityConfig = {
+    gold: { label: 'Gold', color: '#FBB924', desc: t('ragPage.qualityGoldDesc') },
+    silver: { label: 'Silver', color: '#94A3B8', desc: t('ragPage.qualitySilverDesc') },
+    bronze: { label: 'Bronze', color: '#D97706', desc: t('ragPage.qualityBronzeDesc') },
+    unverified: { label: 'N/V', color: '#666', desc: t('ragPage.qualityUnverifiedDesc') },
+  };
+
+  const statusConfig = {
+    indexed: { label: t('ragPage.statusIndexed'), color: 'var(--vio-green)', bg: 'rgba(0,255,0,0.1)' },
+    indexing: { label: t('ragPage.statusIndexing'), color: 'var(--vio-cyan)', bg: 'rgba(0,255,255,0.1)' },
+    queued: { label: t('ragPage.statusQueued'), color: 'var(--vio-text-dim)', bg: 'var(--vio-bg-tertiary)' },
+    error: { label: t('ragPage.statusError'), color: 'var(--vio-red)', bg: 'rgba(255,50,50,0.1)' },
+  };
 
   const totalDocs = ragSources.reduce((a, b) => a + b.docs, 0);
   const targetDocs = 100000;
@@ -48,20 +50,20 @@ export default function RagPage() {
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--vio-text-primary)', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-          RAG Knowledge Base
+          {t('ragPage.title')}
         </h1>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: '0 0 28px' }}>
-          Retrieval-Augmented Generation con fonti certificate — ChromaDB + SQLite FTS5
+          {t('ragPage.subtitle')}
         </p>
       </motion.div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
-          { icon: BookOpen, label: 'Documenti', value: totalDocs.toLocaleString(), color: 'var(--vio-green)' },
-          { icon: Database, label: 'Embedding Vettoriali', value: '2.1M', color: 'var(--vio-cyan)' },
-          { icon: FolderOpen, label: 'Dimensione Index', value: '4.7 GB', color: 'var(--vio-magenta)' },
-          { icon: Zap, label: 'Retrieval Medio', value: '47ms', color: 'var(--vio-yellow)' },
+          { icon: BookOpen, label: t('ragPage.documents'), value: totalDocs.toLocaleString(), color: 'var(--vio-green)' },
+          { icon: Database, label: t('ragPage.embeddings'), value: '2.1M', color: 'var(--vio-cyan)' },
+          { icon: FolderOpen, label: t('ragPage.indexSize'), value: '4.7 GB', color: 'var(--vio-magenta)' },
+          { icon: Zap, label: t('ragPage.avgRetrieval'), value: '47ms', color: 'var(--vio-yellow)' },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -81,7 +83,7 @@ export default function RagPage() {
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Cerca nella Knowledge Base..."
+            placeholder={t('ragPage.searchPlaceholder')}
             style={{
               width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--vio-radius)',
               border: '1px solid var(--vio-border)', background: 'var(--vio-bg-secondary)',
@@ -94,7 +96,7 @@ export default function RagPage() {
           borderRadius: 'var(--vio-radius)', padding: '10px 16px', color: 'var(--vio-green)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
         }}>
-          <Upload size={14} /> Importa
+          <Upload size={14} /> {t('ragPage.import')}
         </button>
       </div>
 
@@ -121,7 +123,7 @@ export default function RagPage() {
               fontSize: '13px',
             }}
           >
-            Nessuna fonte trovata per <strong style={{ color: 'var(--vio-text-primary)' }}>{searchQuery}</strong>.
+            {t('ragPage.noResults')} <strong style={{ color: 'var(--vio-text-primary)' }}>{searchQuery}</strong>.
           </div>
         )}
         {filteredSources.map((s, i) => {
@@ -143,7 +145,7 @@ export default function RagPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ color: 'var(--vio-text-primary)', fontSize: '14px', fontWeight: 600 }}>{s.name}</div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '3px' }}>
-                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '11px' }}>{s.docs.toLocaleString()} documenti</span>
+                  <span style={{ color: 'var(--vio-text-dim)', fontSize: '11px' }}>{s.docs.toLocaleString()} {t('ragPage.docsCount')}</span>
                   <span style={{ color: 'var(--vio-text-dim)', fontSize: '11px' }}>•</span>
                   <span style={{ color: 'var(--vio-text-dim)', fontSize: '11px' }}>{s.category}</span>
                 </div>
@@ -178,7 +180,7 @@ export default function RagPage() {
       >
         <h3 style={{ color: 'var(--vio-text-primary)', margin: '0 0 12px', fontSize: '14px', fontWeight: 600 }}>
           <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '6px', color: 'var(--vio-green)' }} />
-          Progresso Knowledge Base
+          {t('ragPage.progress')}
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ flex: 1, height: '12px', background: 'var(--vio-bg-tertiary)', borderRadius: '6px', overflow: 'hidden' }}>
@@ -197,7 +199,7 @@ export default function RagPage() {
           </span>
         </div>
         <p style={{ color: 'var(--vio-text-dim)', fontSize: '12px', marginTop: '8px' }}>
-          Target: 100K documenti verificati su 42 categorie di conoscenza (1,082 sotto-discipline)
+          {t('ragPage.progressTarget')}
         </p>
       </motion.div>
     </div>
