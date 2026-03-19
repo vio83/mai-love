@@ -1,6 +1,6 @@
 // VIO 83 AI ORCHESTRA - Vista Chat Principale con Streaming
 import { Music } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../hooks/useI18n';
 import { sendToOrchestra } from '../../services/ai/orchestrator';
 import { useAppStore } from '../../stores/appStore';
@@ -54,7 +54,7 @@ export default function ChatView() {
 
     const timer = window.setInterval(() => {
       setElapsedMs(Date.now() - streamingStartedAt);
-    }, 250);
+    }, 500);
 
     return () => window.clearInterval(timer);
   }, [isStreaming, streamingStartedAt]);
@@ -93,7 +93,7 @@ export default function ChatView() {
     streamBufferRef.current = '';
   };
 
-  const handleSend = async (content: string, attachments?: Attachment[]) => {
+  const handleSend = useCallback(async (content: string, attachments?: Attachment[]) => {
     let convId = activeConversationId;
     if (!convId) {
       convId = createConversation();
@@ -207,7 +207,8 @@ export default function ChatView() {
       setStreamingContent('');
       resetStreamBuffer();
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId, settings, t]);
 
   // === Welcome Screen ===
   if (!activeConversation || activeConversation.messages.length === 0) {

@@ -128,10 +128,23 @@ def _iso_from_epoch(epoch_s: float) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch_s))
 
 
+# Cached _read_project_env_map with 30s TTL — avoids re-parsing .env on every call
+_ENV_MAP_CACHE: dict[str, str] | None = None
+_ENV_MAP_CACHE_TS: float = 0.0
+_ENV_MAP_CACHE_TTL: float = 30.0
+
+
 def _read_project_env_map() -> dict[str, str]:
+    global _ENV_MAP_CACHE, _ENV_MAP_CACHE_TS
+    now = time.time()
+    if _ENV_MAP_CACHE is not None and (now - _ENV_MAP_CACHE_TS) < _ENV_MAP_CACHE_TTL:
+        return _ENV_MAP_CACHE
+
     env_map: dict[str, str] = {}
 
     if not PROJECT_ENV_PATH.exists():
+        _ENV_MAP_CACHE = env_map
+        _ENV_MAP_CACHE_TS = now
         return env_map
 
     try:
@@ -145,6 +158,8 @@ def _read_project_env_map() -> dict[str, str]:
     except Exception:
         return env_map
 
+    _ENV_MAP_CACHE = env_map
+    _ENV_MAP_CACHE_TS = now
     return env_map
 
 
@@ -310,7 +325,17 @@ def _read_json_file(path: Path) -> Optional[dict[str, Any]]:
         return None
 
 
+# Cached Claude Desktop snapshot with 15s TTL
+_CLAUDE_DESKTOP_CACHE: dict[str, Any] | None = None
+_CLAUDE_DESKTOP_CACHE_TS: float = 0.0
+
+
 def _claude_desktop_snapshot() -> dict[str, Any]:
+    global _CLAUDE_DESKTOP_CACHE, _CLAUDE_DESKTOP_CACHE_TS
+    now = time.time()
+    if _CLAUDE_DESKTOP_CACHE is not None and (now - _CLAUDE_DESKTOP_CACHE_TS) < 15.0:
+        return _CLAUDE_DESKTOP_CACHE
+
     base_path = Path.home() / "Library" / "Application Support" / "Claude"
     ext_path = base_path / "extensions-installations.json"
     cfg_path = base_path / "claude_desktop_config.json"
@@ -319,7 +344,7 @@ def _claude_desktop_snapshot() -> dict[str, Any]:
     ext_map = ext_data.get("extensions", {}) if isinstance(ext_data, dict) else {}
     preferences = cfg_data.get("preferences", {}) if isinstance(cfg_data, dict) else {}
 
-    return {
+    result = {
         "installed": base_path.exists(),
         "base_path": str(base_path),
         "extensions_count": len(ext_map) if isinstance(ext_map, dict) else 0,
@@ -330,6 +355,9 @@ def _claude_desktop_snapshot() -> dict[str, Any]:
             "sidebarMode": preferences.get("sidebarMode", ""),
         },
     }
+    _CLAUDE_DESKTOP_CACHE = result
+    _CLAUDE_DESKTOP_CACHE_TS = now
+    return result
 
 
 def _runtime_apps_snapshot() -> dict[str, Any]:
@@ -960,6 +988,11 @@ def _check_rate_limit(client_id: str, path: str) -> bool:
     if len(_rate_buckets[client_id]) >= _RATE_LIMIT_MAX_CHAT:
         return False
     _rate_buckets[client_id].append(now)
+    # Periodic cleanup: prevent unbounded memory growth
+    if len(_rate_buckets) > 5000:
+        stale_keys = [k for k, v in _rate_buckets.items() if not v or (now - max(v)) > 600]
+        for k in stale_keys:
+            del _rate_buckets[k]
     return True
 
 

@@ -1,7 +1,6 @@
 // VIO 83 AI ORCHESTRA - App Principale con Navigazione Multi-Pagina
 import { Menu } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
-import ParticleBackground from './components/layout/ParticleBackground';
 import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import Sidebar from './components/sidebar/Sidebar';
@@ -9,6 +8,9 @@ import { useI18n } from './hooks/useI18n';
 import { detectLocale } from './i18n';
 import { useAppStore } from './stores/appStore';
 import './styles/vio-dark.css';
+
+// Lazy-load heavy components for faster initial paint
+const ParticleBackground = lazy(() => import('./components/layout/ParticleBackground'));
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ChatView = lazy(() => import('./components/chat/ChatView'));
@@ -115,7 +117,9 @@ export default function App() {
       color: 'var(--vio-text-primary)',
       position: 'relative',
     }}>
-      <ParticleBackground />
+      <Suspense fallback={null}>
+        <ParticleBackground />
+      </Suspense>
 
       {/* Sidebar */}
       <Sidebar />

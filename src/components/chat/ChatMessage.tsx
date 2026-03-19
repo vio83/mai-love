@@ -1,5 +1,6 @@
 // VIO 83 AI ORCHESTRA - Componente Messaggio Chat
 import { AlertCircle, Bot, CheckCircle, Clock, User, Zap } from 'lucide-react';
+import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
@@ -55,7 +56,7 @@ interface ChatMessageProps {
   message: Message;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+function ChatMessageInner({ message }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const isUser = message.role === 'user';
 
@@ -232,3 +233,9 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     </div>
   );
 }
+
+const ChatMessage = memo(ChatMessageInner, (prev: ChatMessageProps, next: ChatMessageProps) =>
+  prev.message.id === next.message.id && prev.message.content === next.message.content
+);
+
+export default ChatMessage;

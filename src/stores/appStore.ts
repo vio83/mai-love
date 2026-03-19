@@ -119,13 +119,13 @@ export const useAppStore = create<AppState>()(
           conversations: state.conversations.map(conv =>
             conv.id === conversationId
               ? {
-                  ...conv,
-                  messages: [...conv.messages, message],
-                  updatedAt: Date.now(),
-                  title: conv.messages.length === 0 && message.role === 'user'
-                    ? message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '')
-                    : conv.title,
-                }
+                ...conv,
+                messages: [...conv.messages, message],
+                updatedAt: Date.now(),
+                title: conv.messages.length === 0 && message.role === 'user'
+                  ? message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '')
+                  : conv.title,
+              }
               : conv
           ),
         }));
@@ -238,6 +238,9 @@ export const useAppStore = create<AppState>()(
         return rest;
       },
       migrate: (persistedState: unknown, version: number) => {
+        // Fast path: skip migration if version matches
+        if (version === STORE_VERSION) return persistedState as Record<string, unknown>;
+
         const ps = (persistedState || {}) as Record<string, unknown>;
         const currentSettings = (ps.settings || {}) as Record<string, unknown>;
         const mergedSettings = {
