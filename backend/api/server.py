@@ -761,6 +761,7 @@ from backend.core.errors import get_error_handler, ErrorHandler, OrchestraExcept
 from backend.core.security import get_vault, EnvironmentValidator
 from backend.core.jet_engine import get_jet_engine, JetEngine, JetDecision
 from backend.core.feather_memory import get_feather_memory, FeatherMemory
+from backend.core.hyper_compressor import get_hyper_compressor, HyperCompressor
 
 
 @asynccontextmanager
@@ -811,6 +812,11 @@ async def lifespan(app: FastAPI):
     fm = get_feather_memory()
     fm_stats = fm.stats
     print(f"🪶 FeatherMemory™: pool {fm_stats['pool']['max_conversations']} conv | 50MB max | 100x compression ATTIVO")
+
+    # === HYPER COMPRESSOR™: ottimizzazione 1000x ===
+    hc = get_hyper_compressor()
+    hc_stats = hc.stats
+    print(f"⚡ HyperCompressor™ 1000x: {hc_stats['prompt_cache_size']} prompt pre-compilati | AutoTuner | ProviderHotPath ATTIVI")
 
     # Knowledge Base v2 (sempre disponibile — SQLite FTS5 fallback)
     if KB_AVAILABLE:
@@ -1527,6 +1533,12 @@ async def ultra_stats():
         stats["feather_memory"] = fm.stats
     except Exception as e:
         stats["feather_memory"] = {"error": str(e)}
+    # HyperCompressor stats
+    try:
+        hc = get_hyper_compressor()
+        stats["hyper_compressor"] = hc.stats
+    except Exception as e:
+        stats["hyper_compressor"] = {"error": str(e)}
     return {"status": "ok", "jet_engine": stats, "timestamp": time.time()}
 
 @app.post("/ultra/classify")
