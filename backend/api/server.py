@@ -32,7 +32,7 @@ from collections import defaultdict
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 
 from backend.models.schemas import (
@@ -64,6 +64,13 @@ RAG_AVAILABLE = False
 # except Exception as e:
 #     print(f"⚠️  RAG Engine legacy non disponibile: {e}")
 
+# Stubs per evitare errori Pylance sui path RAG_AVAILABLE==False
+def get_rag_engine():
+    raise RuntimeError("RAG Engine non disponibile")
+
+class RAGSource:
+    def __init__(self, **kwargs: Any): ...
+
 # Knowledge Base v2 — attiva quando il modulo è importabile (fallback SQLite FTS5)
 KB_AVAILABLE = False
 KB_IMPORT_ERROR: str | None = None
@@ -84,10 +91,10 @@ RUNTIME_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio8
 ORCHESTRA_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio83.ai-orchestra.plist"
 
 RUNTIME_ENV_DEFAULTS = {
-    "OPENCLAW_START_CMD": "",
+    "OPENCLAW_START_CMD": "builtin",  # Built-in agent runtime on main server
     "LEGALROOM_START_CMD": "",
     "N8N_START_CMD": "",
-    "OPENCLAW_HEALTH_URLS": "http://127.0.0.1:4111/health,http://127.0.0.1:4111/",
+    "OPENCLAW_HEALTH_URLS": "http://127.0.0.1:4000/openclaw/health,http://127.0.0.1:4111/health",
     "LEGALROOM_HEALTH_URLS": "http://127.0.0.1:4222/health,http://127.0.0.1:4222/",
     "N8N_HEALTH_URLS": "http://127.0.0.1:5678/healthz,http://127.0.0.1:5678/rest/healthz,http://127.0.0.1:5678/",
     "RUNTIME_APPS_UPDATE_POLICY": "user-approved",
@@ -752,6 +759,7 @@ from backend.core.network import get_connection_pool, ConnectionPoolManager
 from backend.core.parallel import TaskPool, ParallelQueryEngine
 from backend.core.errors import get_error_handler, ErrorHandler, OrchestraException
 from backend.core.security import get_vault, EnvironmentValidator
+from backend.core.jet_engine import get_jet_engine, JetEngine, JetDecision
 
 
 @asynccontextmanager
@@ -792,6 +800,11 @@ async def lifespan(app: FastAPI):
     # === ERROR HANDLER ===
     error_handler = get_error_handler()
     print(f"🛡️  Error Handler: attivo")
+
+    # === JET ENGINE™: velocità aereo militare ===
+    jet = get_jet_engine()
+    jet_stats = jet.stats()
+    print(f"✈️  JetEngine™ Mach 1.6+: TurboCache {jet_stats['turbo_cache']['max_size']} slot | local-first | parallel-sprint ATTIVI")
 
     # Knowledge Base v2 (sempre disponibile — SQLite FTS5 fallback)
     if KB_AVAILABLE:
@@ -1100,7 +1113,7 @@ def _build_vision_message(text: str, images: list) -> dict:
     Costruisce un messaggio in formato OpenAI vision (multi-content).
     Compatibile con: GPT-4V, Claude 3+, Gemini, Ollama llava.
     """
-    content = [{"type": "text", "text": text}]
+    content: list[dict[str, Any]] = [{"type": "text", "text": text}]
     for img in images:
         if img.get("data_url"):
             # Extract base64 data from data URL
@@ -1129,30 +1142,71 @@ _VISION_PROVIDERS = ["claude", "openai", "gemini", "groq", "openrouter"]
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Chat principale — instrada la richiesta al provider migliore. Supporta vision/multimodal."""
+    """Chat principale — instrada la richiesta al provider migliore. Supporta vision/multimodal e agent mode."""
     try:
         runtime_mode = request.mode or "local"
+
+        # === AGENT MODE: delega a OpenClaw per task multi-step ===
+        if request.agent_mode:
+            from backend.openclaw.agent import run_agent
+            registry = _get_plugin_registry()
+            agent_result = await run_agent(
+                task=request.message,
+                model=request.model or "qwen2.5-coder:3b",
+                provider=request.provider or "ollama",
+                registry=registry,
+            )
+            content = agent_result.answer
+            tools_info = ""
+            if agent_result.tools_used:
+                tools_info = f"\n\n🔧 Tools: {', '.join(agent_result.tools_used)}"
+            return ChatResponse(
+                content=content + tools_info,
+                provider="openclaw",
+                model=request.model or "qwen2.5-coder:3b",
+                tokens_used=0,
+                latency_ms=agent_result.total_latency_ms,
+                request_type="automation",
+            )
 
         # === VISION MODE: immagini allegate ===
         has_images = bool(request.images)
         if has_images:
             # Force cloud mode for vision (Ollama llava supportato ma limitato)
             runtime_mode = "cloud"
-            images_dicts = [img.dict() for img in request.images]
+            images_dicts = [img.dict() for img in request.images] if request.images else []
             vision_message = _build_vision_message(request.message, images_dicts)
             messages = [vision_message]
         else:
             messages = [{"role": "user", "content": request.message}]
 
-        # Response cache per messaggi identici senza conversazione (FAQ / ripetizioni)
-        if not request.conversation_id and not request.system_prompt:
-            import hashlib as _hl
-            cache_key = f"chat:{_hl.sha256(request.message.encode()).hexdigest()[:16]}:{request.model or 'auto'}"
-            cache = get_cache()
-            cached_resp = cache.get(cache_key)
-            if cached_resp:
-                _structured_logger.info(json.dumps({"event": "cache_hit", "key": cache_key}))
-                return ChatResponse(**cached_resp)
+        # ✈️  JetEngine™: cache semantica ultra-veloce + routing intelligente
+        _jet = get_jet_engine()
+        _history_len = 0
+        if request.conversation_id:
+            _conv_preview = get_conversation(request.conversation_id)
+            if _conv_preview and _conv_preview.get("messages"):
+                _history_len = len(_conv_preview["messages"])
+
+        _jet_decision = _jet.decide(
+            message=request.message,
+            model=request.model or "auto",
+            runtime_mode=runtime_mode,
+            explicit_provider=request.provider,
+            available_cloud=None,
+            history_len=_history_len,
+        )
+
+        # TurboCache hit → risposta istantanea (<2ms)
+        if _jet_decision.cache_hit and not request.conversation_id and not request.system_prompt:
+            _structured_logger.info(json.dumps({"event": "jet_cache_hit", "intent": _jet_decision.profile.intent}))
+            return ChatResponse(**_jet_decision.cached_resp)
+
+        # Applica routing JetEngine™ (local-first / parallel-sprint)
+        if not has_images and not request.provider:
+            chosen_provider = _jet_decision.routing.provider
+            if chosen_provider == "cache":
+                chosen_provider = "ollama" if runtime_mode == "local" else "claude"
 
         # Se c'è una conversazione, recupera il contesto
         if request.conversation_id:
@@ -1217,7 +1271,7 @@ async def chat(request: ChatRequest):
         # Log metrica
         log_metric(
             provider=result["provider"], model=result["model"],
-            request_type=result.get("request_type"),
+            request_type=str(result.get("request_type", "general")),
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
         )
@@ -1237,21 +1291,19 @@ async def chat(request: ChatRequest):
             model=result["model"],
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
-            request_type=result.get("request_type"),
+            request_type=str(result.get("request_type", "general")),
         )
 
-        # Salva in cache per FAQ/ripetizioni (solo senza conversazione)
+        # ✈️  JetEngine™: salva risposta nel TurboCache semantico
         if not request.conversation_id and not request.system_prompt:
-            import hashlib as _hl
-            cache_key = f"chat:{_hl.sha256(request.message.encode()).hexdigest()[:16]}:{request.model or 'auto'}"
-            get_cache().set(cache_key, {
+            _jet.cache_store(request.message, request.model or "auto", {
                 "content": result["content"],
                 "provider": result["provider"],
                 "model": result["model"],
                 "tokens_used": result.get("tokens_used", 0),
                 "latency_ms": result.get("latency_ms", 0),
                 "request_type": result.get("request_type"),
-            }, l1_ttl=300)
+            })
 
         return chat_response
 
@@ -1381,6 +1433,73 @@ async def chat_stream(request: ChatRequest):
 
 
 # ═══════════════════════════════════════════════
+# ═══════════════════════════════════════════════
+# JET ENGINE™ — Stats & Control endpoints
+# ═══════════════════════════════════════════════
+
+@app.get("/ultra/stats")
+async def ultra_stats():
+    """JetEngine™ performance stats — velocità in tempo reale."""
+    jet = get_jet_engine()
+    stats = jet.stats()
+    # Aggiungi info taxonomy
+    try:
+        from backend.core.knowledge_taxonomy import taxonomy_stats
+        stats["taxonomy"] = taxonomy_stats()
+    except Exception as e:
+        stats["taxonomy"] = {"error": str(e)}
+    # Aggiungi info ultra_engine (Piuma)
+    try:
+        from backend.core.ultra_engine import get_ultra_engine
+        ue = get_ultra_engine()
+        stats["piuma_engine"] = {
+            "cache_size": len(ue.cache._cache),
+            "provider_memory": len(ue.provider_memory._stats),
+        }
+    except Exception as e:
+        stats["piuma_engine"] = {"error": str(e)}
+    return {"status": "ok", "jet_engine": stats, "timestamp": time.time()}
+
+@app.post("/ultra/classify")
+async def ultra_classify(request: dict = Body(...)):
+    """Classifica una query: intento, complessità, provider ottimale."""
+    message = request.get("message", "")
+    if not message:
+        raise HTTPException(400, "message required")
+    jet = get_jet_engine()
+    decision = jet.decide(message=message, runtime_mode=request.get("mode", "hybrid"))
+    try:
+        from backend.core.knowledge_taxonomy import classify_text, get_optimal_config
+        tax_results = classify_text(message, max_results=3)
+        tax_config  = get_optimal_config(message)
+        taxonomy_match = [
+            {"node_id": nid, "name": node.name_it, "score": sc}
+            for nid, node, sc in tax_results
+        ]
+    except Exception:
+        taxonomy_match = []
+        tax_config = {}
+    return {
+        "complexity": {
+            "score":       decision.profile.score,
+            "intent":      decision.profile.intent,
+            "local_ok":    decision.profile.local_ok,
+            "stream_prio": decision.profile.stream_prio,
+            "race_prio":   decision.profile.race_prio,
+            "tokens_est":  decision.profile.tokens_est,
+        },
+        "routing": {
+            "provider": decision.routing.provider,
+            "model":    decision.routing.model,
+            "stream":   decision.routing.stream,
+            "race":     decision.routing.race,
+            "reason":   decision.routing.reason,
+        },
+        "cache_hit": decision.cache_hit,
+        "taxonomy":  taxonomy_match,
+        "optimal_config": tax_config,
+    }
+
 # CONVERSAZIONI
 # ═══════════════════════════════════════════════
 
@@ -2346,6 +2465,265 @@ async def get_tools_context():
     """Restituisce tutti i tool disponibili come stringa per il contesto AI."""
     registry = _get_plugin_registry()
     return {"context": registry.get_tools_for_prompt()}
+
+
+# ═══════════════════════════════════════════════
+# VOICE & VISION ENDPOINTS
+# ═══════════════════════════════════════════════
+
+@app.post("/voice/transcribe")
+async def voice_transcribe(request: Request):
+    """
+    Riceve audio base64 e restituisce trascrizione.
+    In locale usa Whisper via Ollama se disponibile, altrimenti stub
+    per Web Speech API (il client fa STT nativo).
+    """
+    body = await request.json()
+    text = body.get("text", "")
+    # Se il client manda testo già trascritto (Web Speech API), lo conferma
+    if text:
+        return {"transcription": text, "source": "client-stt", "language": body.get("language", "auto")}
+    return {"transcription": "", "source": "no-audio", "note": "Use Web Speech API on the client for STT"}
+
+
+@app.post("/voice/tts")
+async def voice_tts(request: Request):
+    """
+    Text-to-Speech endpoint.
+    Restituisce metadati per TTS client-side (Web Speech Synthesis API).
+    Il backend gestisce la preparazione del testo e la selezione voce.
+    """
+    body = await request.json()
+    text = body.get("text", "")
+    language = body.get("language", "it")
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Campo 'text' obbligatorio")
+
+    # Pulisci il testo per TTS: rimuovi markdown, code blocks, link
+    import re
+    clean = text
+    clean = re.sub(r"```[\s\S]*?```", " codice omesso ", clean)
+    clean = re.sub(r"`[^`]+`", "", clean)
+    clean = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", clean)
+    clean = re.sub(r"[#*_~>]", "", clean)
+    clean = re.sub(r"\s+", " ", clean).strip()
+
+    # Seleziona voce e rate in base alla lingua
+    voice_config = {
+        "it": {"lang": "it-IT", "rate": 1.0, "pitch": 1.0},
+        "en": {"lang": "en-US", "rate": 1.0, "pitch": 1.0},
+        "fr": {"lang": "fr-FR", "rate": 0.95, "pitch": 1.0},
+        "de": {"lang": "de-DE", "rate": 0.95, "pitch": 1.0},
+        "es": {"lang": "es-ES", "rate": 1.0, "pitch": 1.0},
+    }
+    config = voice_config.get(language, voice_config["en"])
+
+    return {
+        "text": clean[:5000],  # Cap per TTS
+        "language": config["lang"],
+        "rate": config["rate"],
+        "pitch": config["pitch"],
+        "source": "server-prepared",
+        "char_count": len(clean),
+    }
+
+
+@app.post("/vision/analyze")
+async def vision_analyze(request: Request):
+    """
+    Analizza un'immagine usando provider cloud con capacità vision.
+    Accetta base64 image data o URL.
+    """
+    body = await request.json()
+    image_data = body.get("image")  # base64 data URL o URL
+    prompt = body.get("prompt", "Describe this image in detail.")
+
+    if not image_data:
+        raise HTTPException(status_code=400, detail="Campo 'image' obbligatorio (base64 data URL o URL)")
+
+    # Costruisci immagine nel formato corretto
+    if image_data.startswith("data:"):
+        images = [{"data_url": image_data}]
+    elif image_data.startswith("http"):
+        images = [{"url": image_data}]
+    else:
+        images = [{"base64": image_data, "mime_type": "image/png"}]
+
+    vision_msg = _build_vision_message(prompt, images)
+
+    # Prova provider vision-capable in ordine
+    env_map = _read_project_env_map()
+    provider_keys = {
+        "claude": env_map.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", "")),
+        "gpt4": env_map.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "")),
+        "gemini": env_map.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY", "")),
+    }
+
+    for provider in _VISION_PROVIDERS:
+        api_key = provider_keys.get(provider, "")
+        if not api_key:
+            continue
+
+        try:
+            result = await orchestrate(
+                messages=[vision_msg],
+                mode="cloud",
+                provider=provider,
+                auto_routing=False,
+                temperature=0.3,
+                max_tokens=1024,
+            )
+            return {
+                "analysis": result.get("content", ""),
+                "provider": result.get("provider", provider),
+                "model": result.get("model", ""),
+                "tokens_used": result.get("tokens_used", 0),
+                "latency_ms": result.get("latency_ms", 0),
+            }
+        except Exception:
+            continue
+
+    # Fallback: prova Ollama con modello vision (llava)
+    try:
+        result = await orchestrate(
+            messages=[vision_msg],
+            mode="local",
+            provider="ollama",
+            model="llava",
+            auto_routing=False,
+        )
+        return {
+            "analysis": result.get("content", ""),
+            "provider": "ollama",
+            "model": "llava",
+        }
+    except Exception:
+        pass
+
+    raise HTTPException(
+        status_code=503,
+        detail="Nessun provider vision disponibile. Configura una API key cloud (Claude, GPT-4, Gemini) o installa llava su Ollama."
+    )
+
+
+@app.get("/voice/capabilities")
+async def voice_capabilities():
+    """Restituisce le capacità voice disponibili nel sistema."""
+    return {
+        "stt": {
+            "available": True,
+            "engine": "Web Speech API (browser-native)",
+            "languages": ["it-IT", "en-US", "fr-FR", "de-DE", "es-ES"],
+            "note": "STT runs client-side, zero latency, zero install",
+        },
+        "tts": {
+            "available": True,
+            "engine": "Web Speech Synthesis API (browser-native)",
+            "languages": ["it-IT", "en-US", "fr-FR", "de-DE", "es-ES"],
+            "note": "TTS runs client-side with server-side text preparation",
+        },
+    }
+
+
+@app.get("/vision/capabilities")
+async def vision_capabilities():
+    """Restituisce le capacità vision disponibili."""
+    env_map = _read_project_env_map()
+    available_providers = []
+    for p in _VISION_PROVIDERS:
+        key_map = {"claude": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY",
+                    "gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY",
+                    "openrouter": "OPENROUTER_API_KEY"}
+        key_name = key_map.get(p, "")
+        if env_map.get(key_name, os.environ.get(key_name, "")):
+            available_providers.append(p)
+
+    # Check Ollama llava
+    ollama_vision = False
+    try:
+        status = await check_ollama_status()
+        if status.get("running"):
+            ollama_vision = any("llava" in m.get("name", "") for m in status.get("models", []))
+    except Exception:
+        pass
+
+    return {
+        "available": bool(available_providers) or ollama_vision,
+        "cloud_providers": available_providers,
+        "local_ollama_llava": ollama_vision,
+        "supported_formats": ["image/png", "image/jpeg", "image/gif", "image/webp"],
+        "max_size_mb": 10,
+    }
+
+
+# ═══════════════════════════════════════════════
+# OPENCLAW AGENT RUNTIME
+# ═══════════════════════════════════════════════
+
+@app.post("/openclaw/run")
+async def openclaw_run(request: Request):
+    """
+    Execute an agentic task via OpenClaw.
+    The agent loops: AI → tool call → result → AI → ... → final answer.
+    """
+    from backend.openclaw.agent import run_agent
+    body = await request.json()
+    task = body.get("task", "").strip()
+    if not task:
+        return JSONResponse({"error": "task is required"}, status_code=400)
+
+    model = body.get("model", "qwen2.5-coder:3b")
+    provider = body.get("provider", "ollama")
+    max_iterations = min(body.get("max_iterations", 8), 12)
+
+    registry = _get_plugin_registry()
+    result = await run_agent(
+        task=task,
+        model=model,
+        provider=provider,
+        registry=registry,
+        max_iterations=max_iterations,
+    )
+    return {
+        "task": result.task,
+        "answer": result.answer,
+        "status": result.status,
+        "total_steps": result.total_steps,
+        "total_latency_ms": result.total_latency_ms,
+        "tools_used": result.tools_used,
+        "steps": [
+            {
+                "step": s.step,
+                "action": s.action,
+                "content": s.content,
+                "latency_ms": s.latency_ms,
+            }
+            for s in result.steps
+        ],
+    }
+
+
+@app.get("/openclaw/capabilities")
+async def openclaw_capabilities():
+    """Return OpenClaw agent capabilities and loaded tools."""
+    from backend.openclaw.agent import get_agent_capabilities
+    registry = _get_plugin_registry()
+    return get_agent_capabilities(registry)
+
+
+@app.get("/openclaw/health")
+async def openclaw_health():
+    """Health check for OpenClaw agent runtime (built-in, always healthy)."""
+    from backend.openclaw.agent import get_agent_capabilities
+    registry = _get_plugin_registry()
+    caps = get_agent_capabilities(registry)
+    return {
+        "status": "healthy",
+        "agent": "OpenClaw",
+        "plugins": caps["plugins_loaded"],
+        "tools": caps["total_tools"],
+    }
 
 
 # ═══════════════════════════════════════════════

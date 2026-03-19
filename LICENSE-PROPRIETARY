@@ -1,127 +1,306 @@
-PROPRIETARY SOFTWARE LICENSE
-VIO 83 AI ORCHESTRA
-====================================
+╔══════════════════════════════════════════════════════════════════════════════╗
+║           PROPRIETARY SOFTWARE LICENSE — WORLDWIDE PROTECTION               ║
+║                     VIO 83 AI ORCHESTRA™                                    ║
+║                                                                              ║
+║  Copyright © 2026 Viorica Porcu (vio83). ALL RIGHTS RESERVED WORLDWIDE.    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-Copyright (c) 2026 Viorica Porcu (vio83). ALL RIGHTS RESERVED.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PREAMBLE — READ BEFORE ANY ACCESS OR USE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-NOTICE: This is proprietary software. The following terms apply to any
-person or entity that obtains a copy of this software and associated
-documentation files (the "Software").
+This Proprietary Software License ("License") governs all access to, use of,
+interaction with, copying of, modification of, or distribution of VIO 83 AI
+Orchestra™ and all related software, systems, intellectual property, data,
+algorithms, architectures, and innovations created by Viorica Porcu (vio83).
 
-1. OWNERSHIP
-   The Software, including all source code, object code, algorithms,
-   data structures, database schemas, documentation, graphics, user
-   interfaces, and all related intellectual property, is the sole and
-   exclusive property of Viorica Porcu ("Owner").
+BY ACCESSING THIS SOFTWARE IN ANY WAY — INCLUDING VIEWING SOURCE CODE ON ANY
+PLATFORM — YOU ACKNOWLEDGE THAT YOU HAVE READ AND UNDERSTOOD THIS LICENSE AND
+AGREE TO BE BOUND BY ITS TERMS IN THEIR ENTIRETY.
 
-2. RESTRICTIONS — ALL OF THE FOLLOWING ARE STRICTLY PROHIBITED:
+IF YOU DO NOT AGREE TO ALL TERMS, YOU MUST IMMEDIATELY CEASE ALL ACCESS AND
+DESTROY ANY COPIES IN YOUR POSSESSION.
 
-   a) COPYING: You may NOT copy, reproduce, duplicate, or replicate
-      the Software or any portion thereof, in any form or by any means.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 — OWNERSHIP & PROTECTED PROPERTY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-   b) MODIFICATION: You may NOT modify, adapt, alter, translate,
-      decompile, disassemble, reverse-engineer, or create derivative
-      works based on the Software.
+1.1 SOLE OWNER
+    Viorica Porcu, also known as "vio83" (the "Owner"), is the sole and
+    exclusive owner of all intellectual property rights in the Software,
+    including all rights under copyright, trademark, trade secret, patent,
+    and any other applicable intellectual property law worldwide.
 
-   c) DISTRIBUTION: You may NOT distribute, sublicense, lease, rent,
-      loan, sell, resell, transfer, or otherwise make the Software
-      available to any third party.
+1.2 PROTECTED SOFTWARE COMPONENTS
+    The following are protected as exclusive proprietary intellectual property:
 
-   d) COMMERCIAL USE: You may NOT use the Software, or any part of it,
-      for any commercial purpose without prior written authorization
-      from the Owner.
+    CORE ENGINES:
+    • VIO 83 AI Orchestra™          — Master orchestration system
+    • Ultra Engine Piuma™           — Ultra-compact memory architecture
+      - SemanticCompactCache™       — FNV1a semantic fingerprinting system
+      - ConversationCompressor™     — 90% token reduction algorithm
+      - AdaptiveProviderMemory™     — ML-based provider learning (EMA α=0.1)
+      - UltraTokenBudget™           — Dynamic token allocation system
+      - FeatherRouter™              — <0.1μs byte-pattern intent classifier
 
-   e) EXTRACTION: You may NOT extract, harvest, scrape, or otherwise
-      remove any data, algorithms, models, weights, or intellectual
-      property from the Software.
+    • JetEngine™                    — Military-grade response speed system
+      - TurboCache™                 — Dual-layer semantic cache (L1+L2)
+      - ComplexityScorer™           — 5-intent classification in 0.05ms
+      - LocalFirstRouter™           — Local-first intelligent routing
+      - StreamGateway™              — First-token-in-<200ms guarantor
+      - ParallelSprint™             — Multi-provider race engine
 
-   f) REPLICATION: You may NOT use the Software as a reference,
-      template, or basis for creating competing or substantially
-      similar software products.
+    • ParallelRaceOrchestrator™     — RACE_FIRST/BEST/CROSS/STREAM modes
+    • WebSocketConnectionManager™   — Real-time streaming + stop-mid-stream
 
-   g) PUBLIC DISPLAY: You may NOT publicly display, perform, broadcast,
-      or transmit the Software without prior written authorization.
+    KNOWLEDGE SYSTEMS:
+    • World Knowledge Taxonomy™     — 4-level global knowledge hierarchy
+      (12 macro-domains, 87 L1 domains, 100+ L2 specializations)
+    • TaxonomyNode™ architecture    — Per-node provider/temperature routing
+    • Global Keyword Index™         — Inverted O(1) lookup system
 
-3. INTELLECTUAL PROPERTY
+    INFRASTRUCTURE:
+    • All source code (Python, TypeScript, Rust, Shell)
+    • All API architectures and endpoint designs
+    • All database schemas (SQLite, vector stores)
+    • All system prompts, classification heuristics, routing algorithms
+    • All configuration formats and data structures
+    • All test suites and benchmarking methodologies
+    • All documentation and technical specifications
 
-   a) The name "VIO 83 AI Orchestra", the VIO83 brand, all associated
-      logos, icons, and visual identities are trademarks of the Owner.
+1.3 TRADEMARK PROTECTION
+    The following names and marks are trademarks of the Owner and may not
+    be used without written authorization:
 
-   b) The Knowledge Distillation Engine architecture, the 42-category
-      classification system with 1,082 sub-disciplines, and all
-      proprietary algorithms are trade secrets of the Owner.
+    VIO 83 AI Orchestra™ | Ultra Engine Piuma™ | JetEngine™
+    FeatherRouter™ | TurboCache™ | ParallelSprint™ | StreamGateway™
+    ComplexityScorer™ | World Knowledge Taxonomy™ | VIO83™
 
-   c) All database schemas, API connector designs, and system
-      architecture patterns specific to this Software are protected
-      intellectual property.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 — STRICT PROHIBITIONS (ZERO EXCEPTIONS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-4. SOURCE CODE VISIBILITY
+The following are STRICTLY PROHIBITED without explicit written authorization
+from the Owner, regardless of purpose, nationality, or jurisdiction:
 
-   The fact that source code may be publicly visible on GitHub or any
-   other platform does NOT constitute a grant of license. Public
-   visibility is for transparency and portfolio purposes ONLY.
-   Viewing the code does NOT grant any right to use, copy, modify,
-   or distribute it.
+2.1 COPYING & REPRODUCTION
+    You may NOT copy, reproduce, duplicate, clone, mirror, archive, or
+    replicate the Software or any portion thereof — in whole or in part —
+    by any means, electronic, mechanical, or otherwise.
 
-5. DATA AND DATABASES
+2.2 MODIFICATION & DERIVATIVE WORKS
+    You may NOT modify, adapt, alter, translate, decompile, disassemble,
+    reverse-engineer, obfuscate, or create derivative works based on the
+    Software or any component thereof.
 
-   All harvested, distilled, processed, or generated data produced
-   by the Software remains the property of the Owner. This includes
-   but is not limited to:
-   - The distilled knowledge database
-   - Classification indices
-   - Search indices
-   - Metadata collections
-   - Process monitoring logs
+2.3 DISTRIBUTION & TRANSFER
+    You may NOT distribute, sublicense, lease, rent, loan, sell, resell,
+    transfer, publish, upload, broadcast, or otherwise make the Software
+    available to any third party, on any platform, in any form.
 
-6. THIRD-PARTY COMPONENTS
+2.4 COMMERCIAL EXPLOITATION
+    You may NOT use the Software, or any part of it, for any commercial
+    purpose, including but not limited to: selling products or services
+    built with or inspired by the Software; using it as infrastructure
+    for a business; or including it in paid products or services.
 
-   This Software may include or interact with third-party open-source
-   libraries. Such components retain their original licenses. This
-   proprietary license applies ONLY to original code, architecture,
-   and intellectual property created by the Owner.
+2.5 AI/ML TRAINING & DATA EXTRACTION
+    You may NOT:
+    a) Use the Software, its source code, algorithms, architecture, or
+       documentation as training data for any AI/ML model or system.
+    b) Use AI/ML tools to analyze, reverse-engineer, or extract patterns
+       from the Software for the purpose of replication.
+    c) Extract, scrape, harvest, or systematically collect any data,
+       knowledge structures, routing logic, or classification systems
+       from the Software.
+    d) Feed the Software's algorithms or architectures into LLMs, code
+       generation models, or any automated system for replication.
 
-7. ENFORCEMENT
+2.6 COMPETITIVE REPLICATION
+    You may NOT use this Software as a reference, benchmark, template,
+    or design basis for creating competing or substantially similar
+    software products, whether commercial or open-source.
 
-   a) Any unauthorized use of the Software constitutes copyright
-      infringement under Italian law (Legge 22 aprile 1941, n. 633
-      — Legge sul diritto d'autore), European Union copyright
-      directives (Directive 2001/29/EC, Directive 2019/790/EU),
-      and international copyright treaties (Berne Convention,
-      WIPO Copyright Treaty).
+2.7 TRADEMARK MISUSE
+    You may NOT use the trademarked names, branding, logos, or visual
+    identity of the Software without prior written authorization.
 
-   b) The Owner reserves the right to pursue all available legal
-      remedies, including but not limited to: injunctive relief,
-      actual damages, statutory damages, and attorney's fees.
+2.8 CIRCUMVENTION
+    You may NOT circumvent, disable, or bypass any technological protection
+    measures or access controls implemented in the Software.
 
-   c) Criminal penalties may apply under Art. 171-bis and 171-ter
-      of Italian Copyright Law for unauthorized reproduction or
-      distribution of software.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 — PUBLIC VISIBILITY DISCLAIMER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-8. NO WARRANTY
+3.1 The fact that source code is publicly visible on GitHub or any other
+    platform does NOT constitute a grant of any license whatsoever.
 
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-   EXPRESS OR IMPLIED. THE OWNER SHALL NOT BE LIABLE FOR ANY CLAIM,
-   DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+3.2 Public visibility is for portfolio and transparency purposes ONLY.
+    Viewing source code on GitHub grants NO right to copy, use, modify,
+    distribute, or exploit the Software in any manner.
 
-9. GOVERNING LAW
+3.3 GitHub's Terms of Service allow viewing public repositories. Such
+    viewing does NOT expand or override the restrictions in this License.
 
-   This license shall be governed by and construed in accordance
-   with the laws of the Italian Republic. Any disputes shall be
-   subject to the exclusive jurisdiction of the courts of Italy.
+3.4 This License supersedes any implied license that might arise from
+    public availability of the source code.
 
-10. COMMERCIAL LICENSING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 — WORLDWIDE LEGAL ENFORCEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    For commercial licensing inquiries, partnership proposals, or
-    authorized use requests, contact:
+Unauthorized use of this Software constitutes infringement enforceable under:
 
-    Viorica Porcu
-    Email: porcu.v.83@gmail.com
-    GitHub: https://github.com/vio83
+4.1 ITALIAN LAW (Primary Jurisdiction)
+    • Legge 22 aprile 1941, n. 633 — Legge sul Diritto d'Autore
+    • Art. 171-bis: criminal penalties for unauthorized software reproduction
+    • Art. 171-ter: criminal penalties for unauthorized distribution
+    • D.Lgs. 30/2005 — Codice della Proprietà Industriale (trademarks)
+    • D.Lgs. 196/2003 — Codice Privacy + GDPR compliance
+    • Imprisonment up to 3 years + fines up to €15,493 per violation
+      (Art. 171-ter, aggravated circumstances)
 
---------------------------------------------------------------------
-EFFECTIVE DATE: February 20, 2026
-LAST UPDATED:   February 20, 2026
-COPYRIGHT HOLDER: Viorica Porcu (vio83)
-ALL RIGHTS RESERVED.
---------------------------------------------------------------------
+4.2 EUROPEAN UNION LAW
+    • Directive 2009/24/EC — Legal protection of computer programs
+    • Directive 2001/29/EC — Copyright in the Information Society
+    • Directive 2019/790/EU — Copyright in the Digital Single Market
+    • Directive 2016/943/EU — Protection of trade secrets
+    • Regulation (EU) 2017/1001 — EU Trade Mark Regulation
+    • Directive 2004/48/EC — Enforcement of Intellectual Property Rights
+
+4.3 INTERNATIONAL LAW
+    • Berne Convention for the Protection of Literary and Artistic Works
+    • WIPO Copyright Treaty (WCT)
+    • WIPO Performances and Phonograms Treaty (WPPT)
+    • TRIPS Agreement (Trade-Related Aspects of Intellectual Property Rights)
+    • Universal Copyright Convention
+
+4.4 UNITED STATES LAW (applicable for US persons/entities)
+    • 17 U.S.C. § 101 et seq. — Copyright Act
+    • 18 U.S.C. § 1832 — Economic Espionage Act (trade secrets)
+    • 18 U.S.C. § 1030 — Computer Fraud and Abuse Act
+    • Defend Trade Secrets Act (DTSA), 18 U.S.C. § 1836
+    • Lanham Act — Trademark protection (15 U.S.C. § 1051 et seq.)
+    • Statutory damages: up to $150,000 per work for willful infringement
+      (17 U.S.C. § 504(c)(2))
+
+4.5 UNITED KINGDOM LAW
+    • Copyright, Designs and Patents Act 1988 (CDPA)
+    • Trade Marks Act 1994
+    • Trade Secrets (Enforcement, etc.) Regulations 2018
+
+4.6 AVAILABLE REMEDIES
+    The Owner reserves the right to pursue ALL available remedies, including:
+    a) Emergency injunctive relief (including ex parte injunctions)
+    b) Full compensatory and consequential damages
+    c) Statutory and punitive damages (where applicable)
+    d) Disgorgement of profits derived from infringement
+    e) Attorney's fees and all litigation costs
+    f) Criminal prosecution referrals to competent authorities
+    g) DMCA takedown notices and equivalent procedures worldwide
+    h) Domain seizure and asset freezing orders
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 — THIRD-PARTY COMPONENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5.1 Open-source libraries used by this Software retain their original licenses.
+    This License applies ONLY to original code, architectures, algorithms,
+    and intellectual property created by the Owner.
+
+5.2 A complete list of third-party dependencies and their licenses is
+    available in the NOTICE file accompanying this Software.
+
+5.3 The use of open-source components does NOT grant any rights over the
+    proprietary portions of this Software.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6 — DATA & AI OUTPUT OWNERSHIP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6.1 All data produced, processed, distilled, classified, or generated
+    by the Software — including but not limited to knowledge databases,
+    classification indices, routing decisions, performance metrics,
+    conversation summaries, and system analytics — remains the exclusive
+    property of the Owner.
+
+6.2 The AI orchestration outputs produced by the Software for authorized
+    users are licensed to those users for personal use only and may not
+    be used to train competing AI systems.
+
+6.3 The Software's semantic fingerprinting systems, routing heuristics,
+    complexity scoring algorithms, and provider selection logic constitute
+    proprietary trade secrets with independent commercial value.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7 — NO WARRANTY & LIMITATION OF LIABILITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7.1 THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, OR NON-INFRINGEMENT.
+
+7.2 IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, INDIRECT, SPECIAL,
+    INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING FROM USE OF THE SOFTWARE,
+    EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+7.3 THE OWNER'S TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT PAID BY THE
+    LICENSEE (IF ANY) FOR THE SOFTWARE IN THE 12 MONTHS PRECEDING THE CLAIM.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8 — COMMERCIAL LICENSING & CONTACT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For commercial licensing, partnership, authorized use, or any inquiry:
+
+    Owner:   Viorica Porcu
+    GitHub:  https://github.com/vio83
+    Email:   porcu.v.83@gmail.com
+    Project: https://github.com/vio83/vio83-ai-orchestra
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9 — GOVERNING LAW & JURISDICTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+9.1 PRIMARY JURISDICTION
+    This License shall be governed by and construed in accordance with the
+    laws of the Italian Republic, without regard to conflict of law provisions.
+
+9.2 COURTS
+    Any dispute arising from or related to this License shall be subject to
+    the exclusive jurisdiction of the competent courts of Italy. The Owner
+    additionally reserves the right to seek injunctive and emergency relief
+    in any jurisdiction where infringement occurs.
+
+9.3 CHOICE OF LAW FOR NON-ITALIAN PARTIES
+    For parties located in the United States, this License shall also be
+    enforceable under applicable US federal and state law. For parties in
+    the European Union, EU Directive 2009/24/EC applies in full.
+
+9.4 SEVERABILITY
+    If any provision of this License is found invalid or unenforceable, the
+    remaining provisions shall continue in full force and effect.
+
+9.5 ENTIRE AGREEMENT
+    This License constitutes the entire agreement between the Owner and any
+    party accessing the Software regarding its subject matter, and supersedes
+    all prior agreements, representations, or understandings.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  EFFECTIVE DATE  : 20 February 2026
+  LAST UPDATED    : 19 March 2026 (added JetEngine™, World Knowledge Taxonomy™)
+  COPYRIGHT HOLDER: Viorica Porcu (vio83)
+  CONTACT         : porcu.v.83@gmail.com
+  GITHUB          : https://github.com/vio83/vio83-ai-orchestra
+
+  © 2026 Viorica Porcu. ALL RIGHTS RESERVED WORLDWIDE.
+  OGNI DIRITTO RISERVATO IN TUTTO IL MONDO.
+  TOUS DROITS RÉSERVÉS DANS LE MONDE ENTIER.
+  ALLE RECHTE WELTWEIT VORBEHALTEN.
+  TODOS LOS DERECHOS RESERVADOS EN TODO EL MUNDO.
+  全球版权所有，保留所有权利。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

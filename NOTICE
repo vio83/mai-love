@@ -1,0 +1,48 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    VIO 83 AI ORCHESTRA™ — NOTICE FILE                       ║
+║              Copyright © 2026 Viorica Porcu (vio83). All Rights Reserved.  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+PROPRIETARY NOTICE
+━━━━━━━━━━━━━━━━━━
+This product and all its components are proprietary software owned exclusively
+by Viorica Porcu. See LICENSE and LICENSE-PROPRIETARY for full terms.
+
+TRADEMARK NOTICE
+━━━━━━━━━━━━━━━━
+The following are trademarks of Viorica Porcu. Unauthorized use is prohibited:
+
+  VIO 83 AI Orchestra™        Ultra Engine Piuma™       JetEngine™
+  FeatherRouter™              TurboCache™               ParallelSprint™
+  ComplexityScorer™           StreamGateway™            LocalFirstRouter™
+  ConversationCompressor™     SemanticCompactCache™     AdaptiveProviderMemory™
+  ParallelRaceOrchestrator™   World Knowledge Taxonomy™ TaxonomyNode™
+
+ARCHITECTURE CREDIT
+━━━━━━━━━━━━━━━━━━━
+  Creator & Lead Developer  : Viorica Porcu (vio83)
+  AI Development Assistant  : Claude Sonnet (Anthropic)
+  Stack: Python 3.14 / FastAPI / Tauri 2.0 / React 18 / TypeScript / Rust
+  Platform: macOS (Apple Silicon M1)
+
+THIRD-PARTY OPEN SOURCE COMPONENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The following third-party libraries are used and retain their original licenses:
+
+  FastAPI         — MIT License         https://fastapi.tiangolo.com
+  Pydantic        — MIT License         https://pydantic.dev
+  SQLite          — Public Domain       https://sqlite.org
+  Tauri           — MIT/Apache-2.0      https://tauri.app
+  React           — MIT License         https://react.dev
+  TypeScript      — Apache-2.0          https://typescriptlang.org
+  Vite            — MIT License         https://vitejs.dev
+  pytest          — MIT License         https://pytest.org
+  aiohttp         — Apache-2.0          https://aiohttp.org
+  python-dotenv   — BSD License         https://github.com/theskumar/python-dotenv
+  uvicorn         — BSD License         https://www.uvicorn.org
+
+Note: The use of open-source components in this product does NOT grant any
+rights over the proprietary portions. The proprietary license applies to all
+original code, architecture, and IP created by the Owner.
+
+LAST UPDATED: 19 March 2026
