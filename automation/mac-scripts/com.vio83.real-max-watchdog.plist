@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vio83.real-max-watchdog</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/real_max_watchdog.sh</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/real-max-watchdog-launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/real-max-watchdog-launchd.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONPATH</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra</string>
+    <key>VIO_DISK_ALERT_THRESHOLD_GB</key>
+    <string>6</string>
+    <key>VIO_HIGH_LOAD_THRESHOLD</key>
+    <string>14</string>
+    <key>VIO_HIGH_MEM_PRESSURE_PAGES</key>
+    <string>120000</string>
+    <key>VIO_DISABLE_OLLAMA_MODEL_SYNC</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

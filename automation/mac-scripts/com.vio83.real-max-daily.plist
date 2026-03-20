@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vio83.real-max-daily</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/real_max_autopilot_cycle.sh</string>
+    <string>daily</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>10</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/real-max-daily-launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/real-max-daily-launchd.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONPATH</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra</string>
+  </dict>
+</dict>
+</plist>
