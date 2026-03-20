@@ -3,7 +3,6 @@
   // VIO 83 AI ORCHESTRA — VS Code Workspace Settings
   // Configurazione ultra-ottimizzata per il progetto
   // ============================================================
-
   // === EDITOR ===
   "editor.fontFamily": "'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace",
   "editor.fontSize": 14,
@@ -30,7 +29,6 @@
   "editor.acceptSuggestionOnCommitCharacter": false,
   "editor.linkedEditing": true,
   "editor.stickyScroll.enabled": true,
-
   // === TYPESCRIPT / JAVASCRIPT ===
   "js/ts.preferences.importModuleSpecifier": "relative",
   "js/ts.suggest.autoImports": true,
@@ -44,24 +42,25 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-
   // (JavaScript settings unified under js/ts.* above)
-
   // === REACT / JSX / TSX ===
   "emmet.includeLanguages": {
     "typescriptreact": "html",
     "javascriptreact": "html"
   },
   "emmet.triggerExpansionOnTab": true,
-
   // === TAILWIND CSS ===
   "tailwindCSS.experimental.classRegex": [
-    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*)[\"'`]"],
-    ["className\\s*=\\s*{?[\"'`]([^\"'`]*)[\"'`]"]
+    [
+      "cn\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*)[\"'`]"
+    ],
+    [
+      "className\\s*=\\s*{?[\"'`]([^\"'`]*)[\"'`]"
+    ]
   ],
   "tailwindCSS.emmetCompletions": true,
   "css.validate": false,
-
   // === PYTHON ===
   "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
   "python.analysis.typeCheckingMode": "basic",
@@ -71,7 +70,6 @@
     "editor.formatOnSave": true,
     "editor.tabSize": 4
   },
-
   // === RUST (Tauri backend) ===
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.cargo.features": "all",
@@ -82,7 +80,6 @@
     "editor.formatOnSave": true,
     "editor.tabSize": 4
   },
-
   // === ESLint ===
   "eslint.validate": [
     "javascript",
@@ -90,15 +87,15 @@
     "typescript",
     "typescriptreact"
   ],
-  "eslint.workingDirectories": ["."],
-
+  "eslint.workingDirectories": [
+    "."
+  ],
   // === GIT ===
   "git.autofetch": true,
   "git.confirmSync": false,
   "git.enableSmartCommit": true,
   "gitlens.currentLine.enabled": true,
   "gitlens.hovers.enabled": true,
-
   // === FILE ASSOCIATIONS ===
   "files.associations": {
     "*.css": "tailwindcss",
@@ -118,7 +115,6 @@
     "**/target/**": true,
     "**/.git/objects/**": true
   },
-
   // === SEARCH ===
   "search.exclude": {
     "**/node_modules": true,
@@ -127,7 +123,6 @@
     "**/.git": true,
     "**/package-lock.json": true
   },
-
   // === TERMINAL ===
   "terminal.integrated.fontFamily": "'JetBrains Mono', 'SF Mono', Menlo",
   "terminal.integrated.fontSize": 13,
@@ -135,18 +130,25 @@
   "terminal.integrated.env.osx": {
     "OLLAMA_HOST": "http://localhost:11434"
   },
-
   // === THEME (Vio Dark Fluorescent) ===
   "workbench.colorTheme": "One Dark Pro",
   "workbench.iconTheme": "material-icon-theme",
   "workbench.startupEditor": "none",
-
   // === ERROR LENS ===
-  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  "errorLens.enabledDiagnosticLevels": [
+    "error",
+    "warning"
+  ],
   "errorLens.fontSize": "12",
-
   // === TODO TREE ===
-  "todo-tree.general.tags": ["TODO", "FIXME", "HACK", "BUG", "XXX", "VIO"],
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "HACK",
+    "BUG",
+    "XXX",
+    "VIO"
+  ],
   "todo-tree.highlights.customHighlight": {
     "VIO": {
       "icon": "zap",
@@ -154,7 +156,6 @@
       "iconColour": "#00ff00"
     }
   },
-
   // === SPELL CHECKER ===
   "cSpell.language": "en,it",
   "cSpell.enabledFileTypes": {
@@ -278,5 +279,7 @@
     "noEmit",
     "autofetch",
     "smartcommit"
-  ]
+  ],
+  "editor.codeActions.triggerOnFocusChange": true,
+  "files.autoSave": "afterDelay"
 }
