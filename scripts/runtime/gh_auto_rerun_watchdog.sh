@@ -44,8 +44,11 @@ for REPO in "${REPOS[@]}"; do
     continue
   fi
 
-  # Processa ogni run
-  echo "$RUNS" | jq -r '.[] | [.databaseId, .createdAt, .workflowName] | @tsv' | \
+  # Salva i dati in file temp per evitare subshell
+  RUN_DATA_FILE=$(mktemp)
+  echo "$RUNS" | jq -r '.[] | [.databaseId, .createdAt, .workflowName] | @tsv' > "$RUN_DATA_FILE"
+
+  # Processa ogni run SENZA subshell (usa while < <(file))
   while IFS=$'\t' read -r RUN_ID CREATED_AT WF_NAME; do
     [ -z "$RUN_ID" ] && continue
 
@@ -72,7 +75,9 @@ for REPO in "${REPOS[@]}"; do
       echo "    ❌ Rerun FAIL: $WF_NAME #$RUN_ID — $RESULT"
       ERROR_COUNT=$((ERROR_COUNT + 1))
     fi
-  done
+  done < "$RUN_DATA_FILE"
+
+  rm -f "$RUN_DATA_FILE"
 done
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

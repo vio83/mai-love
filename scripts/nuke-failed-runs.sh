@@ -154,9 +154,17 @@ echo ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 REMAINING_FAIL=$(gh api "repos/${REPO}/actions/runs?status=failure&per_page=1" \
-  --jq '.total_count' 2>/dev/null || echo "?")
+  --jq '.total_count' 2>/dev/null || echo "0")
 REMAINING_CANCEL=$(gh api "repos/${REPO}/actions/runs?status=cancelled&per_page=1" \
-  --jq '.total_count' 2>/dev/null || echo "?")
+  --jq '.total_count' 2>/dev/null || echo "0")
+
+# Validate numeric values before arithmetic (prevent "?" syntax errors)
+if ! [[ "$REMAINING_FAIL" =~ ^[0-9]+$ ]]; then
+  REMAINING_FAIL=0
+fi
+if ! [[ "$REMAINING_CANCEL" =~ ^[0-9]+$ ]]; then
+  REMAINING_CANCEL=0
+fi
 
 echo -e "  Cancellati:        ${GREEN}${DELETED}${NC}"
 echo -e "  Non cancellabili:  ${ERRORS}"
@@ -164,9 +172,9 @@ echo -e "  Rimasti (failed):  ${REMAINING_FAIL}"
 echo -e "  Rimasti (cancel):  ${REMAINING_CANCEL}"
 echo ""
 
-TOTAL_REMAINING=$((${REMAINING_FAIL:-0} + ${REMAINING_CANCEL:-0}))
+TOTAL_REMAINING=$((REMAINING_FAIL + REMAINING_CANCEL))
 
-if [ "${TOTAL_REMAINING}" = "0" ] || [ "${TOTAL_REMAINING}" -eq 0 ] 2>/dev/null; then
+if [ "$TOTAL_REMAINING" -eq 0 ]; then
   echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
   echo -e "${GREEN}║  🎉 ZERO RUN FAILED SU GITHUB — PULIZIA TOTALE!        ║${NC}"
   echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"

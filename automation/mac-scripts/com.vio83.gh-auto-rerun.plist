@@ -5,10 +5,11 @@
   <key>Label</key>
   <string>com.vio83.gh-auto-rerun</string>
 
+  <!-- Use portable wrapper that resolves $HOME and repo root dynamically -->
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/gh_auto_rerun_watchdog.sh</string>
+    <string>$HOME/Projects/vio83-ai-orchestra/scripts/runtime/gh_auto_rerun_wrapper.sh</string>
   </array>
 
   <!-- Ogni ora -->
@@ -18,18 +19,22 @@
   <key>RunAtLoad</key>
   <false/>
 
+  <!-- Logs are relative to repo root (resolved by wrapper) -->
   <key>StandardOutPath</key>
-  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.log</string>
+  <string>$HOME/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.err</string>
+  <string>$HOME/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.err</string>
 
+  <!-- Minimal environment — $HOME and PATH inherit from parent -->
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-    <key>HOME</key>
-    <string>/Users/padronavio</string>
   </dict>
+
+  <!-- Allow unload/reload -->
+  <key>KeepAlive</key>
+  <false/>
 </dict>
 </plist>
