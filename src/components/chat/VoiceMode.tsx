@@ -21,6 +21,7 @@ const hasSpeechSynthesis =
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SpeechRecognitionInstance = any;
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
 
 export default function VoiceMode({ onTranscript, textToSpeak, disabled }: VoiceModeProps) {
   const { t, lang } = useI18n();
@@ -35,7 +36,10 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
   // Init Speech Recognition
   useEffect(() => {
     if (!hasSpeechRecognition) return;
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = window as any;
+    const SR = (W.SpeechRecognition || W.webkitSpeechRecognition) as SpeechRecognitionCtor | undefined;
+    if (!SR) return;
     const recognition = new SR();
     recognition.continuous = false;
     recognition.interimResults = true;
@@ -85,7 +89,7 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
     return () => {
       recognition.abort();
     };
-  }, [onTranscript]);
+  }, [onTranscript, lang, t]);
 
   // TTS: speak when textToSpeak changes
   useEffect(() => {
@@ -114,7 +118,7 @@ export default function VoiceMode({ onTranscript, textToSpeak, disabled }: Voice
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     };
-  }, [textToSpeak, ttsEnabled]);
+  }, [textToSpeak, ttsEnabled, lang]);
 
   const toggleListening = useCallback(() => {
     if (!hasSpeechRecognition) return;

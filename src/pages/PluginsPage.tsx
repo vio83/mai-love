@@ -56,7 +56,7 @@ export default function PluginsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchPlugins(); }, [fetchPlugins]);
 

@@ -2022,7 +2022,7 @@ async def api_user_feedback(
             "model": model,
         }
     except Exception as e:
-        logger.error(f"[Feedback] Errore: {e}")
+        logging.error(f"[Feedback] Errore: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

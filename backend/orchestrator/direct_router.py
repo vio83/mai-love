@@ -203,7 +203,7 @@ def _ensure_ref_embeddings() -> bool:
     Calcola embeddings di riferimento per ogni categoria (lazy, una sola volta).
     Ritorna True se disponibili, False se Ollama non ha il modello.
     """
-    global _REF_EMBEDDINGS
+    # _REF_EMBEDDINGS è un dict mutabile a livello modulo — no global necessario
     if _REF_EMBEDDINGS:
         return True
 

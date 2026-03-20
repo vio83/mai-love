@@ -129,7 +129,6 @@ class ProductionHarvester:
         Scarica metadati da OpenAlex con paginazione cursor-based.
         Resume automatico dal cursor salvato.
         """
-        global SHUTDOWN_REQUESTED
         source = "openalex"
 
         # Carica o crea progress
@@ -219,7 +218,6 @@ class ProductionHarvester:
         Scarica metadati da Crossref con cursor-based deep paging.
         NESSUN LIMITE di profondità (offset era limitato a 10,000).
         """
-        global SHUTDOWN_REQUESTED
         source = "crossref"
 
         prog = self.state.load_progress(source) if resume else None
@@ -297,7 +295,6 @@ class ProductionHarvester:
         Scarica articoli Wikipedia BULK usando API allpages.
         Non usa search — enumera tutte le pagine sistematicamente.
         """
-        global SHUTDOWN_REQUESTED
         if langs is None:
             langs = ["it", "en"]
 
@@ -523,8 +520,6 @@ class LocalMacDistiller:
         Scansiona ricorsivamente una directory del Mac
         e distilla tutti i file supportati nel database.
         """
-        global SHUTDOWN_REQUESTED
-
         base_path = os.path.expanduser(base_path)
         if not os.path.isdir(base_path):
             logger.error(f"Directory non trovata: {base_path}")
