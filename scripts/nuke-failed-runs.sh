@@ -154,16 +154,17 @@ echo ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 REMAINING_FAIL=$(gh api "repos/${REPO}/actions/runs?status=failure&per_page=1" \
-  --jq '.total_count' 2>/dev/null || echo "0")
+  --jq '.total_count' 2>/dev/null || echo "?")
 REMAINING_CANCEL=$(gh api "repos/${REPO}/actions/runs?status=cancelled&per_page=1" \
-  --jq '.total_count' 2>/dev/null || echo "0")
+  --jq '.total_count' 2>/dev/null || echo "?")
 
-# Validate numeric values before arithmetic (prevent "?" syntax errors)
+# Validate numeric values before arithmetic. Do not mask API failures as zero.
+COUNTS_KNOWN=true
 if ! [[ "$REMAINING_FAIL" =~ ^[0-9]+$ ]]; then
-  REMAINING_FAIL=0
+  COUNTS_KNOWN=false
 fi
 if ! [[ "$REMAINING_CANCEL" =~ ^[0-9]+$ ]]; then
-  REMAINING_CANCEL=0
+  COUNTS_KNOWN=false
 fi
 
 echo -e "  Cancellati:        ${GREEN}${DELETED}${NC}"
@@ -171,6 +172,12 @@ echo -e "  Non cancellabili:  ${ERRORS}"
 echo -e "  Rimasti (failed):  ${REMAINING_FAIL}"
 echo -e "  Rimasti (cancel):  ${REMAINING_CANCEL}"
 echo ""
+
+if [ "$COUNTS_KNOWN" = false ]; then
+  echo -e "${RED}❌ Impossibile calcolare il totale residuo: API GitHub non raggiungibile o auth scaduta.${NC}"
+  echo -e "${YELLOW}Verifica: gh auth status && riprova.${NC}"
+  exit 2
+fi
 
 TOTAL_REMAINING=$((REMAINING_FAIL + REMAINING_CANCEL))
 

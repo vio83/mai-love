@@ -5,11 +5,11 @@
   <key>Label</key>
   <string>com.vio83.gh-auto-rerun</string>
 
-  <!-- Use portable wrapper that resolves $HOME and repo root dynamically -->
+  <!-- Use wrapper with absolute path (launchd does not expand $HOME). -->
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>$HOME/Projects/vio83-ai-orchestra/scripts/runtime/gh_auto_rerun_wrapper.sh</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/gh_auto_rerun_wrapper.sh</string>
   </array>
 
   <!-- Ogni ora -->
@@ -19,12 +19,12 @@
   <key>RunAtLoad</key>
   <false/>
 
-  <!-- Logs are relative to repo root (resolved by wrapper) -->
+  <!-- Absolute log paths required by launchd. -->
   <key>StandardOutPath</key>
-  <string>$HOME/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.log</string>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.log</string>
 
   <key>StandardErrorPath</key>
-  <string>$HOME/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.err</string>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.err</string>
 
   <!-- Minimal environment — $HOME and PATH inherit from parent -->
   <key>EnvironmentVariables</key>

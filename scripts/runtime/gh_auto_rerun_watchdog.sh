@@ -7,7 +7,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-LOG_DIR="$HOME/Projects/vio83-ai-orchestra/automation/logs"
+# Allow wrapper/environment to provide portable paths.
+LOG_DIR="${LOG_DIR:-${REPO_ROOT:-$HOME/Projects/vio83-ai-orchestra}/automation/logs}"
 LOG_FILE="$LOG_DIR/gh-auto-rerun-$(date +%Y%m%d).log"
 CUTOFF_HOURS=720   # 30 days in hours
 
@@ -29,6 +30,11 @@ ERROR_COUNT=0
 
 NOW_TS=$(date +%s)
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "    ❌ jq non trovato nel PATH: impossibile processare i run"
+  exit 1
+fi
+
 for REPO in "${REPOS[@]}"; do
   echo "  [REPO] $REPO"
 
@@ -44,11 +50,7 @@ for REPO in "${REPOS[@]}"; do
     continue
   fi
 
-  # Salva i dati in file temp per evitare subshell
-  RUN_DATA_FILE=$(mktemp)
-  echo "$RUNS" | jq -r '.[] | [.databaseId, .createdAt, .workflowName] | @tsv' > "$RUN_DATA_FILE"
-
-  # Processa ogni run SENZA subshell (usa while < <(file))
+  # Processa ogni run senza file temporanei e senza subshell state loss.
   while IFS=$'\t' read -r RUN_ID CREATED_AT WF_NAME; do
     [ -z "$RUN_ID" ] && continue
 
@@ -75,9 +77,7 @@ for REPO in "${REPOS[@]}"; do
       echo "    ❌ Rerun FAIL: $WF_NAME #$RUN_ID — $RESULT"
       ERROR_COUNT=$((ERROR_COUNT + 1))
     fi
-  done < "$RUN_DATA_FILE"
-
-  rm -f "$RUN_DATA_FILE"
+  done < <(echo "$RUNS" | jq -r '.[] | [.databaseId, .createdAt, .workflowName] | @tsv')
 done
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

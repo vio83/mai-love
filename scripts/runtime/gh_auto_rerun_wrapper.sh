@@ -9,11 +9,18 @@
 
 set -euo pipefail
 
-# Resolve repo root dynamically (works if script is in a git repo)
-if command -v git &>/dev/null && git rev-parse --show-toplevel &>/dev/null 2>&1; then
-  REPO_ROOT=$(git rev-parse --show-toplevel)
+# Resolve repo root dynamically, independent of current working directory.
+if command -v git &>/dev/null; then
+  SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  if REPO_ROOT="$(git -C "${SCRIPT_DIR}/../.." rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+  elif REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+  else
+    REPO_ROOT="${HOME}/Projects/vio83-ai-orchestra"
+  fi
 else
-  # Fallback: assume standard path relative to $HOME
   REPO_ROOT="${HOME}/Projects/vio83-ai-orchestra"
 fi
 
@@ -31,6 +38,10 @@ if [ ! -f "$WATCHDOG_SCRIPT" ]; then
   exit 1
 fi
 
-# Pass through to actual watchdog with resolved paths
-export REPO_ROOT
+# Provide portable defaults to downstream scripts.
+if [ -z "${LOG_DIR:-}" ]; then
+  LOG_DIR="${REPO_ROOT}/automation/logs"
+fi
+
+export REPO_ROOT LOG_DIR
 exec bash "$WATCHDOG_SCRIPT" "$@"
