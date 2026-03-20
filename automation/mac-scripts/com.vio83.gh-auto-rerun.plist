@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vio83.gh-auto-rerun</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/gh_auto_rerun_watchdog.sh</string>
+  </array>
+
+  <!-- Ogni ora -->
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/gh-auto-rerun-launchd.err</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/padronavio</string>
+  </dict>
+</dict>
+</plist>
