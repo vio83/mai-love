@@ -25,46 +25,13 @@ jobs:
         run: |
           mkdir -p docs
           if [ ! -f docs/sitemap.xml ] || ! grep -q '<urlset' docs/sitemap.xml; then
-            python3 << 'PYEOF'
-            from pathlib import Path
-            from datetime import date
-
-            today = date.today().isoformat()
-            xml = (
-                '<?xml version="1.0" encoding="UTF-8"?>\n'
-                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-                '  <url>\n'
-                '    <loc>https://vio83.github.io/vio83-ai-orchestra/</loc>\n'
-                f'    <lastmod>{today}</lastmod>\n'
-                '    <changefreq>daily</changefreq>\n'
-                '    <priority>1.0</priority>\n'
-                '  </url>\n'
-                '</urlset>\n'
-            )
-            Path('docs/sitemap.xml').write_text(xml, encoding='utf-8')
-            PYEOF
+            python3 -c "from pathlib import Path; from datetime import date; today = date.today().isoformat(); xml = ('<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n' '<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\\n' '  <url>\\n' '    <loc>https://vio83.github.io/vio83-ai-orchestra/</loc>\\n' f'    <lastmod>{today}</lastmod>\\n' '    <changefreq>daily</changefreq>\\n' '    <priority>1.0</priority>\\n' '  </url>\\n' '</urlset>\\n'); Path('docs/sitemap.xml').write_text(xml, encoding='utf-8')"
             echo "Created or restored docs/sitemap.xml"
           fi
 
       - name: Update sitemap lastmod date
         run: |
-          python3 << 'PYEOF'
-          from pathlib import Path
-          import re
-          from datetime import date
-
-          p = Path('docs/sitemap.xml')
-          xml = p.read_text(encoding='utf-8')
-          today = date.today().isoformat()
-
-          if '<lastmod>' in xml:
-              xml = re.sub(r'<lastmod>.*?</lastmod>', f'<lastmod>{today}</lastmod>', xml)
-          else:
-              xml = xml.replace('</url>', f'  <lastmod>{today}</lastmod>\n  </url>')
-
-          p.write_text(xml, encoding='utf-8')
-          print(f'Updated sitemap.xml with date: {today}')
-          PYEOF
+          python3 -c "from pathlib import Path; import re; from datetime import date; p = Path('docs/sitemap.xml'); xml = p.read_text(encoding='utf-8'); today = date.today().isoformat(); xml = re.sub(r'<lastmod>.*?</lastmod>', f'<lastmod>{today}</lastmod>', xml) if '<lastmod>' in xml else xml.replace('</url>', f'  <lastmod>{today}</lastmod>\\n  </url>'); p.write_text(xml, encoding='utf-8'); print(f'Updated sitemap.xml with date: {today}')"
 
       - name: Ping search engines
         continue-on-error: true
