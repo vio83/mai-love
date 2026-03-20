@@ -1,0 +1,341 @@
+{
+  "_meta": {
+    "project": "VIO AI Orchestra",
+    "round": "Pre-Seed / Angel",
+    "target_raise": "50000",
+    "currency": "EUR",
+    "equity_offered": "10-15%",
+    "valuation_pre_money": "350000",
+    "contact_email": "porcu.v.83@gmail.com",
+    "github": "https://github.com/vio83/mai-love",
+    "website": "https://vio83.github.io/vio83-ai-orchestra/",
+    "last_updated": "2026-03-21"
+  },
+  "pipeline": [
+    {
+      "id": "IT-001",
+      "name": "CDP Venture Capital",
+      "type": "VC",
+      "country": "IT",
+      "focus": "Deep Tech, AI, Open Source, PMI italiane",
+      "ticket_min_eur": 200000,
+      "ticket_max_eur": 2000000,
+      "stage": [
+        "Seed",
+        "Series A"
+      ],
+      "apply_url": "https://www.cdpventuresgf.it/",
+      "contact_email": "info@cdpventuresgf.it",
+      "linkedin": "https://www.linkedin.com/company/cdpventurecapital/",
+      "notes": "Fondo nazionale italiano. Priorità tech sovrana e PMI innovative. Presentazione via portale.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "IT-002",
+      "name": "Primo Ventures",
+      "type": "VC",
+      "country": "IT",
+      "focus": "B2B SaaS, AI, Dev Tools",
+      "ticket_min_eur": 500000,
+      "ticket_max_eur": 3000000,
+      "stage": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "apply_url": "https://www.primomilanohub.com/",
+      "contact_email": "info@primomilanohub.com",
+      "linkedin": "https://www.linkedin.com/company/primo-ventures/",
+      "notes": "Focus su software B2B e AI. Hanno investito in startup italiane con traction GitHub.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "IT-003",
+      "name": "United Ventures",
+      "type": "VC",
+      "country": "IT",
+      "focus": "Tech, SaaS, AI",
+      "ticket_min_eur": 500000,
+      "ticket_max_eur": 5000000,
+      "stage": [
+        "Seed",
+        "Series A"
+      ],
+      "apply_url": "https://unitedventures.it/",
+      "contact_email": "info@unitedventures.it",
+      "linkedin": "https://www.linkedin.com/company/united-ventures/",
+      "notes": "Top VC italiano. Focus deep tech e software. Portfolio include Moneyfarm.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "IT-004",
+      "name": "P101 SGR",
+      "type": "VC",
+      "country": "IT",
+      "focus": "Digital, AI, Consumer Tech",
+      "ticket_min_eur": 300000,
+      "ticket_max_eur": 3000000,
+      "stage": [
+        "Seed",
+        "Series A"
+      ],
+      "apply_url": "https://www.p101.it/en/apply/",
+      "contact_email": "info@p101.it",
+      "linkedin": "https://www.linkedin.com/company/p101/",
+      "notes": "Uno dei VC italiani più attivi. Modulo applicazione pubblico online.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "EU-001",
+      "name": "NLnet Foundation",
+      "type": "Grant",
+      "country": "NL",
+      "focus": "Open Source, Privacy, Internet, AI",
+      "ticket_min_eur": 5000,
+      "ticket_max_eur": 50000,
+      "stage": [
+        "Any"
+      ],
+      "apply_url": "https://nlnet.nl/propose/",
+      "contact_email": "team@nlnet.nl",
+      "linkedin": "https://www.linkedin.com/company/nlnet-foundation/",
+      "notes": "GRANT NON DILUTIVO. Finanzia software open source privacyfirst. Call aperte tutto l'anno. PRIORITÀ ASSOLUTA.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": "2026-04-01",
+      "interest_level": "high"
+    },
+    {
+      "id": "EU-002",
+      "name": "Prototype Fund Germany",
+      "type": "Grant",
+      "country": "DE",
+      "focus": "Open Source, Civic Tech, Software",
+      "ticket_min_eur": 10000,
+      "ticket_max_eur": 47500,
+      "stage": [
+        "Any"
+      ],
+      "apply_url": "https://prototypefund.de/en/apply/",
+      "contact_email": "info@prototypefund.de",
+      "linkedin": "https://www.linkedin.com/company/prototype-fund/",
+      "notes": "GRANT NON DILUTIVO dal Ministero BMBF tedesco. Aperto a developers EU. 6 mesi, max 47.500 EUR.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": "2026-04-01",
+      "interest_level": "high"
+    },
+    {
+      "id": "EU-003",
+      "name": "NGI Zero (NLnet / EU Horizon)",
+      "type": "Grant",
+      "country": "EU",
+      "focus": "Privacy, AI, Open Internet",
+      "ticket_min_eur": 5000,
+      "ticket_max_eur": 50000,
+      "stage": [
+        "Any"
+      ],
+      "apply_url": "https://nlnet.nl/NGI0/",
+      "contact_email": "ngi@nlnet.nl",
+      "linkedin": null,
+      "notes": "Programma EU finanziato da Horizon Europe. LocalFirst AI e privacy-preserving tech: FIT PERFETTO.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": "2026-04-01",
+      "interest_level": "high"
+    },
+    {
+      "id": "ANGEL-001",
+      "name": "AngelList / Wellfound",
+      "type": "Angel Platform",
+      "country": "US",
+      "focus": "Any startup globally",
+      "ticket_min_eur": 5000,
+      "ticket_max_eur": 500000,
+      "stage": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "apply_url": "https://wellfound.com/",
+      "contact_email": null,
+      "linkedin": null,
+      "notes": "Crea profilo startup gratuito. Visibilità a 5M+ angel investors. Connetti GitHub e MRR da Stripe.",
+      "status": "to_create_profile",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "ANGEL-002",
+      "name": "Product Hunt",
+      "type": "Launch Platform",
+      "country": "US",
+      "focus": "Dev Tools, AI, Productivity",
+      "ticket_min_eur": 0,
+      "ticket_max_eur": 0,
+      "stage": [
+        "Any"
+      ],
+      "apply_url": "https://www.producthunt.com/",
+      "contact_email": null,
+      "linkedin": null,
+      "notes": "NON è investitore ma un lancio su PH genera visibilità VC e angel organica. 1000+ upvotes = credibilità immediata.",
+      "status": "to_launch",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": null
+    },
+    {
+      "id": "ACCL-001",
+      "name": "Y Combinator",
+      "type": "Accelerator",
+      "country": "US",
+      "focus": "Any tech startup",
+      "ticket_min_eur": 125000,
+      "ticket_max_eur": 125000,
+      "stage": [
+        "Pre-Seed"
+      ],
+      "apply_url": "https://www.ycombinator.com/apply/",
+      "contact_email": null,
+      "linkedin": "https://www.linkedin.com/company/y-combinator/",
+      "notes": "125K per 7% equity. Solo founders accettati. Prossima batch: ottobre 2026. Applicazione gratuita, vale la pena.",
+      "status": "to_apply",
+      "last_contact": null,
+      "follow_up_date": "2026-07-01",
+      "interest_level": null
+    },
+    {
+      "id": "ACCL-002",
+      "name": "Techstars",
+      "type": "Accelerator",
+      "country": "US/EU",
+      "focus": "AI, Dev Tools, SaaS",
+      "ticket_min_eur": 100000,
+      "ticket_max_eur": 120000,
+      "stage": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "apply_url": "https://www.techstars.com/apply",
+      "contact_email": null,
+      "linkedin": "https://www.linkedin.com/company/techstars/",
+      "notes": "100K per 6% equity. Programmi EU disponibili (Berlino, Amsterdam). Rete alumni enorme.",
+      "status": "to_apply",
+      "last_contact": null,
+      "follow_up_date": "2026-06-01",
+      "interest_level": null
+    },
+    {
+      "id": "ACCL-003",
+      "name": "EIT Digital Accelerator",
+      "type": "Accelerator",
+      "country": "EU",
+      "focus": "Deep Tech, AI, Data",
+      "ticket_min_eur": 100000,
+      "ticket_max_eur": 500000,
+      "stage": [
+        "Seed"
+      ],
+      "apply_url": "https://www.eitdigital.eu/startup-activity/",
+      "contact_email": "accelerator@eitdigital.eu",
+      "linkedin": "https://www.linkedin.com/company/eit-digital/",
+      "notes": "EU pubblico, focus deep tech. Mentorship + funding. Prossima call: settembre 2026.",
+      "status": "to_apply",
+      "last_contact": null,
+      "follow_up_date": "2026-08-01",
+      "interest_level": null
+    },
+    {
+      "id": "OSVC-001",
+      "name": "OSS Capital",
+      "type": "VC",
+      "country": "US",
+      "focus": "Commercial Open Source Software (COSS)",
+      "ticket_min_eur": 150000,
+      "ticket_max_eur": 3000000,
+      "stage": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "apply_url": "https://oss.capital/",
+      "contact_email": "team@oss.capital",
+      "linkedin": "https://www.linkedin.com/company/oss-capital/",
+      "notes": "SPECIALIZZATO IN OPEN SOURCE COMMERCIALE. Hanno investito in progetti AGPL simili. FIT ECCELLENTE.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": "2026-04-15",
+      "interest_level": "high"
+    },
+    {
+      "id": "OSVC-002",
+      "name": "Heavybit Industries",
+      "type": "Accelerator/VC",
+      "country": "US",
+      "focus": "Developer Tools, Open Source",
+      "ticket_min_eur": 50000,
+      "ticket_max_eur": 500000,
+      "stage": [
+        "Pre-Seed",
+        "Seed"
+      ],
+      "apply_url": "https://www.heavybit.com/apply",
+      "contact_email": null,
+      "linkedin": "https://www.linkedin.com/company/heavybit/",
+      "notes": "Specializzato in developer tools. Portfolio: LaunchDarkly, Cloudflare, CircleCI. Dev tool AI = sweet spot.",
+      "status": "to_contact",
+      "last_contact": null,
+      "follow_up_date": "2026-04-15",
+      "interest_level": "high"
+    },
+    {
+      "id": "CF-001",
+      "name": "Open Collective",
+      "type": "Crowdfunding",
+      "country": "US",
+      "focus": "Open Source projects",
+      "ticket_min_eur": 0,
+      "ticket_max_eur": 0,
+      "stage": [
+        "Any"
+      ],
+      "apply_url": "https://opencollective.com/",
+      "contact_email": null,
+      "linkedin": null,
+      "notes": "NON DILUTIVO donazioni mensili da community. Progetti simili raccolgono 2-10K EUR/mese. Setup in 30 min.",
+      "status": "to_setup",
+      "last_contact": null,
+      "follow_up_date": null,
+      "interest_level": "high"
+    }
+  ],
+  "kpis_for_deck": {
+    "github_repo": "https://github.com/vio83/mai-love",
+    "license": "AGPL-3.0 + Commercial",
+    "ai_providers_supported": 9,
+    "local_models_ollama": 7,
+    "stack": "FastAPI + React + Tauri + SQLite",
+    "mrr_current": 0,
+    "mrr_target_12mo": 5000,
+    "paying_users_current": 0,
+    "paying_users_target_12mo": 100,
+    "use_of_funds": {
+      "infrastructure_hosting": "20%",
+      "founder_salary_12mo": "50%",
+      "marketing_community": "20%",
+      "legal_ie_company": "10%"
+    }
+  }
+}

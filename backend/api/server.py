@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 from collections import defaultdict
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
@@ -70,6 +70,7 @@ from backend.automation.sponsor_growth_tracker import (
     get_funnel_metrics, get_cohort_analysis, estimate_ltv, get_health_dashboard,
     track_visitor, track_subscriber, track_paying_sponsor, track_churn,
 )
+from backend.virtualpartner import bridge as vpartner_bridge
 
 # RAG è disabilitato per compatibilità Python 3.14
 RAG_AVAILABLE = False
@@ -1003,11 +1004,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️  ReasoningEngine init: {e}")
 
+    # === VIRTUALPARTNER AI ===
+    try:
+        await vpartner_bridge.init()
+        print("💖 VirtualPartnerAI: motori emotion/memory/personality/relationship ATTIVI")
+    except Exception as e:
+        print(f"⚠️  VirtualPartnerAI init: {e}")
+
     print("✅ VIO 83 AI ORCHESTRA — TUTTI I MOTORI AUTO-CRESCENTI ATTIVI")
 
     yield
 
     # === SHUTDOWN ===
+    try:
+        await vpartner_bridge.shutdown()
+    except Exception:
+        pass
     print("🎵 VIO 83 AI ORCHESTRA — Shutdown in corso...")
 
     knowledge_task = getattr(app.state, "knowledge_auto_refresh_task", None)
@@ -4181,6 +4193,232 @@ async def api_kpi_business(refresh: bool = Query(True)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════
+# VIRTUALPARTNER AI — Endpoint unificati (Unity + Web)
+# ═══════════════════════════════════════════════
+
+@app.get("/virtualpartner/health")
+async def vpartner_health():
+    """Health check VirtualPartnerAI engines."""
+    return {
+        "status": "ok",
+        "engines": {
+            "emotion": True,
+            "memory": vpartner_bridge.memory_system.db is not None,
+            "personality": True,
+            "relationship": True,
+            "tts_local": vpartner_bridge.tts_engine is not None,
+        },
+        "version": "2.0.0-unified",
+    }
+
+
+@app.post("/virtualpartner/chat")
+async def vpartner_chat(request: Request):
+    """Chat VirtualPartnerAI con routing LLM via Orchestra.
+
+    Body JSON:
+    {
+        "user_id": "default",
+        "message": "Ciao amore!",
+        "mode": "partner",
+        "partner_name": "Alex",
+        "user_name": "Tesoro",
+        "traits": ["affectionate", "empathetic", "romantic"]
+    }
+    """
+    body = await request.json()
+    user_id = str(body.get("user_id", "default")).strip()
+    message = str(body.get("message", "")).strip()
+
+    if not message:
+        raise HTTPException(status_code=400, detail="Il campo 'message' è obbligatorio.")
+
+    result = await vpartner_bridge.chat(
+        user_id=user_id,
+        message=message,
+        mode=body.get("mode", "partner"),
+        partner_name=body.get("partner_name", "Alex"),
+        user_name=body.get("user_name", "Tesoro"),
+        traits=body.get("traits"),
+        orchestrate_fn=orchestrate,
+    )
+
+    return {
+        "status": "ok",
+        "text": result["response"],
+        "audio_file": result.get("audio_file", ""),
+        "emotion": result["emotion"],
+        "mood": result["mood"],
+        "emotions_state": result["emotions_state"],
+        "xp_gained": result["xp_gained"],
+        "relationship_level": result["relationship_level"],
+        "relationship_name": result["relationship_name"],
+        "badges_earned": result["badges_earned"],
+        "avatar_expression": result["avatar_expression"],
+    }
+
+
+@app.get("/virtualpartner/relationship/{user_id}")
+async def vpartner_relationship(user_id: str):
+    """Stato relazione VirtualPartnerAI."""
+    return vpartner_bridge.relationship_engine.get_state(user_id)
+
+
+@app.get("/virtualpartner/memory/{user_id}")
+async def vpartner_memory(user_id: str):
+    """Memoria utente VirtualPartnerAI."""
+    return await vpartner_bridge.memory_system.get_user_memory(user_id)
+
+
+@app.get("/virtualpartner/personality")
+async def vpartner_personality():
+    """Stato personalità corrente del partner virtuale."""
+    pe = vpartner_bridge.personality_engine
+    return {
+        "mood": pe.get_current_mood(),
+        "emotions": pe.emotions,
+    }
+
+
+@app.websocket("/ws/virtualpartner/{user_id}")
+async def vpartner_ws(websocket: WebSocket, user_id: str):
+    """WebSocket realtime per Unity / frontend VirtualPartnerAI.
+
+    Messaggi in ingresso (JSON):
+        {"text": "Ciao!", "mode": "partner", "partner_name": "Alex", "user_name": "Tesoro"}
+
+    Messaggi in uscita (JSON):
+        {"text": "...", "audio_file": "...", "emotion": "...", "mood": "...",
+         "xp_gained": N, "level": N, "level_name": "...", "badges": [...],
+         "avatar_expression": "...", "emotions": {...}}
+    """
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            message = str(data.get("text", data.get("message", ""))).strip()
+            if not message:
+                await websocket.send_json({"text": "Ti ascolto, scrivimi qualcosa!", "audio_file": ""})
+                continue
+
+            result = await vpartner_bridge.chat(
+                user_id=user_id,
+                message=message,
+                mode=data.get("mode", "partner"),
+                partner_name=data.get("partner_name", "Alex"),
+                user_name=data.get("user_name", "Tesoro"),
+                traits=data.get("traits"),
+                orchestrate_fn=orchestrate,
+            )
+
+            await websocket.send_json({
+                "text": result["response"],
+                "audio_file": result.get("audio_file", ""),
+                "emotion": result["emotion"],
+                "mood": result["mood"],
+                "xp_gained": result["xp_gained"],
+                "level": result["relationship_level"],
+                "level_name": result["relationship_name"],
+                "badges": result["badges_earned"],
+                "avatar_expression": result["avatar_expression"],
+                "emotions": result["emotions_state"],
+            })
+    except WebSocketDisconnect:
+        pass
+
+
+# ═══════════════════════════════════════════════
+# INVESTOR CRM — Round Pre-Seed / Angel
+# ═══════════════════════════════════════════════
+
+_INVESTOR_CRM_FILE = PROJECT_ROOT / "docs" / "investors" / "investor_crm.json"
+_INVESTOR_CRM_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _load_crm() -> dict:
+    if not _INVESTOR_CRM_FILE.exists():
+        return {"pipeline": [], "_meta": {}}
+    return json.loads(_INVESTOR_CRM_FILE.read_text(encoding="utf-8"))
+
+
+def _save_crm(data: dict) -> None:
+    _INVESTOR_CRM_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@app.get("/investors")
+async def list_investors(status: str | None = None):
+    """Ritorna il CRM investitori. Filtra per status se specificato."""
+    crm = _load_crm()
+    pipeline = crm.get("pipeline", [])
+    if status:
+        pipeline = [p for p in pipeline if p.get("status") == status]
+    return {
+        "meta": crm.get("_meta", {}),
+        "total": len(pipeline),
+        "filtered_by": status,
+        "pipeline": pipeline,
+    }
+
+
+@app.get("/investors/{investor_id}")
+async def get_investor(investor_id: str):
+    """Dettaglio singolo investitore per ID (es. IT-001, EU-001)."""
+    crm = _load_crm()
+    for inv in crm.get("pipeline", []):
+        if inv.get("id") == investor_id:
+            return inv
+    raise HTTPException(status_code=404, detail=f"Investitore {investor_id} non trovato")
+
+
+@app.patch("/investors/{investor_id}/status")
+async def update_investor_status(investor_id: str, request: Request):
+    """
+    Aggiorna status / note / date di un investitore nel CRM.
+    Body JSON: {"status": "contacted", "last_contact": "2026-04-01", "interest_level": "high", "notes": "..."}
+    Status validi: to_contact | contacted | follow_up | meeting_set | rejected | funded
+    """
+    VALID_STATUSES = {"to_contact", "contacted", "follow_up", "meeting_set", "rejected", "funded",
+                      "to_apply", "applied", "to_setup", "to_create_profile", "to_launch"}
+    body = await request.json()
+    new_status = body.get("status")
+    if new_status and new_status not in VALID_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Status non valido: {new_status}. Validi: {sorted(VALID_STATUSES)}")
+    crm = _load_crm()
+    updated = False
+    for inv in crm.get("pipeline", []):
+        if inv.get("id") == investor_id:
+            for field in ("status", "last_contact", "follow_up_date", "interest_level", "notes"):
+                if field in body:
+                    inv[field] = body[field]
+            updated = True
+            break
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Investitore {investor_id} non trovato")
+    _save_crm(crm)
+    return {"ok": True, "investor_id": investor_id, "updated_fields": list(body.keys())}
+
+
+@app.get("/investors/summary/funnel")
+async def investor_funnel():
+    """Panoramica funnel investitori per status."""
+    crm = _load_crm()
+    funnel: dict[str, int] = {}
+    total_target = 0
+    for inv in crm.get("pipeline", []):
+        s = inv.get("status", "unknown")
+        funnel[s] = funnel.get(s, 0) + 1
+        if s not in ("rejected",):
+            mx = inv.get("ticket_max_eur", 0)
+            total_target += mx if isinstance(mx, (int, float)) else 0
+    return {
+        "funnel": funnel,
+        "total_investors": len(crm.get("pipeline", [])),
+        "max_addressable_eur": total_target,
+        "meta": crm.get("_meta", {}),
+    }
 
 
 # ═══════════════════════════════════════════════

@@ -1,0 +1,30 @@
+Oggetto: VIO AI Orchestra — Pre-Seed Round da €50K | AI Local-First Open Source | OSS Capital
+
+Gentile Team OSS Capital,
+
+Mi chiamo Viorica Porcu, sviluppatrice software indipendente e fondatrice di VIO AI Orchestra.
+
+In 12 mesi ho costruito da zero la prima piattaforma desktop open source (AGPL-3.0) che orchestra 9+ modelli AI — locali (Ollama: Llama3, DeepSeek, Mistral, Gemma) e cloud (GPT-4, Claude, Gemini, Groq) — in un'unica app cross-platform (macOS, Windows, Linux).
+
+DATI CONCRETI:
+• Codice pubblico su GitHub: https://github.com/vio83/mai-love
+• Stack certificato: FastAPI + React/Vite + Tauri + SQLite
+• Privacy-first: i dati NON lasciano il device in modalità local
+• Traction attuale: community developer in crescita organica
+• Licenza duale AGPL-3.0 + Commercial per revenue enterprise
+
+PERCHÉ ADESSO:
+Il mercato AI desktop è esploso. Microsoft spende $13B su OpenAI. Apple integra LLM on-device. VIO AI Orchestra è già funzionante, già deployato, già open: vantaggio competitivo di 18-24 mesi su qualsiasi competitor che parte da zero.
+
+RICHIESTA:
+€50.000 Pre-Seed per 10-15% equity su valutazione €350K pre-money.
+Uso dei fondi: 50% stipendio fondatrice (sviluppo full-time 12 mesi), 20% infrastruttura, 20% marketing, 10% legale.
+
+NEXT STEP:
+30 minuti di chiamata? https://calendly.com/vio83
+
+Con stima,
+Viorica Porcu
+porcu.v.83@gmail.com
+GitHub: https://github.com/vio83/mai-love
+Web: https://vio83.github.io/vio83-ai-orchestra/

@@ -1,0 +1,31 @@
+Oggetto: Application: VIO AI Orchestra — Privacy-First Local AI Orchestrator | NGI Zero (NLnet / EU Horizon)
+
+Dear NGI Zero (NLnet / EU Horizon) Team,
+
+My name is Viorica Porcu, independent software developer from Italy.
+
+I am applying for a grant to fund the continued development of VIO AI Orchestra, a fully open source (AGPL-3.0) desktop AI orchestration platform.
+
+PROJECT OVERVIEW:
+VIO AI Orchestra allows anyone — individuals, NGOs, journalists, SMEs — to run powerful AI (9+ models including local LLMs via Ollama) WITHOUT sending data to the cloud. Privacy is enforced architecturally: all processing runs on-device by default.
+
+TECHNICAL PROOF:
+• Public code: https://github.com/vio83/mai-love
+• Stack: FastAPI (Python), React/TypeScript, Tauri (Rust), SQLite
+• Local models: LLaMA 3, Mistral, DeepSeek, Gemma, Qwen
+• Zero external dependencies in local mode
+• Dual license: AGPL-3.0 (community) + Commercial (enterprise)
+
+FIT WITH YOUR MISSION:
+This project directly advances open internet, privacy-preserving AI, and digital sovereignty — making cutting-edge AI tools accessible without vendor lock-in or surveillance.
+
+REQUESTED AMOUNT:
+€5.000 – €50.000 EUR for 6-12 months of full-time development.
+
+APPLICATION: https://nlnet.nl/NGI0/
+
+Thank you for your consideration.
+
+Viorica Porcu
+porcu.v.83@gmail.com
+https://github.com/vio83/mai-love
