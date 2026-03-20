@@ -103,6 +103,158 @@ ROUTING_MAP = {
     "conversation": "claude",
 }
 
+# ─── Embedding-based Classification (via Ollama) ───────────────────
+
+import math as _math
+import logging as _logging
+
+_log = _logging.getLogger("embedding_classifier")
+
+# Frasi di riferimento per ogni categoria (embeddings pre-calcolati al primo uso)
+_REFERENCE_PHRASES: dict[str, list[str]] = {
+    "code": [
+        "scrivi una funzione Python",
+        "debug this JavaScript error",
+        "create a REST API endpoint",
+        "fix the SQL query bug",
+    ],
+    "legal": [
+        "analizza questo contratto",
+        "GDPR compliance requirements",
+        "clausola di riservatezza",
+    ],
+    "medical": [
+        "diagnosi differenziale per questi sintomi",
+        "terapia farmacologica raccomanda",
+        "linee guida cliniche",
+    ],
+    "writing": [
+        "scrivi un post LinkedIn",
+        "write a newsletter article",
+        "SEO copywriting headline",
+    ],
+    "research": [
+        "ricerca accademica su questo argomento",
+        "trova paper e citazioni",
+        "state of the art survey",
+    ],
+    "automation": [
+        "crea un workflow di automazione",
+        "configura un agent multi-step",
+        "orchestrazione pipeline n8n",
+    ],
+    "creative": [
+        "scrivi una storia creativa",
+        "write a poem about nature",
+        "inventa un racconto originale",
+    ],
+    "analysis": [
+        "analizza questi dati CSV",
+        "crea un grafico statistico",
+        "confronta i trend nei dati",
+    ],
+    "realtime": [
+        "quali sono le notizie di oggi",
+        "what is the latest news about",
+        "aggiornamenti in tempo reale",
+    ],
+    "reasoning": [
+        "spiega perché funziona così",
+        "ragionamento logico step by step",
+        "dimostra questo teorema matematico",
+    ],
+}
+
+# Cache embeddings di riferimento (calcolati una sola volta)
+_REF_EMBEDDINGS: dict[str, list[list[float]]] = {}
+_EMBED_MODEL = "nomic-embed-text"  # modello embedding leggero
+
+
+def _cosine_sim(a: list[float], b: list[float]) -> float:
+    """Cosine similarity tra due vettori."""
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = _math.sqrt(sum(x * x for x in a))
+    norm_b = _math.sqrt(sum(x * x for x in b))
+    if norm_a < 1e-9 or norm_b < 1e-9:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _get_embedding_sync(text: str) -> list[float] | None:
+    """Chiama Ollama /api/embeddings in modo sincrono."""
+    import json as _json
+    try:
+        body = _json.dumps({"model": _EMBED_MODEL, "prompt": text}).encode()
+        req = Request(
+            "http://127.0.0.1:11434/api/embeddings",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(req, timeout=5) as resp:
+            data = _json.loads(resp.read())
+            return data.get("embedding")
+    except Exception:
+        return None
+
+
+def _ensure_ref_embeddings() -> bool:
+    """
+    Calcola embeddings di riferimento per ogni categoria (lazy, una sola volta).
+    Ritorna True se disponibili, False se Ollama non ha il modello.
+    """
+    global _REF_EMBEDDINGS
+    if _REF_EMBEDDINGS:
+        return True
+
+    # Test con una frase
+    test = _get_embedding_sync("test")
+    if test is None:
+        return False
+
+    for cat, phrases in _REFERENCE_PHRASES.items():
+        embeddings = []
+        for phrase in phrases:
+            emb = _get_embedding_sync(phrase)
+            if emb:
+                embeddings.append(emb)
+        if embeddings:
+            _REF_EMBEDDINGS[cat] = embeddings
+
+    if _REF_EMBEDDINGS:
+        _log.info(f"[EmbeddingClassifier] Caricati {len(_REF_EMBEDDINGS)} categorie con embeddings")
+    return bool(_REF_EMBEDDINGS)
+
+
+def classify_request_embedding(message: str) -> tuple[str, float]:
+    """
+    Classifica una richiesta usando cosine similarity con embedding Ollama.
+
+    Returns:
+        (request_type, confidence) — tipo e confidenza [0, 1]
+    """
+    if not _ensure_ref_embeddings():
+        # Fallback a keyword
+        return classify_request(message), 0.5
+
+    msg_emb = _get_embedding_sync(message)
+    if msg_emb is None:
+        return classify_request(message), 0.5
+
+    best_type = "conversation"
+    best_score = -1.0
+
+    for cat, ref_embs in _REF_EMBEDDINGS.items():
+        # Media della max similarity con ogni frase di riferimento
+        sims = [_cosine_sim(msg_emb, ref) for ref in ref_embs]
+        avg_sim = sum(sims) / len(sims) if sims else 0.0
+        if avg_sim > best_score:
+            best_score = avg_sim
+            best_type = cat
+
+    confidence = max(0.0, min(1.0, best_score))
+    return best_type, confidence
+
 
 def _env_flag(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)

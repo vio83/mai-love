@@ -1,6 +1,6 @@
 // VIO 83 AI ORCHESTRA - Componente Messaggio Chat
-import { AlertCircle, Bot, CheckCircle, Clock, User, Zap } from 'lucide-react';
-import { memo } from 'react';
+import { AlertCircle, Bot, CheckCircle, Clock, ThumbsDown, ThumbsUp, User, Zap } from 'lucide-react';
+import { memo, useCallback, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
@@ -59,6 +59,27 @@ interface ChatMessageProps {
 function ChatMessageInner({ message }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const isUser = message.role === 'user';
+  const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
+
+  const sendFeedback = useCallback(async (thumbsUp: boolean) => {
+    const newFeedback = thumbsUp ? 'up' : 'down';
+    if (feedback === newFeedback) return; // Already sent
+    setFeedback(newFeedback);
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: message.provider || 'ollama',
+          model: message.model || '',
+          thumbs_up: thumbsUp,
+          message_id: message.id,
+        }),
+      });
+    } catch {
+      // Silently fail — feedback is best-effort
+    }
+  }, [message.provider, message.model, message.id, feedback]);
 
   return (
     <div style={{
@@ -227,6 +248,44 @@ function ChatMessageInner({ message }: ChatMessageProps) {
               <Zap size={11} />
               <span>{message.latencyMs < 1000 ? `${message.latencyMs}ms` : `${(message.latencyMs / 1000).toFixed(1)}s`}</span>
             </>
+          )}
+
+          {/* Thumbs up/down feedback — solo per messaggi AI */}
+          {!isUser && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+              <button
+                onClick={() => sendFeedback(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  color: feedback === 'up' ? 'var(--vio-green)' : 'var(--vio-text-dim)',
+                  opacity: feedback === 'up' ? 1 : 0.5,
+                  transition: 'all 0.15s',
+                }}
+                title="Risposta utile"
+              >
+                <ThumbsUp size={13} />
+              </button>
+              <button
+                onClick={() => sendFeedback(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  color: feedback === 'down' ? '#ef4444' : 'var(--vio-text-dim)',
+                  opacity: feedback === 'down' ? 1 : 0.5,
+                  transition: 'all 0.15s',
+                }}
+                title="Risposta non utile"
+              >
+                <ThumbsDown size={13} />
+              </button>
+            </div>
           )}
         </div>
       </div>

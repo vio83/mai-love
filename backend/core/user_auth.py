@@ -32,6 +32,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+try:
+    from argon2 import PasswordHasher
+    from argon2.exceptions import VerifyMismatchError
+    _ARGON2 = PasswordHasher(
+        time_cost=3,        # 3 iterazioni
+        memory_cost=65536,  # 64 MB
+        parallelism=1,      # 1 thread
+    )
+    HAS_ARGON2 = True
+except ImportError:
+    HAS_ARGON2 = False
+
 # ─── Costanti ────────────────────────────────────────────────────────
 
 _RE_EMAIL = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
@@ -80,13 +92,42 @@ def _hash_email(email: str) -> str:
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
 
 
-def _hash_password(password: str, salt: str) -> str:
-    """Hash password con salt (SHA-256 + HMAC)."""
-    return hmac.new(
+def _hash_password(password: str, salt: str = "") -> str:
+    """
+    Hash password con argon2id (standard OWASP).
+    Fallback a HMAC-SHA256 se argon2 non è installato.
+    Il salt è incorporato nell'hash argon2 (non serve salt separato).
+    """
+    if HAS_ARGON2:
+        return _ARGON2.hash(password)
+    # Fallback legacy HMAC-SHA256 (solo se argon2 non disponibile)
+    if not salt:
+        salt = secrets.token_hex(16)
+    return "legacy:" + hmac.new(
         salt.encode("utf-8"),
         password.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def _verify_password(password: str, stored_hash: str, salt: str = "") -> bool:
+    """
+    Verifica password contro hash.
+    Supporta sia argon2id (nuovo) che HMAC-SHA256 (legacy migration).
+    """
+    if HAS_ARGON2 and stored_hash.startswith("$argon2"):
+        try:
+            return _ARGON2.verify(stored_hash, password)
+        except VerifyMismatchError:
+            return False
+    # Legacy HMAC-SHA256 path
+    legacy_hash = stored_hash.removeprefix("legacy:")
+    computed = hmac.new(
+        salt.encode("utf-8"),
+        password.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(computed, legacy_hash)
 
 
 def _generate_token() -> str:
@@ -274,10 +315,17 @@ class UserAuthManager:
             self._log_action(user_id, email_hash, "login_failed_inactive", False)
             return AuthResult(False, "Account disattivato")
 
-        computed = _hash_password(password, salt)
-        if not hmac.compare_digest(computed, stored_hash):
+        if not _verify_password(password, stored_hash, salt):
             self._log_action(user_id, email_hash, "login_failed_password", False)
             return AuthResult(False, "Credenziali non valide")
+
+        # Auto-migrate da HMAC-SHA256 a argon2id al primo login valido
+        if HAS_ARGON2 and not stored_hash.startswith("$argon2"):
+            new_hash = _hash_password(password)
+            self._conn.execute(
+                "UPDATE users SET password_hash = ?, password_salt = '' WHERE user_id = ?",
+                (new_hash, user_id)
+            )
 
         # Revoca vecchi token scaduti
         now = time.time()

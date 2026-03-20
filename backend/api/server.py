@@ -1997,6 +1997,36 @@ async def api_archive_conversation(conv_id: str):
 
 
 # ═══════════════════════════════════════════════
+# USER FEEDBACK (thumbs up/down)
+# ═══════════════════════════════════════════════
+
+@app.post("/feedback")
+async def api_user_feedback(
+    provider: str = Body(...),
+    model: str = Body(""),
+    thumbs_up: bool = Body(...),
+    message_id: str = Body(""),
+):
+    """
+    Registra feedback reale dell'utente (thumbs up/down).
+    Aggiorna il Thompson Sampling bandit nel SelfOptimizer.
+    """
+    try:
+        from backend.core.self_optimizer import get_self_optimizer
+        optimizer = get_self_optimizer()
+        optimizer.record_user_feedback(provider, model, thumbs_up)
+        return {
+            "status": "ok",
+            "feedback": "positive" if thumbs_up else "negative",
+            "provider": provider,
+            "model": model,
+        }
+    except Exception as e:
+        logger.error(f"[Feedback] Errore: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════
 # CLASSIFY
 # ═══════════════════════════════════════════════
 

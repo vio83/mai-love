@@ -1,8 +1,8 @@
 # VIO 83 AI ORCHESTRA — Dipendenze Python
 # Installare con: pip install -r requirements.txt
 #
-# NOTA: Testato con Python 3.11 / 3.12 / 3.13
-# Python 3.14 non supporta chromadb/litellm (C-extensions non ancora compilate)
+# NOTA: Testato con Python 3.11 / 3.12 / 3.13 / 3.14
+# Tutte le dipendenze core funzionano su OGNI versione Python.
 
 # === Core Server ===
 fastapi>=0.115.0
@@ -11,7 +11,6 @@ python-dotenv>=1.0.0
 pydantic>=2.0.0
 
 # === HTTP Client (per chiamate Ollama/API) ===
-# httpx senza SOCKS proxy per evitare conflitti con environment locale
 httpx[http2]>=0.27.0
 
 # === Database ===
@@ -22,13 +21,31 @@ pypdf>=4.0.0                 # Fallback leggero per PDF
 python-docx>=1.1.0           # DOCX extraction
 
 # === Knowledge Base — Embedding e Vector Search ===
-# Integrate in standard install per esperienza out-of-box su Python supportato.
-# Su Python 3.14 restano esclusi via marker (fallback SQLite FTS5 resta attivo).
+# ChromaDB/sentence-transformers: solo Python <3.14 (C-extensions).
+# VectorEngine™ funziona SEMPRE con Ollama embeddings + SQLite.
 chromadb>=0.5.0,<1.0.0; python_version < "3.14"
 sentence-transformers>=3.0.0; python_version < "3.14"
 
-# === Rate Limiting (opzionale — già implementato natively in server.py) ===
+# === NUOVE DIPENDENZE — Moduli ML Reali ===
+
+# Sicurezza: Argon2id password hashing (standard OWASP)
+argon2-cffi>=23.1.0
+
+# Matematica/ML: NumPy per vector search e bandit algorithms
+numpy>=1.26.0
+
+# Bayesian Optimization per auto-tuning parametri
+# (opzionale — fallback a grid search se non installato)
+scikit-optimize>=0.10.0; python_version < "3.14"
+
+# Web search con citazioni (alternativa a DuckDuckGo)
+tavily-python>=0.5.0
+
+# MCP Client (Model Context Protocol) per tool interoperability
+# mcp>=1.0.0; python_version >= "3.10"
+
+# === Rate Limiting ===
 # slowapi>=0.1.9             # Alternativa basata su limits
 
-# === Metriche e Osservabilità (opzionale) ===
+# === Metriche e Osservabilità ===
 # prometheus-client>=0.21.0  # Metriche Prometheus

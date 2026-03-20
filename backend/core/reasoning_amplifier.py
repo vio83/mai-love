@@ -710,6 +710,145 @@ class ReasoningAmplifier:
         """Registra feedback utente per auto-calibrazione. Chiama dopo ogni interazione completata."""
         self._calibrator.record_feedback(quality_predicted, satisfaction)
 
+    # ── Multi-step Reasoning Loop (REALE) ──────────────────────────
+
+    async def multi_step_reason(
+        self,
+        user_input: str,
+        ai_call_fn,
+        base_system_prompt: str = "",
+        provider: str = "",
+        model: str = "",
+    ) -> Dict:
+        """
+        Ragionamento multi-step REALE con 3 chiamate AI separate:
+
+        Step 1 — ANALYZE: Analizza il problema, identifica componenti chiave
+        Step 2 — SOLVE: Genera la soluzione basandosi sull'analisi
+        Step 3 — VERIFY: Verifica la soluzione, correggi errori
+
+        Parametri:
+            user_input: la domanda dell'utente
+            ai_call_fn: async callable(messages, provider, model) → str
+                        Funzione che chiama il provider AI
+            base_system_prompt: system prompt base
+            provider/model: per la chiamata AI
+
+        Returns:
+            Dict con output finale, analisi, verifica, quality report
+        """
+        import asyncio
+        t0 = time.monotonic()
+
+        intent = self.decode_intent(user_input)
+
+        # Decidi se serve multi-step (solo per task complessi)
+        if intent.complexity < 0.5 and intent.depth < 0.5:
+            # Task semplice: single-step è sufficiente
+            return {"use_multistep": False, "intent": intent}
+
+        steps: List[Dict] = []
+
+        # ── STEP 1: ANALYZE ──────────────────────────────────
+        analyze_prompt = (
+            f"{base_system_prompt}\n\n"
+            "Tu sei in fase di ANALISI. Non rispondere ancora alla domanda.\n"
+            "Invece, analizza il problema e produci:\n"
+            "1. Quali sono i concetti chiave coinvolti?\n"
+            "2. Quali sotto-problemi vanno risolti?\n"
+            "3. Quali vincoli o casi limite esistono?\n"
+            "4. Qual è l'approccio migliore?\n"
+            "Sii conciso e strutturato."
+        )
+
+        analyze_messages = [
+            {"role": "system", "content": analyze_prompt},
+            {"role": "user", "content": user_input},
+        ]
+
+        try:
+            analysis = await ai_call_fn(analyze_messages, provider, model)
+        except Exception as e:
+            logger.warning(f"[MultiStep] Step ANALYZE fallito: {e}")
+            return {"use_multistep": False, "intent": intent, "error": str(e)}
+
+        steps.append({"step": "analyze", "output": analysis})
+
+        # ── STEP 2: SOLVE ────────────────────────────────────
+        solve_prompt = (
+            f"{base_system_prompt}\n\n"
+            "Tu sei in fase di SOLUZIONE. Basandoti sull'analisi precedente, "
+            "genera la risposta completa e dettagliata alla domanda dell'utente.\n"
+            "Usa l'analisi per guidare la struttura e la completezza della risposta."
+        )
+
+        solve_messages = [
+            {"role": "system", "content": solve_prompt},
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": f"[Analisi completata]\n{analysis}"},
+            {"role": "user", "content": "Ora genera la risposta finale completa basata sulla tua analisi."},
+        ]
+
+        try:
+            solution = await ai_call_fn(solve_messages, provider, model)
+        except Exception as e:
+            logger.warning(f"[MultiStep] Step SOLVE fallito: {e}")
+            # Fallback: usa l'analisi come output
+            solution = analysis
+
+        steps.append({"step": "solve", "output": solution})
+
+        # ── STEP 3: VERIFY ───────────────────────────────────
+        verify_prompt = (
+            f"{base_system_prompt}\n\n"
+            "Tu sei in fase di VERIFICA. Controlla la risposta seguente:\n"
+            "1. È fattualmente corretta?\n"
+            "2. Risponde completamente alla domanda?\n"
+            "3. Ci sono errori, imprecisioni o lacune?\n"
+            "Se trovi problemi, correggi e riscrivi la risposta completa.\n"
+            "Se la risposta è corretta, riscrivila migliorandola dove possibile."
+        )
+
+        verify_messages = [
+            {"role": "system", "content": verify_prompt},
+            {"role": "user", "content": f"Domanda originale: {user_input}"},
+            {"role": "assistant", "content": solution},
+            {"role": "user", "content": "Verifica e migliora questa risposta. Riscrivi la versione finale."},
+        ]
+
+        try:
+            verified = await ai_call_fn(verify_messages, provider, model)
+        except Exception as e:
+            logger.warning(f"[MultiStep] Step VERIFY fallito: {e}")
+            verified = solution
+
+        steps.append({"step": "verify", "output": verified})
+
+        # ── Quality check sull'output finale ──
+        report = self._verifier.verify(verified, intent, user_input)
+        amplified = self._amplifier.amplify(verified, intent, report)
+
+        elapsed_ms = round((time.monotonic() - t0) * 1000, 2)
+
+        return {
+            "use_multistep": True,
+            "output": amplified,
+            "steps": steps,
+            "quality": {
+                "overall": report.overall,
+                "accuracy": report.accuracy,
+                "completeness": report.completeness,
+                "clarity": report.clarity,
+            },
+            "intent": {
+                "domain": intent.domain,
+                "complexity": intent.complexity,
+                "depth": intent.depth,
+            },
+            "processing_ms": elapsed_ms,
+            "steps_count": len(steps),
+        }
+
     def get_stats(self) -> Dict:
         return {
             "version": self.VERSION,

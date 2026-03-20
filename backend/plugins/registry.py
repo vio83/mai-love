@@ -951,8 +951,86 @@ class GitPlugin(BasePlugin):
 # Global singleton
 _registry: Optional[PluginRegistry] = None
 
+
+class TavilySearchPlugin(BasePlugin):
+    """
+    Ricerca web avanzata con Tavily — produce risultati con citazioni.
+    Richiede TAVILY_API_KEY in .env. Fallback a DuckDuckGo se non configurato.
+    """
+
+    def __init__(self):
+        self.info = PluginInfo(
+            id="vio.tavily",
+            name="Tavily Web Search",
+            version="1.0.0",
+            description="Ricerca web con citazioni e riassunti (richiede TAVILY_API_KEY)",
+            author="Viorica Porcu",
+            icon="🌐",
+            status=PluginStatus.ACTIVE if os.environ.get("TAVILY_API_KEY") else PluginStatus.DISABLED,
+            tools=[
+                PluginTool("search", "Ricerca web avanzata con citazioni",
+                           {
+                               "type": "object",
+                               "properties": {
+                                   "query": {"type": "string", "description": "Query di ricerca"},
+                                   "max_results": {"type": "integer", "description": "Numero massimo risultati", "default": 5},
+                                   "search_depth": {"type": "string", "description": "basic o advanced", "default": "basic"},
+                               },
+                               "required": ["query"],
+                           }),
+            ],
+        )
+
+    def _tool_search(self, query: str, max_results: int = 5, search_depth: str = "basic") -> dict:
+        api_key = os.environ.get("TAVILY_API_KEY", "")
+        if not api_key:
+            return {"error": "TAVILY_API_KEY non configurata. Aggiungi al file .env"}
+
+        try:
+            payload = json.dumps({
+                "api_key": api_key,
+                "query": query,
+                "max_results": min(max_results, 10),
+                "search_depth": search_depth if search_depth in ("basic", "advanced") else "basic",
+                "include_answer": True,
+            }).encode()
+
+            req = urllib.request.Request(
+                "https://api.tavily.com/search",
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode())
+
+            results = []
+            for item in data.get("results", [])[:max_results]:
+                results.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "content": item.get("content", "")[:500],
+                    "score": item.get("score", 0),
+                })
+
+            return {
+                "query": query,
+                "answer": data.get("answer", ""),
+                "results": results,
+                "citations": [r["url"] for r in results if r.get("url")],
+                "count": len(results),
+            }
+        except Exception as e:
+            return {"error": str(e), "query": query}
+
+
 def get_registry() -> PluginRegistry:
     global _registry
     if _registry is None:
         _registry = PluginRegistry()
+        # Registra Tavily se API key disponibile
+        _registry.register(TavilySearchPlugin())
     return _registry

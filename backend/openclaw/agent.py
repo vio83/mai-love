@@ -93,6 +93,46 @@ INSTRUCTIONS:
 """
 
 
+def _build_native_tools(registry: PluginRegistry) -> list[dict]:
+    """
+    Converte i tool del registry nel formato OpenAI/Claude function calling nativo.
+    Usato per provider che supportano tools=[...] nella API.
+    """
+    native_tools = []
+    for plugin_dict in registry.list_plugins():
+        pid = plugin_dict["id"]
+        for tool in plugin_dict.get("tools", []):
+            native_tools.append({
+                "type": "function",
+                "function": {
+                    "name": f"{pid}__{tool['name']}",
+                    "description": tool["description"],
+                    "parameters": tool.get("parameters", {"type": "object", "properties": {}}),
+                },
+            })
+    return native_tools
+
+
+def _build_claude_native_tools(registry: PluginRegistry) -> list[dict]:
+    """
+    Converte i tool nel formato Anthropic tool_use nativo.
+    """
+    native_tools = []
+    for plugin_dict in registry.list_plugins():
+        pid = plugin_dict["id"]
+        for tool in plugin_dict.get("tools", []):
+            native_tools.append({
+                "name": f"{pid}__{tool['name']}",
+                "description": tool["description"],
+                "input_schema": tool.get("parameters", {"type": "object", "properties": {}}),
+            })
+    return native_tools
+
+
+# ─── Provider che supportano native function calling ───────────────
+NATIVE_TOOL_PROVIDERS = {"gpt4", "claude", "groq", "deepseek", "mistral"}
+
+
 def _parse_tool_call(text: str) -> Optional[ToolCall]:
     """Extract a tool call from AI response text."""
     match = TOOL_CALL_PATTERN.search(text)
@@ -258,14 +298,16 @@ def get_agent_capabilities(registry: Optional[PluginRegistry] = None) -> dict:
 
     return {
         "name": "OpenClaw Agent Runtime",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "active",
         "max_iterations": MAX_AGENT_ITERATIONS,
         "plugins_loaded": len(plugins),
         "total_tools": total_tools,
         "supported_providers": ["ollama", "claude", "gpt4", "groq", "deepseek", "mistral"],
+        "native_tool_calling": list(NATIVE_TOOL_PROVIDERS),
         "capabilities": [
             "multi-step tool calling",
+            "native function calling (OpenAI/Claude)",
             "automatic tool selection",
             "file system operations",
             "web search",
@@ -277,3 +319,201 @@ def get_agent_capabilities(registry: Optional[PluginRegistry] = None) -> dict:
             "persistent memory",
         ],
     }
+
+
+async def run_agent_native(
+    task: str,
+    provider: str = "gpt4",
+    model: str = "",
+    registry: Optional[PluginRegistry] = None,
+    max_iterations: int = MAX_AGENT_ITERATIONS,
+) -> AgentResult:
+    """
+    Agentic loop con NATIVE function calling (OpenAI/Claude API).
+
+    Invece di parsare XML <tool_call>, usa il meccanismo tools=[...] nativo
+    delle API OpenAI e Anthropic. Più affidabile e preciso.
+
+    Fallback automatico a run_agent() per provider senza native tools.
+    """
+    if provider not in NATIVE_TOOL_PROVIDERS:
+        return await run_agent(task, model=model or "qwen2.5-coder:3b",
+                               provider=provider, registry=registry,
+                               max_iterations=max_iterations)
+
+    if registry is None:
+        registry = get_registry()
+
+    from backend.orchestrator.direct_router import (
+        _resolve_cloud_model, _resolve_cloud_api_key,
+        _cloud_base_url, _build_cloud_headers,
+        _http_post_json, _normalize_messages_for_claude,
+    )
+
+    resolved_model = _resolve_cloud_model(provider, model or None)
+    api_key = _resolve_cloud_api_key(provider)
+    base_url = _cloud_base_url(provider)
+    headers = _build_cloud_headers(provider, api_key)
+
+    is_claude = provider == "claude"
+
+    # Build native tools
+    tools = _build_claude_native_tools(registry) if is_claude else _build_native_tools(registry)
+
+    messages: list[dict] = [
+        {"role": "system", "content": (
+            "You are OpenClaw, the agent runtime of VIO 83 AI Orchestra. "
+            "Solve tasks step by step using the available tools. "
+            "When you have the final answer, respond without tool calls."
+        )},
+        {"role": "user", "content": task},
+    ]
+
+    result = AgentResult(task=task, answer="", steps=[])
+    start_total = time.time()
+
+    for iteration in range(max_iterations):
+        step_start = time.time()
+
+        try:
+            if is_claude:
+                system_text, anthropic_msgs = _normalize_messages_for_claude(messages)
+                payload = {
+                    "model": resolved_model,
+                    "system": system_text,
+                    "messages": anthropic_msgs,
+                    "tools": tools,
+                    "max_tokens": 2048,
+                    "temperature": 0.1,
+                }
+                data = await _http_post_json(
+                    f"{base_url}/messages", headers=headers,
+                    payload=payload, timeout_s=120.0,
+                )
+                # Parse Claude response
+                content_blocks = data.get("content", [])
+                text_parts = []
+                tool_uses = []
+                for block in content_blocks:
+                    if block.get("type") == "text":
+                        text_parts.append(block.get("text", ""))
+                    elif block.get("type") == "tool_use":
+                        tool_uses.append(block)
+
+                response_text = "".join(text_parts).strip()
+                stop_reason = data.get("stop_reason", "")
+
+            else:
+                # OpenAI-compatible format
+                payload = {
+                    "model": resolved_model,
+                    "messages": messages,
+                    "tools": tools,
+                    "max_tokens": 2048,
+                    "temperature": 0.1,
+                }
+                data = await _http_post_json(
+                    f"{base_url}/chat/completions", headers=headers,
+                    payload=payload, timeout_s=120.0,
+                )
+                choice = data.get("choices", [{}])[0]
+                msg = choice.get("message", {})
+                response_text = msg.get("content", "") or ""
+                tool_calls_raw = msg.get("tool_calls", [])
+                tool_uses = []
+                for tc in tool_calls_raw:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "")
+                    try:
+                        args = json.loads(fn.get("arguments", "{}"))
+                    except json.JSONDecodeError:
+                        args = {}
+                    tool_uses.append({
+                        "id": tc.get("id", ""),
+                        "name": name,
+                        "input": args,
+                    })
+                stop_reason = choice.get("finish_reason", "")
+
+        except Exception as e:
+            result.steps.append(AgentStep(
+                step=iteration + 1, action="error",
+                content=f"Native tool call failed: {e}",
+                latency_ms=int((time.time() - step_start) * 1000),
+            ))
+            result.status = "error"
+            result.answer = f"Agent error: {e}"
+            break
+
+        step_ms = int((time.time() - step_start) * 1000)
+
+        if not tool_uses:
+            # Final answer
+            result.steps.append(AgentStep(
+                step=iteration + 1, action="answer",
+                content=response_text, latency_ms=step_ms,
+            ))
+            result.answer = response_text
+            break
+
+        # Execute each tool call
+        for tu in tool_uses:
+            tool_name_full = tu.get("name", "")
+            parts = tool_name_full.split("__", 1)
+            if len(parts) == 2:
+                plugin_id, tool_name = parts
+            else:
+                plugin_id, tool_name = "", tool_name_full
+
+            params = tu.get("input", {})
+
+            result.steps.append(AgentStep(
+                step=iteration + 1, action="tool_call",
+                content=f"{plugin_id}/{tool_name}",
+                tool_call=ToolCall(plugin_id, tool_name, params),
+                latency_ms=step_ms,
+            ))
+
+            tool_result = registry.execute(plugin_id, tool_name, params)
+            result.steps.append(AgentStep(
+                step=iteration + 1, action="tool_result",
+                content=json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
+                tool_result=tool_result,
+            ))
+
+            tool_id = f"{plugin_id}/{tool_name}"
+            if tool_id not in result.tools_used:
+                result.tools_used.append(tool_id)
+
+            # Feed back to AI
+            if is_claude:
+                messages.append({"role": "assistant", "content": data.get("content", [])})
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tu.get("id", ""),
+                        "content": json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
+                    }],
+                })
+            else:
+                messages.append({
+                    "role": "assistant",
+                    "content": response_text,
+                    "tool_calls": [{"id": tu.get("id", ""), "type": "function",
+                                    "function": {"name": tool_name_full,
+                                                 "arguments": json.dumps(params)}}],
+                })
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tu.get("id", ""),
+                    "content": json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
+                })
+    else:
+        result.status = "max_iterations"
+        if not result.answer:
+            result.answer = "Agent reached maximum iterations."
+
+    result.total_steps = len(result.steps)
+    result.total_latency_ms = int((time.time() - start_total) * 1000)
+    return result
