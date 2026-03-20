@@ -14,12 +14,14 @@ REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null \
              || echo "/Users/padronavio/Projects/vio83-ai-orchestra")"
 LOG_DIR="${LOG_DIR:-$REPO_ROOT/automation/logs}"
 STATUS_FILE="$REPO_ROOT/data/autonomous_runtime/ci_autopilot_status.json"
+RERUN_STATE_FILE="$REPO_ROOT/data/autonomous_runtime/ci_autopilot_rerun_state.json"
 
 mkdir -p "$LOG_DIR" "$(dirname "$STATUS_FILE")"
 
 REPO="vio83/mai-love"
 POLL_INTERVAL=60          # secondi tra i controlli GitHub
 MAIL_CHECK_INTERVAL=120   # secondi tra i controlli Apple Mail
+MAX_RERUN_PER_RUN=2       # evita loop infiniti sullo stesso run ID
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -78,6 +80,25 @@ check_deps() {
   fi
 }
 
+init_rerun_state() {
+  if [ ! -f "$RERUN_STATE_FILE" ]; then
+    echo '{}' > "$RERUN_STATE_FILE"
+  fi
+}
+
+get_rerun_count() {
+  local run_id="$1"
+  jq -r --arg rid "$run_id" '.[$rid] // 0' "$RERUN_STATE_FILE" 2>/dev/null || echo "0"
+}
+
+increment_rerun_count() {
+  local run_id="$1"
+  local current
+  current=$(get_rerun_count "$run_id")
+  jq --arg rid "$run_id" --argjson next "$(( current + 1 ))" '.[$rid] = $next' "$RERUN_STATE_FILE" > "$RERUN_STATE_FILE.tmp"
+  mv "$RERUN_STATE_FILE.tmp" "$RERUN_STATE_FILE"
+}
+
 # ---------------------------------------------------------------------------
 # Controllo e fix GitHub Actions
 # ---------------------------------------------------------------------------
@@ -103,9 +124,19 @@ check_and_fix_github() {
 
   while IFS=$'\t' read -r rid wname branch; do
     [ -z "$rid" ] && continue
+    local rerun_count
+    rerun_count=$(get_rerun_count "$rid")
+
+    if (( rerun_count >= MAX_RERUN_PER_RUN )); then
+      log "⏭️  Skip rerun $rid ($wname): raggiunto limite ${MAX_RERUN_PER_RUN}"
+      write_status "limited" "skip rerun limit $wname #$rid" "$TOTAL_FIXED"
+      continue
+    fi
+
     log "AUTO-FIX: gh run rerun $rid ($wname, branch: $branch)"
 
     if GH_PAGER=cat gh run rerun "$rid" -R "$REPO" --failed 2>/dev/null; then
+      increment_rerun_count "$rid"
       TOTAL_FIXED=$(( TOTAL_FIXED + 1 ))
       log "✅ Rerun avviato: $wname #$rid"
       notify "CI Autopilot ✅" "Auto-fixed: $wname (branch: $branch)"
@@ -168,6 +199,7 @@ trap on_exit EXIT TERM INT
 # Main loop
 # ---------------------------------------------------------------------------
 check_deps
+init_rerun_state
 
 log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 log "CI Autopilot avviato — Repo: $REPO | PID: $$"
