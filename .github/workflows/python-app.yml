@@ -22,41 +22,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flake8
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+          # Installa dipendenze core una per una (più resiliente)
+          pip install fastapi uvicorn python-dotenv pydantic httpx
+          pip install pypdf python-docx argon2-cffi numpy
+          pip install tavily-python 2>/dev/null || true
+
+          # Dipendenze opzionali (possono fallire)
+          pip install chromadb sentence-transformers scikit-optimize 2>/dev/null || true
 
       - name: Lint backend with flake8
         run: |
-          # Stop on syntax errors or undefined names
-          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics 2>/dev/null || echo "No backend Python files to lint yet"
-          # Warnings only (non-blocking)
-          flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics 2>/dev/null || true
+          # Stop solo su errori di sintassi o nomi non definiti
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Warnings solo informativi (non bloccano)
+          flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Check Python files are importable
+      - name: Compile check — all Python modules
+        run: python -m compileall -q backend/
+
+      - name: Syntax verification
         run: |
           cd backend
           python -c "
-          import importlib, pathlib, sys
+          import pathlib, sys
           errors = 0
           for f in pathlib.Path('.').rglob('*.py'):
               if f.name == '__init__.py': continue
-              module = str(f.with_suffix('')).replace('/', '.')
               try:
-                  # Just check syntax, don't actually import (may need deps)
                   compile(open(f).read(), f, 'exec')
-                  print(f'  OK: {f}')
               except SyntaxError as e:
                   print(f'  FAIL: {f} — {e}')
                   errors += 1
+          total = len(list(pathlib.Path('.').rglob('*.py')))
+          print(f'Checked {total} files, {errors} errors')
           if errors:
               sys.exit(1)
-          print(f'All {len(list(pathlib.Path(\".\").rglob(\"*.py\")))} Python files OK')
-          " || echo "Backend check complete"
+          "

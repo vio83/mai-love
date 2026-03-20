@@ -1,6 +1,7 @@
 name: Release — VIO 83 AI Orchestra
 
-# Trigger: push di un tag versione (es. v0.9.0, v1.0.0)
+# TRIGGER SOLO SU TAG VERSIONE — NON su push al main!
+# Per creare una release: git tag v0.9.0 && git push --tags
 on:
   push:
     tags:
@@ -8,11 +9,45 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+-beta"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha"
 
+  # Permetti anche trigger manuale
+  workflow_dispatch:
+    inputs:
+      skip_sign:
+        description: 'Skip Apple signing (for testing)'
+        required: false
+        default: 'false'
+        type: boolean
+
 jobs:
-  # ─── Build macOS .dmg firmato e notarizzato ──────────────────────────────
+  # ─── Pre-check: verifica che i secrets necessari esistano ───
+  preflight:
+    name: Preflight Check
+    runs-on: ubuntu-latest
+    outputs:
+      has_apple_cert: ${{ steps.check.outputs.has_apple_cert }}
+      has_tauri_key: ${{ steps.check.outputs.has_tauri_key }}
+    steps:
+      - name: Check available secrets
+        id: check
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+            echo "has_apple_cert=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_apple_cert=false" >> $GITHUB_OUTPUT
+            echo "::warning::Apple Certificate not configured — build will be UNSIGNED"
+          fi
+          if [ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]; then
+            echo "has_tauri_key=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tauri_key=false" >> $GITHUB_OUTPUT
+            echo "::warning::Tauri signing key not configured — updater will be disabled"
+          fi
+
+  # ─── Build macOS .dmg ──────────────────────────────
   build-macos:
-    name: macOS Release (arm64 + x86_64)
+    name: macOS Build
     runs-on: macos-latest
+    needs: preflight
     timeout-minutes: 60
 
     steps:
@@ -45,11 +80,10 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install fastapi uvicorn python-dotenv pydantic httpx pypdf python-docx argon2-cffi numpy || true
 
       - name: Import Apple Developer Certificate
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        if: needs.preflight.outputs.has_apple_cert == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -63,31 +97,36 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           rm certificate.p12
 
-      - name: Build Tauri app (Universal macOS)
+      - name: Build Tauri app
         env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY || '' }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '' }}
         run: |
-          # Build con target universal se possibile, fallback a native
-          npm run tauri build -- --target universal-apple-darwin || npm run tauri build
+          # Build per architettura nativa (arm64 su GitHub Actions macOS)
+          npm run tauri build 2>&1 || {
+            echo "::warning::Tauri build failed — check Rust/dependencies"
+            exit 1
+          }
 
-      - name: Upload .dmg artifact
+      - name: Find and upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: VIO83-AI-Orchestra-macOS
           path: |
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+          if-no-files-found: warn
 
-  # ─── GitHub Release con auto-updater manifest ─────────────────────────
+  # ─── GitHub Release ─────────────────────────
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: build-macos
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
@@ -102,50 +141,25 @@ jobs:
         with:
           name: VIO83-AI-Orchestra-macOS
           path: ./release-artifacts
+        continue-on-error: true
 
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-      - name: Generate release notes from CHANGELOG
+      - name: Generate release notes
         id: notes
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          NOTES=$(awk "/## \[$VERSION\]/,/^---$/" CHANGELOG.md | head -50 | tail -n +2)
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/## \[$VERSION\]/,/^---$/" CHANGELOG.md | head -50 | tail -n +2)
+          fi
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v${VERSION} of VIO 83 AI Orchestra"
+          fi
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Generate latest.json (auto-updater manifest)
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          DMG_URL="https://github.com/vio83/vio83-ai-orchestra/releases/download/v${VERSION}/VIO.83.AI.Orchestra_${VERSION}_universal.dmg"
-
-          # Leggi signature .sig
-          SIG_FILE=$(ls ./release-artifacts/*.app.tar.gz.sig 2>/dev/null | head -1)
-          if [ -f "$SIG_FILE" ]; then
-            SIGNATURE=$(cat "$SIG_FILE")
-          else
-            SIGNATURE="SIGNATURE_NOT_FOUND"
-          fi
-
-          cat > latest.json << EOF
-          {
-            "version": "v${VERSION}",
-            "notes": "VIO 83 AI Orchestra v${VERSION} — Vedi CHANGELOG.md per dettagli",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "${SIGNATURE}",
-                "url": "${DMG_URL}"
-              },
-              "darwin-x86_64": {
-                "signature": "${SIGNATURE}",
-                "url": "${DMG_URL}"
-              }
-            }
-          }
-          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -158,6 +172,5 @@ jobs:
             ./release-artifacts/**/*.dmg
             ./release-artifacts/**/*.app.tar.gz
             ./release-artifacts/**/*.app.tar.gz.sig
-            latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

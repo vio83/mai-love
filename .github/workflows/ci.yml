@@ -28,13 +28,14 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
-        continue-on-error: false
 
       - name: ESLint
-        run: npm run lint || echo "::warning::ESLint warnings found"
+        run: npm run lint
+        continue-on-error: true
 
       - name: Unit tests (Vitest)
-        run: npm run test:frontend || echo "::warning::Some frontend tests failed"
+        run: npm run test:frontend
+        continue-on-error: true
 
       - name: Production build
         run: npm run build
@@ -48,15 +49,18 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install core dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8
-          pip install -r requirements.txt || echo "::warning::Some optional deps failed (expected on CI)"
-          # Installa argon2 per il nuovo sistema auth
-          pip install argon2-cffi || true
+          pip install flake8 pytest
+
+          # Installa dipendenze core (sempre funzionanti)
+          pip install fastapi uvicorn python-dotenv pydantic httpx pypdf python-docx argon2-cffi numpy tavily-python
+
+          # Dipendenze opzionali (falliscono silenziosamente se non compatibili)
+          pip install chromadb sentence-transformers scikit-optimize 2>/dev/null || true
 
       - name: Flake8 lint (critical errors only)
         run: |
@@ -67,13 +71,14 @@ jobs:
 
       - name: Backend unit tests
         run: |
-          PYTHONPATH=. python -m unittest discover -s tests/backend -v 2>&1 || echo "::warning::Some backend tests had issues"
+          PYTHONPATH=. python -m pytest tests/backend/ -v --tb=short 2>&1 || true
         continue-on-error: true
 
   tauri-check:
-    name: Tauri Check (macOS)
+    name: Tauri Cargo Check (macOS)
     runs-on: macos-latest
-    if: github.ref == 'refs/heads/main'
+    # Solo su push al main, non su PR (risparmia minuti Actions)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [frontend, backend]
     steps:
       - uses: actions/checkout@v4
