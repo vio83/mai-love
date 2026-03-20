@@ -3,12 +3,16 @@ name: SEO Automation — Ping Search Engines & Update Sitemap
 on:
   # Runs every day at 06:00 UTC (08:00 Italy)
   schedule:
-    - cron: '0 6 * * *'
+    - cron: "0 6 * * *"
   # Manual trigger
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: seo-automation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   seo-ping-and-stats:
@@ -17,25 +21,63 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure sitemap.xml exists
+        run: |
+          mkdir -p docs
+          if [ ! -f docs/sitemap.xml ] || ! grep -q '<urlset' docs/sitemap.xml; then
+            python3 << 'PYEOF'
+            from pathlib import Path
+            from datetime import date
+
+            today = date.today().isoformat()
+            xml = (
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                '  <url>\n'
+                '    <loc>https://vio83.github.io/vio83-ai-orchestra/</loc>\n'
+                f'    <lastmod>{today}</lastmod>\n'
+                '    <changefreq>daily</changefreq>\n'
+                '    <priority>1.0</priority>\n'
+                '  </url>\n'
+                '</urlset>\n'
+            )
+            Path('docs/sitemap.xml').write_text(xml, encoding='utf-8')
+            PYEOF
+            echo "Created or restored docs/sitemap.xml"
+          fi
+
       - name: Update sitemap lastmod date
         run: |
           TODAY=$(date +%Y-%m-%d)
-          sed -i "s|<lastmod>.*</lastmod>|<lastmod>${TODAY}</lastmod>|g" docs/sitemap.xml
-          echo "Updated sitemap.xml with date: $TODAY"
+          python3 << 'PYEOF'
+          from pathlib import Path
+          import re
+          from datetime import date
 
-      - name: Ping Google with sitemap
-        run: |
-          curl -s "https://www.google.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || true
-          echo "Pinged Google"
+          p = Path('docs/sitemap.xml')
+          xml = p.read_text(encoding='utf-8')
+          today = date.today().isoformat()
 
-      - name: Ping Bing with sitemap
-        run: |
-          curl -s "https://www.bing.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || true
-          echo "Pinged Bing"
+          if '<lastmod>' in xml:
+              xml = re.sub(r'<lastmod>.*?</lastmod>', f'<lastmod>{today}</lastmod>', xml)
+          else:
+              xml = xml.replace('</url>', f'  <lastmod>{today}</lastmod>\n  </url>')
 
-      - name: Ping IndexNow (Bing/Yandex/DuckDuckGo instant indexing)
+          p.write_text(xml, encoding='utf-8')
+          print(f'Updated sitemap.xml with date: {today}')
+          PYEOF
+
+      - name: Ping search engines
+        continue-on-error: true
         run: |
-          curl -s -X POST "https://api.indexnow.org/indexnow" \
+          echo "--- Pinging Google ---"
+          curl -sf --connect-timeout 10 "https://www.google.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || echo "Google ping skipped"
+
+          echo "--- Pinging Bing ---"
+          curl -sf --connect-timeout 10 "https://www.bing.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || echo "Bing ping skipped"
+
+          echo "--- Pinging IndexNow ---"
+          curl -sf --connect-timeout 10 -X POST "https://api.indexnow.org/indexnow" \
             -H "Content-Type: application/json" \
             -d '{
               "host": "vio83.github.io",
@@ -45,10 +87,12 @@ jobs:
                 "https://vio83.github.io/vio83-ai-orchestra/",
                 "https://vio83.github.io/vio83-ai-orchestra/sitemap.xml"
               ]
-            }' || true
-          echo "Pinged IndexNow"
+            }' || echo "IndexNow ping skipped"
+
+          echo "All pings completed"
 
       - name: Fetch GitHub repo stats
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,9 +109,12 @@ jobs:
           echo "Stars: $STARS | Forks: $FORKS | Watchers: $WATCHERS | Issues: $ISSUES"
 
       - name: Commit changes
+        continue-on-error: true
         run: |
           git config user.name "VIO 83 SEO Bot"
           git config user.email "porcu.v.83@gmail.com"
           git add docs/sitemap.xml data/growth-stats.jsonl 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "chore(seo): daily sitemap update + stats tracking [skip ci]"
-          git push || true
+          git diff --cached --quiet && echo "No changes to commit" || {
+            git commit -m "chore(seo): daily sitemap update + stats tracking [skip ci]"
+            git push || echo "Push skipped — will retry next run"
+          }

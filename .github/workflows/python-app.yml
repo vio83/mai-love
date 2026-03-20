@@ -3,14 +3,8 @@ name: Python Backend — Lint & Test
 on:
   push:
     branches: ["main"]
-    paths:
-      - "backend/**"
-      - "requirements.txt"
-      - ".github/workflows/python-app.yml"
   pull_request:
     branches: ["main"]
-    paths:
-      - "backend/**"
   workflow_dispatch:
 
 permissions:
