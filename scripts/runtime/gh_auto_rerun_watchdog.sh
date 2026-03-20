@@ -27,8 +27,34 @@ REPOS=(
 RERUN_COUNT=0
 SKIP_COUNT=0
 ERROR_COUNT=0
+CIRCUIT_BREAK_COUNT=0
 
 NOW_TS=$(date +%s)
+
+# ── CIRCUIT BREAKER ──────────────────────────────────────────
+# Max 2 rerun per combinazione workflow+sha nelle ultime 2 ore.
+# Previene loop infiniti di rerun sullo stesso commit.
+CB_FILE="${LOG_DIR}/.circuit-breaker-state"
+touch "$CB_FILE"
+# Pulisci entry più vecchie di 2 ore
+if [ -f "$CB_FILE" ]; then
+  CB_CUTOFF=$((NOW_TS - 7200))
+  awk -F'|' -v cutoff="$CB_CUTOFF" '$1 >= cutoff' "$CB_FILE" > "${CB_FILE}.tmp" 2>/dev/null || true
+  mv "${CB_FILE}.tmp" "$CB_FILE" 2>/dev/null || true
+fi
+
+circuit_breaker_check() {
+  local wf_name="$1"
+  local run_id="$2"
+  local key="${wf_name}|${run_id}"
+  local count
+  count=$(grep -c "|${key}$" "$CB_FILE" 2>/dev/null || echo "0")
+  if [ "$count" -ge 2 ]; then
+    return 1  # BLOCCATO
+  fi
+  echo "${NOW_TS}|${key}" >> "$CB_FILE"
+  return 0    # OK
+}
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "    ❌ jq non trovato nel PATH: impossibile processare i run"
@@ -69,6 +95,13 @@ for REPO in "${REPOS[@]}"; do
       continue
     fi
 
+    # Circuit breaker — max 2 rerun per stesso workflow+run
+    if ! circuit_breaker_check "$WF_NAME" "$RUN_ID"; then
+      echo "    🛑 Circuit break: $WF_NAME #$RUN_ID (già 2+ tentativi)"
+      CIRCUIT_BREAK_COUNT=$((CIRCUIT_BREAK_COUNT + 1))
+      continue
+    fi
+
     # Tenta rerun solo dei job falliti
     if RESULT=$(GH_PAGER=cat gh run rerun "$RUN_ID" -R "$REPO" --failed 2>&1); then
       echo "    🔄 Rerun OK: $WF_NAME #$RUN_ID (${AGE_HOURS}h fa)"
@@ -81,5 +114,5 @@ for REPO in "${REPOS[@]}"; do
 done
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Rerun: $RERUN_COUNT | Skip: $SKIP_COUNT | Errori: $ERROR_COUNT"
+echo "  Rerun: $RERUN_COUNT | Skip: $SKIP_COUNT | Errori: $ERROR_COUNT | Circuit Break: $CIRCUIT_BREAK_COUNT"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

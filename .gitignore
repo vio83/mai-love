@@ -37,3 +37,9 @@ VIO83-AI-ORCHESTRA-v*-FULL-SOURCE.zip
 ziVwrPfD
 
 .fake
+
+# Nested git repos — NON tracciare come submodule
+AI-LOVE/
+venv/
+venv.broken/
+logs/

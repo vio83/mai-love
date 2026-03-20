@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIO 83 — Piano Investimenti 2026</title>
+<style>
+:root {
+  --bg: #0a0a0a; --bg2: #111; --bg3: #1a1a1a;
+  --green: #00ff00; --cyan: #00ffff; --magenta: #ff00ff;
+  --yellow: #ffff00; --red: #ff4444; --orange: #ff8800;
+  --text: #e0e0e0; --dim: #666; --border: #333;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; padding:24px; max-width:1100px; margin:0 auto; }
+h1 { color:var(--green); font-size:26px; margin-bottom:6px; }
+.subtitle { color:var(--dim); font-size:13px; margin-bottom:32px; }
+.tabs { display:flex; gap:4px; margin-bottom:24px; flex-wrap:wrap; }
+.tab { padding:8px 18px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--dim); cursor:pointer; font-size:13px; font-weight:600; transition:all .2s; }
+.tab.active, .tab:hover { background:var(--green); color:#000; border-color:var(--green); }
+.panel { display:none; } .panel.active { display:block; }
+
+/* Summary cards */
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+.card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; }
+.card-label { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.card-value { font-size:28px; font-weight:700; }
+.card-sub { font-size:12px; color:var(--dim); margin-top:4px; }
+.green { color:var(--green); } .cyan { color:var(--cyan); } .yellow { color:var(--yellow); } .red { color:var(--red); } .orange { color:var(--orange); }
+
+/* Priority badge */
+.badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.p1 { background:rgba(255,68,68,.15); color:var(--red); border:1px solid rgba(255,68,68,.3); }
+.p2 { background:rgba(255,136,0,.15); color:var(--orange); border:1px solid rgba(255,136,0,.3); }
+.p3 { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.2); }
+.p4 { background:rgba(102,102,102,.15); color:var(--dim); border:1px solid var(--border); }
+.free { background:rgba(0,255,0,.1); color:var(--green); border:1px solid rgba(0,255,0,.2); }
+
+/* Table */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { background:var(--bg3); color:var(--dim); text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--border); }
+td { padding:12px 14px; border-bottom:1px solid rgba(51,51,51,.5); vertical-align:top; }
+tr:hover td { background:rgba(255,255,255,.02); }
+.tool-name { font-weight:700; color:var(--text); }
+.tool-desc { font-size:12px; color:var(--dim); margin-top:3px; }
+.price { font-weight:700; white-space:nowrap; }
+.link a { color:var(--cyan); text-decoration:none; font-size:12px; }
+.link a:hover { text-decoration:underline; }
+.action { font-size:12px; color:var(--text); }
+.where { font-size:11px; color:var(--dim); margin-top:2px; }
+
+/* Section header */
+.section-title { font-size:15px; font-weight:700; color:var(--green); margin:28px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.section-title span { font-size:12px; color:var(--dim); font-weight:400; }
+
+/* Totale box */
+.total-box { background:var(--bg2); border:1px solid var(--green); border-radius:12px; padding:20px 24px; margin-top:28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.total-box .label { font-size:13px; color:var(--dim); }
+.total-box .value { font-size:22px; font-weight:700; color:var(--green); }
+
+/* Setup steps */
+.steps { display:flex; flex-direction:column; gap:16px; }
+.step { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.step-header { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.step-num { width:28px; height:28px; border-radius:50%; background:var(--green); color:#000; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.step-title { font-weight:700; font-size:15px; }
+.step-body { font-size:13px; color:var(--dim); line-height:1.7; }
+.step-body code { background:var(--bg3); padding:2px 7px; border-radius:4px; color:var(--cyan); font-size:12px; }
+.step-body .link { color:var(--cyan); }
+.note { background:rgba(255,255,0,.05); border-left:3px solid var(--yellow); padding:10px 14px; border-radius:0 6px 6px 0; margin-top:10px; font-size:12px; color:var(--text); }
+</style>
+</head>
+<body>
+
+<h1>🎵 VIO 83 AI Orchestra — Piano Investimenti 2026</h1>
+<p class="subtitle">Tutto ciò che manca, quanto costa, dove scaricarlo, come collegarlo al progetto — in ordine di priorità reale</p>
+
+<div class="tabs">
+  <div class="tab active" onclick="show('summary')">📊 Sommario</div>
+  <div class="tab" onclick="show('immediato')">🔴 Da Fare Subito</div>
+  <div class="tab" onclick="show('cicd')">⚙️ CI/CD Professionale</div>
+  <div class="tab" onclick="show('osservabilita')">📡 Osservabilità</div>
+  <div class="tab" onclick="show('sicurezza')">🔒 Sicurezza</div>
+  <div class="tab" onclick="show('data')">🧠 Data Layer AI</div>
+  <div class="tab" onclick="show('setup')">🛠️ Come Configurarli</div>
+</div>
+
+<!-- ═══════════════════════════════════ SOMMARIO ═══════════════════════════════════ -->
+<div id="summary" class="panel active">
+  <div class="cards">
+    <div class="card"><div class="card-label">Costo Minimo Mensile</div><div class="card-value green">€0</div><div class="card-sub">Solo tool gratuiti/open-source</div></div>
+    <div class="card"><div class="card-label">Costo Raccomandato Mensile</div><div class="card-value cyan">€27–45</div><div class="card-sub">Piano starter professionale</div></div>
+    <div class="card"><div class="card-label">Costo Completo Mensile</div><div class="card-value yellow">€80–120</div><div class="card-sub">Stack pro competitivo 2026</div></div>
+    <div class="card"><div class="card-label">Priorità P1 (Subito)</div><div class="card-value red">4 tool</div><div class="card-sub">Bloccanti per CI/CD funzionante</div></div>
+    <div class="card"><div class="card-label">Già Disponibili Gratis</div><div class="card-value green">12 tool</div><div class="card-sub">GitHub, VS Code, Ollama, ecc.</div></div>
+  </div>
+
+  <div class="section-title">🗺️ Mappa delle priorità</div>
+  <table>
+    <thead><tr><th>Priorità</th><th>Area</th><th>Cosa manca</th><th>Costo/mese</th><th>Impatto</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge p1">P1 — SUBITO</span></td><td>Repository</td><td>Branch protection rules su GitHub</td><td><span class="price green">GRATIS</span></td><td>Blocca push rotti, no CI failures</td></tr>
+      <tr><td><span class="badge p1">P1 — SUBITO</span></td><td>CI/CD</td><td>Pre-commit hooks locali (Husky)</td><td><span class="price green">GRATIS</span></td><td>Blocca errori PRIMA del push</td></tr>
+      <tr><td><span class="badge p1">P1 — SUBITO</span></td><td>CI/CD</td><td>GitHub Actions secrets configurati</td><td><span class="price green">GRATIS</span></td><td>Workflow SEO e release funzionano</td></tr>
+      <tr><td><span class="badge p1">P1 — SUBITO</span></td><td>Testing</td><td>Smoke test backend automatici</td><td><span class="price green">GRATIS</span></td><td>Catch errori post-deploy</td></tr>
+      <tr><td><span class="badge p2">P2 — Settimana 1</span></td><td>Osservabilità</td><td>Sentry (error tracking)</td><td><span class="price cyan">€0 (26k errori/mese gratis)</span></td><td>Vedi crash utenti in real-time</td></tr>
+      <tr><td><span class="badge p2">P2 — Settimana 1</span></td><td>Sicurezza</td><td>Snyk (vulnerability scan)</td><td><span class="price green">GRATIS (open source)</span></td><td>CVE in deps prima del release</td></tr>
+      <tr><td><span class="badge p2">P2 — Settimana 2</span></td><td>CI/CD</td><td>CodeCov (test coverage)</td><td><span class="price green">GRATIS (open source)</span></td><td>Coverage badge + trend</td></tr>
+      <tr><td><span class="badge p2">P2 — Settimana 2</span></td><td>Osservabilità</td><td>Uptime Robot (availability)</td><td><span class="price green">GRATIS (50 monitor)</span></td><td>Alert se backend giù</td></tr>
+      <tr><td><span class="badge p3">P3 — Mese 1</span></td><td>Osservabilità</td><td>PostHog (analytics prodotto)</td><td><span class="price green">GRATIS (1M eventi/mese)</span></td><td>Capire come usano l'app</td></tr>
+      <tr><td><span class="badge p3">P3 — Mese 1</span></td><td>CI/CD</td><td>GitHub Pro / Team</td><td><span class="price cyan">€4/mese</span></td><td>Branch protection avanzata, Codespaces</td></tr>
+      <tr><td><span class="badge p3">P3 — Mese 1</span></td><td>Sicurezza</td><td>1Password Teams (secrets mgmt)</td><td><span class="price orange">€19/mese (5 utenti)</span></td><td>Rotazione API keys sicura</td></tr>
+      <tr><td><span class="badge p4">P4 — Mese 2+</span></td><td>Osservabilità</td><td>Grafana Cloud (metriche)</td><td><span class="price green">GRATIS (14 giorni retenz.)</span></td><td>Dashboard Prometheus/OTel</td></tr>
+      <tr><td><span class="badge p4">P4 — Mese 2+</span></td><td>Data Layer</td><td>Qdrant Cloud (vector DB)</td><td><span class="price green">GRATIS (1GB)</span></td><td>RAG engine stabile vs ChromaDB</td></tr>
+      <tr><td><span class="badge p4">P4 — Mese 2+</span></td><td>CI/CD</td><td>Doppler (secrets manager)</td><td><span class="price green">GRATIS (team piccoli)</span></td><td>No più .env in chiaro</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════ DA FARE SUBITO ═══════════════════════════════════ -->
+<div id="immediato" class="panel">
+  <div class="section-title">🔴 Priorità 1 — Da Fare OGGI (tutto gratis) <span>Risolve il 90% dei run failed permanentemente</span></div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Versione/Piano</th><th>Link Diretto</th><th>Costo</th><th>Dove Installarlo</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">GitHub Branch Protection</div><div class="tool-desc">Blocca push diretti su main, richiede CI verde prima del merge</div></td>
+        <td>Incluso in GitHub Free</td>
+        <td class="link"><a href="https://github.com/vio83/vio83-ai-orchestra/settings/branches" target="_blank">→ Configura ora</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">GitHub web → Settings → Branches<div class="where">Abilita: "Require status checks", spunta ci e python-app</div></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Husky + lint-staged</div><div class="tool-desc">Pre-commit hook che blocca commit con errori TypeScript/ESLint/Python</div></td>
+        <td>husky v9 + lint-staged v15</td>
+        <td class="link"><a href="https://typicode.github.io/husky/" target="_blank">→ husky docs</a><br><a href="https://github.com/okonet/lint-staged" target="_blank">→ lint-staged</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">Mac Terminal nel progetto:<br><code>npm install --save-dev husky lint-staged</code><br><code>npx husky init</code><div class="where">Configura in package.json</div></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">GitHub Actions Secrets</div><div class="tool-desc">Configura GITHUB_TOKEN e altri secret per workflow SEO e release</div></td>
+        <td>Incluso in GitHub Free</td>
+        <td class="link"><a href="https://github.com/vio83/vio83-ai-orchestra/settings/secrets/actions" target="_blank">→ Configura secrets</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">GitHub web → Settings → Secrets<div class="where">GITHUB_TOKEN è automatico. Aggiungi INDEXNOW_KEY se vuoi</div></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Sentry (Frontend)</div><div class="tool-desc">Cattura crash React, errori JS, performance — notifica email/Slack</div></td>
+        <td>Piano Developer (gratis)</td>
+        <td class="link"><a href="https://sentry.io/signup/" target="_blank">→ Crea account gratis</a></td>
+        <td><span class="price green">GRATIS<br>26k errori/mese</span></td>
+        <td class="action">Crea account → nuovo progetto "React"<br><code>npm install @sentry/react</code><div class="where">Aggiunge 3 righe in VioAiOrchestra.jsx</div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">🟠 Priorità 2 — Settimana 1 (tutto gratis o quasi) <span>Porta il progetto a livello professionale base</span></div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Versione/Piano</th><th>Link Diretto</th><th>Costo</th><th>Dove Installarlo</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">Snyk</div><div class="tool-desc">Scan CVE in dipendenze npm + Python. Blocca release se vulnerabilità critiche</div></td>
+        <td>Free (open source)</td>
+        <td class="link"><a href="https://app.snyk.io/login?utm_source=github" target="_blank">→ Login con GitHub</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">Login con GitHub → Import repo vio83-ai-orchestra<div class="where">Aggiunge badge nel README automaticamente</div></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Codecov</div><div class="tool-desc">Test coverage badge + trend report su ogni PR. Integra con ci.yml</div></td>
+        <td>Free (open source)</td>
+        <td class="link"><a href="https://app.codecov.io/login/github" target="_blank">→ Login con GitHub</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">Login con GitHub → abilita repo<div class="where">Aggiunge 2 righe in ci.yml per upload coverage</div></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">UptimeRobot</div><div class="tool-desc">Monitor disponibilità backend localhost:4000. Alert email se giù</div></td>
+        <td>Free (50 monitor, 5 min check)</td>
+        <td class="link"><a href="https://uptimerobot.com/signUp" target="_blank">→ Crea account gratis</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td class="action">Crea account → Add Monitor → HTTP → URL backend pubblico<div class="where">Nota: funziona solo se backend esposto su internet o VPS</div></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════ CI/CD ═══════════════════════════════════ -->
+<div id="cicd" class="panel">
+  <div class="section-title">⚙️ CI/CD Professionale — Stack Completo 2026</div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Piano Consigliato</th><th>Link</th><th>€/mese</th><th>Cosa Aggiunge</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">GitHub Pro</div><div class="tool-desc">Branch protection avanzata, Codespaces 60h/mese, Copilot incluso</div></td>
+        <td>Pro — €4/mese</td>
+        <td class="link"><a href="https://github.com/settings/billing/plans" target="_blank">→ Upgrade</a></td>
+        <td><span class="price cyan">€4</span></td>
+        <td>Required checks su branch, insights avanzati, Copilot 30 giorni trial</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Husky v9</div><div class="tool-desc">Pre-commit hooks: blocca errori PRIMA del push, mai più CI failures per stupidità</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://typicode.github.io/husky/" target="_blank">→ husky.js.org</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td>Blocca commit con ESLint errors, TypeScript errors, Python syntax</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Renovate Bot</div><div class="tool-desc">Aggiorna dipendenze npm/pip automaticamente con PR separate. No più dep vecchie</div></td>
+        <td>GitHub App — gratis</td>
+        <td class="link"><a href="https://github.com/apps/renovate" target="_blank">→ Installa App</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td>PR automatiche per npm, pip, GitHub Actions. Configura schedule</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Doppler</div><div class="tool-desc">Gestione secrets centralizzata. Sostituisce .env in chiaro, sync automatico</div></td>
+        <td>Developer — gratis</td>
+        <td class="link"><a href="https://dashboard.doppler.com/register" target="_blank">→ Registrati</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td>CLI: <code>doppler run -- npm run dev</code>. Integra con GitHub Actions</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">act (local GitHub Actions)</div><div class="tool-desc">Esegui i workflow GitHub Actions in locale prima del push. Zero surprises</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://github.com/nektos/act" target="_blank">→ GitHub nektos/act</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td><code>brew install act</code> → <code>act push</code> nel progetto</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Semantic Release</div><div class="tool-desc">Versioning e CHANGELOG automatici da commit messages. Lancia release.yml solo quando serve</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://semantic-release.gitbook.io/semantic-release/" target="_blank">→ Docs</a></td>
+        <td><span class="price green">GRATIS</span></td>
+        <td><code>npm install --save-dev semantic-release</code>. Genera tag v*.*.* automatici</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total-box">
+    <div><div class="label">Totale CI/CD mensile</div><div class="value">€4/mese</div></div>
+    <div style="font-size:13px;color:var(--dim);max-width:500px">Solo GitHub Pro. Tutto il resto è gratuito open-source. Con questo stack hai una pipeline CI/CD da startup serie A.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ OSSERVABILITÀ ═══════════════════════════════════ -->
+<div id="osservabilita" class="panel">
+  <div class="section-title">📡 Osservabilità — Metriche, Tracing, Alert</div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Piano Consigliato</th><th>Link</th><th>€/mese</th><th>Cosa Misura</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">Sentry</div><div class="tool-desc">Error tracking React frontend + FastAPI backend. Stack trace completo per ogni crash</div></td>
+        <td>Developer — GRATIS</td>
+        <td class="link"><a href="https://sentry.io/signup/" target="_blank">→ sentry.io/signup</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>26.000 errori/mese gratis. Email alert. React + Python SDK</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">PostHog</div><div class="tool-desc">Product analytics: quante persone usano ogni funzione, funnel, session replay</div></td>
+        <td>Free tier</td>
+        <td class="link"><a href="https://app.posthog.com/signup" target="_blank">→ posthog.com/signup</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>1M eventi/mese gratis. Self-hostable. <code>npm install posthog-js</code></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Grafana Cloud</div><div class="tool-desc">Dashboard metriche Prometheus + log Loki. Visualizza latenza backend, memoria, CPU</div></td>
+        <td>Free tier</td>
+        <td class="link"><a href="https://grafana.com/auth/sign-up/create-user" target="_blank">→ grafana.com/signup</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>14 giorni ritenzione metriche. 50GB log gratis. Dashboard pronti per FastAPI</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">OpenTelemetry (OTel)</div><div class="tool-desc">Tracing distribuito: ogni richiesta dal frontend → backend → Ollama tracciata</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://opentelemetry.io/docs/languages/python/getting-started/" target="_blank">→ OTel Python</a><br><a href="https://opentelemetry.io/docs/languages/js/" target="_blank">→ OTel JS</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>pip install opentelemetry-sdk opentelemetry-instrumentation-fastapi</code></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">UptimeRobot</div><div class="tool-desc">Availability monitoring: check ogni 5 min su backend. Alert email/Telegram se giù</div></td>
+        <td>Free (50 monitor)</td>
+        <td class="link"><a href="https://uptimerobot.com/signUp" target="_blank">→ uptimerobot.com</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>50 HTTP monitor gratis. Uptime badge per README</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Better Stack (ex Logtail)</div><div class="tool-desc">Log aggregation: backend FastAPI logs centralizzati con search e alert</div></td>
+        <td>Free (1GB/mese)</td>
+        <td class="link"><a href="https://betterstack.com/logs" target="_blank">→ betterstack.com/logs</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>1GB log gratis. Python handler: <code>pip install logtail-python</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total-box">
+    <div><div class="label">Totale Osservabilità mensile</div><div class="value">€0/mese</div></div>
+    <div style="font-size:13px;color:var(--dim);max-width:500px">Tutto gratis con i free tier. Grafana + Sentry + PostHog + OTel = stack di osservabilità da azienda serie B, a costo zero.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SICUREZZA ═══════════════════════════════════ -->
+<div id="sicurezza" class="panel">
+  <div class="section-title">🔒 Sicurezza e Compliance — Stack 2026</div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Piano</th><th>Link</th><th>€/mese</th><th>Cosa Protegge</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">Snyk</div><div class="tool-desc">Scan CVE in npm deps + requirements.txt. Integra in ci.yml come step bloccante</div></td>
+        <td>Free (open source illimitato)</td>
+        <td class="link"><a href="https://snyk.io/signup/?utm_source=github" target="_blank">→ snyk.io/signup</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>Vulnerabilità in dipendenze. Badge sicurezza nel README</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">GitHub Advanced Security</div><div class="tool-desc">Secret scanning + CodeQL SAST. Trova API keys accidentalmente committate</div></td>
+        <td>Incluso in repo pubblici</td>
+        <td class="link"><a href="https://github.com/vio83/vio83-ai-orchestra/security" target="_blank">→ Abilita ora</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>Secret scanning attivo gratis su repo pubblici. Abilita in Settings → Security</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Doppler</div><div class="tool-desc">Secrets management: no più .env in chiaro. API keys ruotabili senza toccare il codice</div></td>
+        <td>Developer — gratis</td>
+        <td class="link"><a href="https://dashboard.doppler.com/register" target="_blank">→ doppler.com/register</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>Sync secrets → GitHub Actions, Mac dev environment, produzione</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">1Password</div><div class="tool-desc">Password manager + secrets per sviluppatori. Condivisione sicura API keys</div></td>
+        <td>Individual — €2.99/mese</td>
+        <td class="link"><a href="https://1password.com/sign-up/" target="_blank">→ 1password.com/sign-up</a></td>
+        <td><span class="price cyan">€3</span></td>
+        <td>Tutte le API keys (Claude, OpenAI, Gemini ecc.) in un posto sicuro</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">pip-audit</div><div class="tool-desc">Scan CVE Python. Più leggero di Snyk per check locali veloci</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://pypi.org/project/pip-audit/" target="_blank">→ pypi.org/project/pip-audit</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>pip install pip-audit</code> → <code>pip-audit -r requirements.txt</code></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Trivy (SBOM + CVE)</div><div class="tool-desc">Genera SBOM del progetto e scansiona tutto: npm, pip, Dockerfile, binari</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://aquasecurity.github.io/trivy/" target="_blank">→ aquasecurity.github.io/trivy</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>brew install trivy</code> → <code>trivy fs .</code> nel progetto</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total-box">
+    <div><div class="label">Totale Sicurezza mensile</div><div class="value">€0–3/mese</div></div>
+    <div style="font-size:13px;color:var(--dim);max-width:500px">€0 senza 1Password, €3 con. Per un progetto solo, Doppler + Snyk + GitHub Secret Scanning è sufficiente e gratuito.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ DATA LAYER ═══════════════════════════════════ -->
+<div id="data" class="panel">
+  <div class="section-title">🧠 Data Layer AI — RAG Engine, Vector DB, Embeddings</div>
+  <table>
+    <thead><tr><th>Strumento</th><th>Piano</th><th>Link</th><th>€/mese</th><th>Perché Usarlo</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="tool-name">Qdrant Cloud</div><div class="tool-desc">Vector DB production-ready. Alternativa stabile a ChromaDB per RAG su Python 3.12+</div></td>
+        <td>Free tier (1GB)</td>
+        <td class="link"><a href="https://cloud.qdrant.io/" target="_blank">→ cloud.qdrant.io</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>1GB gratis, 1 cluster. <code>pip install qdrant-client</code>. Molto più stabile di ChromaDB</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">Ollama (già installato)</div><div class="tool-desc">Modelli locali per embedding + inferenza. Aggiungi nomic-embed-text per RAG</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://ollama.com/library/nomic-embed-text" target="_blank">→ nomic-embed-text</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>ollama pull nomic-embed-text</code> — 274MB, embedding 768 dim</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">LlamaIndex</div><div class="tool-desc">Framework RAG più maturo di LangChain. Integra con Qdrant + Ollama nativamente</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://docs.llamaindex.ai/" target="_blank">→ docs.llamaindex.ai</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>pip install llama-index-core llama-index-vector-stores-qdrant</code></td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">SQLite FTS5 (già presente)</div><div class="tool-desc">Full-text search già integrato nel progetto. Benchmark precision@k mancante</div></td>
+        <td>Built-in Python</td>
+        <td class="link"><a href="https://www.sqlite.org/fts5.html" target="_blank">→ SQLite FTS5 docs</a></td>
+        <td><span class="price green">€0</span></td>
+        <td>Già in uso. Aggiungi RAGAS per benchmark retrieval precision@k</td>
+      </tr>
+      <tr>
+        <td><div class="tool-name">RAGAS</div><div class="tool-desc">Benchmark automatico qualità RAG: faithfulness, answer relevancy, context precision</div></td>
+        <td>Open source — gratis</td>
+        <td class="link"><a href="https://docs.ragas.io/" target="_blank">→ docs.ragas.io</a></td>
+        <td><span class="price green">€0</span></td>
+        <td><code>pip install ragas</code>. Aggiunge test suite RAG automatici in CI</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total-box">
+    <div><div class="label">Totale Data Layer mensile</div><div class="value">€0/mese</div></div>
+    <div style="font-size:13px;color:var(--dim);max-width:500px">Tutto gratis. Qdrant Cloud free tier è più che sufficiente per sviluppo e primi utenti. Migra su piano pagato solo quando superi 1GB di vettori.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SETUP ═══════════════════════════════════ -->
+<div id="setup" class="panel">
+  <div class="section-title">🛠️ Come Configurarli — Step by Step in Ordine di Priorità</div>
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">1</div><div class="step-title">🔴 SUBITO — Branch Protection su GitHub (5 minuti)</div></div>
+      <div class="step-body">
+        Vai su → <a class="link" href="https://github.com/vio83/vio83-ai-orchestra/settings/branches" target="_blank">github.com/vio83/vio83-ai-orchestra/settings/branches</a><br><br>
+        Clicca "Add branch ruleset" → nome: <code>main-protection</code><br>
+        Spunta: <strong>Require status checks to pass</strong> → Aggiungi: <code>build-and-lint</code>, <code>backend-test</code><br>
+        Spunta: <strong>Require branches to be up to date before merging</strong><br>
+        Spunta: <strong>Block force pushes</strong><br>
+        Salva. Da ora nessun push rompe main senza CI verde.
+        <div class="note">✅ Questo da solo elimina il 70% delle cause di run failed futuri.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">2</div><div class="step-title">🔴 SUBITO — Husky pre-commit hooks (10 minuti)</div></div>
+      <div class="step-body">
+        Nel Terminale Mac, dentro il progetto:<br><br>
+        <code>cd ~/Projects/vio83-ai-orchestra</code><br>
+        <code>npm install --save-dev husky lint-staged</code><br>
+        <code>npx husky init</code><br><br>
+        Poi copia il nostro hook gitlink già pronto:<br>
+        <code>cp scripts/ci/pre-commit-gitlink-guard.sh .git/hooks/pre-commit</code><br>
+        <code>chmod +x .git/hooks/pre-commit</code><br><br>
+        Aggiungi in <code>package.json</code> sotto "scripts":<br>
+        <code>"prepare": "husky"</code>
+        <div class="note">✅ Da ora ogni commit viene controllato automaticamente prima di partire.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">3</div><div class="step-title">🔴 SUBITO — GitHub Advanced Security (2 minuti)</div></div>
+      <div class="step-body">
+        Vai su → <a class="link" href="https://github.com/vio83/vio83-ai-orchestra/security" target="_blank">github.com/vio83/vio83-ai-orchestra/security</a><br><br>
+        Clicca "Enable vulnerability alerts"<br>
+        Clicca "Enable Dependabot alerts"<br>
+        Clicca "Enable secret scanning"<br><br>
+        Per repo pubblici è tutto gratis. GitHub ti avvisa via email se trova API keys nel codice.
+        <div class="note">✅ Attivazione immediata, zero configurazione aggiuntiva.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">4</div><div class="step-title">🟠 Settimana 1 — Sentry error tracking (20 minuti)</div></div>
+      <div class="step-body">
+        1. Vai su <a class="link" href="https://sentry.io/signup/" target="_blank">sentry.io/signup</a> → crea account con GitHub<br>
+        2. Crea progetto: Platform = <strong>React</strong><br>
+        3. Prendi il tuo DSN (simile a <code>https://abc@o123.ingest.sentry.io/456</code>)<br><br>
+        4. Nel progetto:<br>
+        <code>npm install @sentry/react</code><br><br>
+        5. In <code>src/VioAiOrchestra.jsx</code> aggiungi all'inizio:<br>
+        <code>import * as Sentry from "@sentry/react";</code><br>
+        <code>Sentry.init({ dsn: "IL-TUO-DSN", environment: "production" });</code><br><br>
+        6. Per il backend FastAPI:<br>
+        <code>pip install sentry-sdk[fastapi]</code><br>
+        In <code>backend/api/server.py</code>: <code>import sentry_sdk; sentry_sdk.init(dsn="...")</code>
+        <div class="note">✅ Da questo momento ogni crash ti arriva per email con stack trace completo e riga esatta del codice.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">5</div><div class="step-title">🟠 Settimana 1 — Snyk vulnerability scan (5 minuti)</div></div>
+      <div class="step-body">
+        1. Vai su <a class="link" href="https://app.snyk.io/login?utm_source=github" target="_blank">snyk.io → Login con GitHub</a><br>
+        2. Import repository: cerca <code>vio83-ai-orchestra</code> → Add<br>
+        3. Snyk analizza automaticamente npm deps + requirements.txt<br><br>
+        Per run locale:<br>
+        <code>npm install -g snyk</code><br>
+        <code>snyk auth</code> (apre browser)<br>
+        <code>snyk test</code> (nel progetto)<br>
+        <code>snyk test --file=requirements.txt --package-manager=pip</code>
+        <div class="note">✅ Snyk aggiunge anche un badge nel README automaticamente. Aggiorna il README con il badge per mostrare professionalità.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">6</div><div class="step-title">🟠 Settimana 1 — Renovate Bot (3 minuti)</div></div>
+      <div class="step-body">
+        1. Vai su <a class="link" href="https://github.com/apps/renovate" target="_blank">github.com/apps/renovate</a><br>
+        2. Clicca "Install" → seleziona repo <code>vio83-ai-orchestra</code><br>
+        3. Renovate apre automaticamente una PR "Configure Renovate" con il file <code>renovate.json</code><br>
+        4. Mergia quella PR<br><br>
+        Da quel momento ricevi PR automatiche ogni volta che una dipendenza è aggiornabile, con changelog incluso.
+        <div class="note">✅ Zero configurazione manuale. Dep sempre aggiornate = zero CVE da dep vecchie.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">7</div><div class="step-title">🔵 Mese 1 — Qdrant Cloud (RAG stabile) (30 minuti)</div></div>
+      <div class="step-body">
+        1. Vai su <a class="link" href="https://cloud.qdrant.io/" target="_blank">cloud.qdrant.io</a> → crea account<br>
+        2. Crea cluster: nome <code>vio83-rag</code>, regione <code>eu-central</code> (Frankfurt), size <code>free</code><br>
+        3. Prendi API key e cluster URL<br><br>
+        4. Nel progetto:<br>
+        <code>pip install qdrant-client</code><br><br>
+        5. Aggiungi al <code>.env</code>:<br>
+        <code>QDRANT_URL=https://xxx.eu-central.aws.cloud.qdrant.io:6333</code><br>
+        <code>QDRANT_API_KEY=xxx</code><br><br>
+        6. Scarica il modello embedding:<br>
+        <code>ollama pull nomic-embed-text</code><br><br>
+        Il VectorEngine nel backend già cerca queste variabili d'ambiente.
+        <div class="note">✅ RAG engine stabile su Python 3.12, senza i bug di ChromaDB su 3.14+. Il free tier da 1GB gestisce migliaia di documenti.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><div class="step-num">8</div><div class="step-title">🔵 Mese 1 — act: testa GitHub Actions in locale (5 minuti)</div></div>
+      <div class="step-body">
+        <code>brew install act</code><br><br>
+        Poi nel progetto:<br>
+        <code>act push --job build-and-lint</code> — simula il CI in locale<br>
+        <code>act workflow_dispatch -W .github/workflows/seo-automation.yml</code> — testa SEO workflow<br><br>
+        Prima di ogni push importante, esegui <code>act push</code> per vedere se il CI passa prima di spedirlo su GitHub.
+        <div class="note">✅ Richiede Docker Desktop installato. Scarica da <a class="link" href="https://www.docker.com/products/docker-desktop/" target="_blank">docker.com/products/docker-desktop</a></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="total-box" style="margin-top:32px">
+    <div>
+      <div class="label">💰 TOTALE INVESTIMENTO MENSILE</div>
+      <div class="value">€0–7/mese</div>
+      <div class="label" style="margin-top:6px">Piano starter: €0 | Con 1Password: €3 | Con GitHub Pro: €7</div>
+    </div>
+    <div style="font-size:13px;color:var(--dim);max-width:400px;text-align:right">
+      Tutto il resto (Sentry, Snyk, Renovate, Qdrant, PostHog, Grafana, Codecov, Doppler, act) è <strong style="color:var(--green)">completamente gratuito</strong> per un progetto open source di queste dimensioni.
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
