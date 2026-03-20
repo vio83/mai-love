@@ -26,6 +26,7 @@ import shlex
 import uuid
 import logging
 import hashlib
+import hmac
 from contextlib import asynccontextmanager
 from pathlib import Path
 from datetime import datetime, timezone
@@ -103,6 +104,8 @@ RUNTIME_SUPERVISOR_STATE_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor-sta
 RUNTIME_SUPERVISOR_PID_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor.pid"
 RUNTIME_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio83.runtime-services.plist"
 ORCHESTRA_LAUNCH_AGENT_PATH = Path.home() / "Library" / "LaunchAgents" / "com.vio83.ai-orchestra.plist"
+BILLING_EVENTS_FILE = PROJECT_ROOT / "data" / "billing-events.jsonl"
+BUSINESS_KPI_FILE = PROJECT_ROOT / "data" / "autonomous_runtime" / "business-kpi.json"
 
 RUNTIME_ENV_DEFAULTS = {
     "OPENCLAW_START_CMD": "builtin",  # Built-in agent runtime on main server
@@ -141,6 +144,66 @@ def _now_iso() -> str:
 
 def _iso_from_epoch(epoch_s: float) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch_s))
+
+
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _stripe_signature_valid(payload_bytes: bytes, signature_header: str, secret: str) -> bool:
+    """Best-effort Stripe signature check (t=...,v1=...) without external SDK."""
+    if not signature_header or not secret:
+        return False
+
+    try:
+        parts = dict(item.split("=", 1) for item in signature_header.split(",") if "=" in item)
+    except Exception:
+        return False
+
+    ts = parts.get("t", "")
+    sig_v1 = parts.get("v1", "")
+    if not ts or not sig_v1:
+        return False
+
+    signed_payload = f"{ts}.".encode("utf-8") + payload_bytes
+    expected = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sig_v1)
+
+
+def _compute_business_kpi_snapshot() -> dict[str, Any]:
+    health = get_health_dashboard()
+    funnel = get_funnel_metrics(90)
+
+    active_paid = int(health.get("active_sponsors", 0))
+    mrr = float(health.get("mrr_monthly", 0.0))
+    churn_rate = float(health.get("churn_rate_percent", 0.0))
+
+    visitors = int(funnel.get("visitors", 0))
+    subscribers = int(funnel.get("subscribers", 0))
+    paid = int(funnel.get("paying", 0))
+    conversion_free_to_paid = round((paid / max(1, visitors)) * 100.0, 2)
+    arpu = round(mrr / max(1, active_paid), 2)
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "mrr": mrr,
+        "active_paid_users": active_paid,
+        "conversion_free_to_paid_percent": conversion_free_to_paid,
+        "churn_monthly_percent": churn_rate,
+        "arpu": arpu,
+        "funnel": {
+            "visitors": visitors,
+            "subscribers": subscribers,
+            "paying": paid,
+        },
+    }
+
+
+def _persist_business_kpi(snapshot: dict[str, Any]) -> None:
+    BUSINESS_KPI_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BUSINESS_KPI_FILE.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 # Cached _read_project_env_map with 30s TTL — avoids re-parsing .env on every call
@@ -3897,7 +3960,7 @@ async def api_growth_run_cycle():
             "data": results,
         }
     except Exception as e:
-        _log.error(f"Growth cycle error: {e}")
+        _structured_logger.error(f"Growth cycle error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -4061,6 +4124,60 @@ async def api_sponsor_track_churn(
         return {
             "status": "tracked",
             "event": event,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/billing/webhook/stripe")
+async def api_billing_webhook_stripe(request: Request):
+    """Stripe webhook endpoint with signature verification and local event journaling."""
+    payload_bytes = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
+
+    if not webhook_secret:
+        raise HTTPException(status_code=503, detail="STRIPE_WEBHOOK_SECRET not configured")
+
+    if not _stripe_signature_valid(payload_bytes, sig_header, webhook_secret):
+        raise HTTPException(status_code=401, detail="Invalid Stripe signature")
+
+    try:
+        event = json.loads(payload_bytes.decode("utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON payload: {e}")
+
+    event_type = str(event.get("type", "unknown"))
+    event_id = str(event.get("id", ""))
+    created_ts = event.get("created")
+
+    _append_jsonl(BILLING_EVENTS_FILE, {
+        "received_at": datetime.now(timezone.utc).isoformat(),
+        "event_id": event_id,
+        "event_type": event_type,
+        "created": created_ts,
+        "livemode": bool(event.get("livemode", False)),
+        "data": event.get("data", {}),
+    })
+
+    _structured_logger.info(f"Stripe webhook received: type={event_type} id={event_id}")
+    return {"status": "ok", "received": True, "event_type": event_type, "event_id": event_id}
+
+
+@app.get("/kpi/business")
+async def api_kpi_business(refresh: bool = Query(True)):
+    """Return monetization KPI snapshot (MRR, churn, conversion, ARPU)."""
+    try:
+        if refresh or not BUSINESS_KPI_FILE.exists():
+            snapshot = _compute_business_kpi_snapshot()
+            _persist_business_kpi(snapshot)
+        else:
+            snapshot = json.loads(BUSINESS_KPI_FILE.read_text(encoding="utf-8"))
+
+        return {
+            "status": "success",
+            "kpi": snapshot,
+            "source": str(BUSINESS_KPI_FILE),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
