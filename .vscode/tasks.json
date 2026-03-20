@@ -191,6 +191,36 @@
       "presentation": {
         "reveal": "always"
       }
+    },
+    {
+      "label": "bootstrap-vscode-check",
+      "type": "shell",
+      "command": "bash scripts/setup/bootstrap_vscode_mac.sh check",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "bootstrap-vscode-install",
+      "type": "shell",
+      "command": "bash scripts/setup/bootstrap_vscode_mac.sh install",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "monetization-readiness",
+      "type": "shell",
+      "command": "bash scripts/monetization/run_monetization_readiness.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     }
   ]
 }

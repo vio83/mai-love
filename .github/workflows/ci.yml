@@ -15,9 +15,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  guardrails:
+    name: Guardrails (Repo Hygiene + Policy Gates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce no orphan gitlinks
+        run: bash scripts/ci/check_no_orphan_gitlinks.sh
+
+      - name: Enforce policy failure gates
+        run: bash scripts/ci/policy_failure_gates.sh
+
   frontend:
     name: Frontend (TypeCheck + Lint + Build)
     runs-on: ubuntu-latest
+    needs: [guardrails]
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +60,7 @@ jobs:
   backend:
     name: Backend (Lint + Compile)
     runs-on: ubuntu-latest
+    needs: [guardrails]
     steps:
       - uses: actions/checkout@v4
 
