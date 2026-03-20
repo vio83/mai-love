@@ -63,6 +63,12 @@ echo -e "  ${GREEN}✓${NC} RIATTIVA-TUTTO.sh (fix venv rotto + avvio completo)"
 git add VIO-INVESTIMENTI-2026.html
 echo -e "  ${GREEN}✓${NC} VIO-INVESTIMENTI-2026.html (piano investimenti interattivo)"
 
+git add renovate.json
+echo -e "  ${GREEN}✓${NC} renovate.json (Renovate Bot config)"
+
+git add .snyk
+echo -e "  ${GREEN}✓${NC} .snyk (Snyk policy file)"
+
 # Opzionale: altri file modificati
 git add .vscode/settings.json 2>/dev/null && echo -e "  ${GREEN}✓${NC} .vscode/settings.json" || true
 git add PUSH-TUTTO-ORA.sh 2>/dev/null || true

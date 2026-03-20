@@ -1,0 +1,5 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.1
+# Ignora vulnerabilità non applicabili al nostro stack
+ignore: {}
+patch: {}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "VIO 83 AI Orchestra — Renovate Bot configuration",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Rome",
+  "schedule": ["every weekend"],
+  "assignees": ["vio83"],
+  "labels": ["dependencies", "automated"],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2,
+  "automerge": false,
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "📦 Dependency Dashboard — VIO 83",
+  "npm": {
+    "enabled": true
+  },
+  "pip_requirements": {
+    "enabled": true,
+    "fileMatch": ["(^|/)requirements.*\\.txt$"]
+  },
+  "github-actions": {
+    "enabled": true,
+    "fileMatch": ["\\.github/workflows/[^/]+\\.ya?ml$"]
+  },
+  "packageRules": [
+    {
+      "description": "Aggiornamenti patch automatici per dipendenze minori",
+      "matchUpdateTypes": ["patch"],
+      "automerge": false,
+      "groupName": "patch updates"
+    },
+    {
+      "description": "Aggiornamenti Tauri — gestiti manualmente",
+      "matchPackageNames": ["@tauri-apps/*", "tauri"],
+      "enabled": true,
+      "automerge": false,
+      "labels": ["dependencies", "tauri", "manual-review"]
+    },
+    {
+      "description": "GitHub Actions — aggiorna solo patch/minor",
+      "matchManagers": ["github-actions"],
+      "automerge": false,
+      "labels": ["dependencies", "github-actions"]
+    },
+    {
+      "description": "Python deps — aggiornamenti settimanali",
+      "matchManagers": ["pip_requirements"],
+      "schedule": ["every weekend"],
+      "labels": ["dependencies", "python"]
+    }
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "venv/**",
+    ".venv/**",
+    "dist/**",
+    "target/**"
+  ]
+}
