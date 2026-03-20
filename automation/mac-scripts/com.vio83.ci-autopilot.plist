@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vio83.ci-autopilot</string>
+
+  <!-- Main daemon — absolute path, launchd non espande $HOME -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/autopilot/ci_autopilot.sh</string>
+  </array>
+
+  <!-- Avvia subito al caricamento -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- KeepAlive = true: launchd lo riavvia sempre se muore -->
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Log assoluti (launchd non espande variabili) -->
+  <key>StandardOutPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/ci-autopilot-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/ci-autopilot-launchd.err</string>
+
+  <!-- PATH con Homebrew + gh + jq -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/padronavio</string>
+    <key>REPO_ROOT</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra</string>
+    <key>LOG_DIR</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs</string>
+  </dict>
+
+  <!-- Working directory -->
+  <key>WorkingDirectory</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra</string>
+
+  <!-- Throttle restart: aspetta almeno 10s prima di riavviare dopo un crash -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+</dict>
+</plist>
