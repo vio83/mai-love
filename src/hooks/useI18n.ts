@@ -25,8 +25,16 @@ function interpolate(value: string, options?: TParams): string {
 }
 
 export function resolveLocaleFromStorage(): Locale {
-  const stored = localStorage.getItem('vio83-locale');
-  return stored === 'en' ? 'en' : 'it';
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return 'it'; // SSR/webview default
+    }
+    const stored = window.localStorage.getItem('vio83-locale');
+    return stored === 'en' ? 'en' : 'it';
+  } catch {
+    // Privacy mode or other storage errors
+    return 'it';
+  }
 }
 
 export function translateForLocale(locale: Locale, key: string, options?: TParams): string {
@@ -47,9 +55,20 @@ export function useI18n() {
   const t = useCallback<TFunction>((key, options) => translateForLocale(lang, key, options), [lang]);
 
   const setLang = useCallback((newLang: Locale) => {
+    // Skip if language didn't change
+    if (newLang === lang) return;
+
     updateSettings({ language: newLang });
-    localStorage.setItem('vio83-locale', newLang);
-  }, [updateSettings]);
+
+    // Safely persist preference to localStorage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('vio83-locale', newLang);
+      }
+    } catch {
+      // Silently ignore storage errors (privacy mode, quota exceeded, etc)
+    }
+  }, [lang, updateSettings]);
 
   return { t, lang, setLang };
 }

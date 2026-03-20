@@ -48,7 +48,6 @@ jobs:
 
       - name: Update sitemap lastmod date
         run: |
-          TODAY=$(date +%Y-%m-%d)
           python3 << 'PYEOF'
           from pathlib import Path
           import re
