@@ -25,8 +25,10 @@ import subprocess
 import shlex
 import uuid
 import logging
+import hashlib
 from contextlib import asynccontextmanager
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Optional, Any
 from collections import defaultdict
 
@@ -58,6 +60,15 @@ from backend.automation.autonomous_runtime import AutonomousRuntime
 from backend.core.user_auth import get_user_auth, UserProfile
 from backend.core.api_key_manager import get_key_vault
 from backend.core.subscription_manager import get_subscription_manager
+from backend.core.enterprise_strategy import get_enterprise_strategy
+from backend.automation.seo_engine import (
+    run_full_growth_cycle, get_dashboard_metrics, generate_ai_insights,
+    calculate_growth_metrics, calculate_sponsor_funnel,
+)
+from backend.automation.sponsor_growth_tracker import (
+    get_funnel_metrics, get_cohort_analysis, estimate_ltv, get_health_dashboard,
+    track_visitor, track_subscriber, track_paying_sponsor, track_churn,
+)
 
 # RAG è disabilitato per compatibilità Python 3.14
 RAG_AVAILABLE = False
@@ -121,6 +132,7 @@ RUNTIME_ENV_DEFAULTS = {
 }
 
 AUTONOMOUS_RUNTIME = AutonomousRuntime(PROJECT_ROOT)
+ENTERPRISE_STRATEGY = get_enterprise_strategy(PROJECT_ROOT)
 
 
 def _now_iso() -> str:
@@ -992,6 +1004,7 @@ _ADMIN_PIN_HEADER = "x-vio-admin-pin"
 _ADMIN_PROTECTED_PREFIXES: tuple[str, ...] = (
     "/runtime/apps/",
     "/autonomy/config",
+    "/openclaw/approvals/",
 )
 
 _ADMIN_PROTECTED_EXACT: set[tuple[str, str]] = {
@@ -1002,10 +1015,36 @@ _ADMIN_PROTECTED_EXACT: set[tuple[str, str]] = {
     ("/core/cache/cleanup", "POST"),
     ("/autonomy/compact", "POST"),
     ("/autonomy/trigger", "POST"),
+    ("/strategy/design-partners", "POST"),
+    ("/strategy/onboarding", "POST"),
+    ("/compliance/tenant-policy", "PUT"),
+    ("/openclaw/approvals/request", "POST"),
+    ("/openclaw/approvals/{approval_id}/decide", "POST"),
 }
 
 # Pattern per endpoint DELETE conversazioni (path dinamico /conversations/<id>)
 _ADMIN_DELETE_CONVERSATIONS = True  # DELETE /conversations/* richiede admin PIN
+_AGENT_APPROVAL_REQUIRED = _as_bool(os.environ.get("VIO_AGENT_APPROVAL_REQUIRED", "true"))
+_AGENT_APPROVAL_TTL_SEC = int(os.environ.get("VIO_AGENT_APPROVAL_TTL_SEC", "1800") or 1800)
+_AGENT_APPROVALS: dict[str, dict[str, Any]] = {}
+
+
+def _task_fingerprint(task: str, provider: str, model: str) -> str:
+    payload = f"{task}|{provider}|{model}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _build_customer_context(request: Request, user: Optional[UserProfile] = None) -> dict[str, str]:
+    tenant_id = (request.headers.get("x-vio-tenant", "") or "").strip() or (user.user_id if user else "public")
+    policy_preset = (request.headers.get("x-vio-policy-preset", "") or "").strip().lower() or "generic_eu"
+    jurisdiction = (request.headers.get("x-vio-jurisdiction", "") or "").strip().lower() or "eu"
+    plan_id = (request.headers.get("x-vio-plan", "") or "").strip().lower() or (user.plan_id if user else "free_local")
+    return {
+        "tenant_id": tenant_id,
+        "policy_preset": policy_preset,
+        "jurisdiction": jurisdiction,
+        "plan_id": plan_id,
+    }
 
 
 def _client_ip(request: Request) -> str:
@@ -1099,6 +1138,18 @@ async def structured_request_logger(request: Request, call_next):
             "ms": elapsed_ms,
             "client": client_ip,
         }, ensure_ascii=False))
+
+        ENTERPRISE_STRATEGY.write_audit_event(
+            event_type="http_request",
+            payload={
+                "rid": request_id,
+                "method": request.method,
+                "path": path,
+                "status": response.status_code,
+                "ms": elapsed_ms,
+                "client": client_ip,
+            },
+        )
 
     return response
 
@@ -1548,13 +1599,40 @@ _VISION_PROVIDERS = ["claude", "openai", "gemini", "groq", "openrouter"]
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(http_request: Request, request: ChatRequest):
     """Chat principale — instrada la richiesta al provider migliore. Supporta vision/multimodal e agent mode."""
     try:
         runtime_mode = request.mode or "local"
+        user_ctx: Optional[UserProfile] = None
+        token = _extract_user_token(http_request)
+        if token:
+            user_ctx = get_user_auth().verify_token(token)
+
+        customer_ctx = _build_customer_context(http_request, user=user_ctx)
+        tenant_policy = ENTERPRISE_STRATEGY.get_tenant_policy(customer_ctx["tenant_id"])
 
         # === AGENT MODE: delega a OpenClaw per task multi-step ===
         if request.agent_mode:
+            if _AGENT_APPROVAL_REQUIRED:
+                approval_id = (http_request.headers.get("x-vio-approval-id", "") or "").strip()
+                approval = _AGENT_APPROVALS.get(approval_id)
+                expected_fp = _task_fingerprint(
+                    request.message,
+                    request.provider or "ollama",
+                    request.model or "qwen2.5-coder:3b",
+                )
+                if not approval or not approval.get("approved") or approval.get("fingerprint") != expected_fp:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "message": "Agent approval required",
+                            "hint": "Usa /openclaw/approvals/request e poi /openclaw/approvals/{id}/decide",
+                            "required_header": "x-vio-approval-id",
+                        },
+                    )
+                if approval.get("expires_at", 0) < time.time():
+                    raise HTTPException(status_code=403, detail="Agent approval scaduta")
+
             from backend.openclaw.agent import run_agent
             registry = _get_plugin_registry()
             agent_result = await run_agent(
@@ -1619,6 +1697,25 @@ async def chat(request: ChatRequest):
 
         chosen_provider = request.provider or ("ollama" if runtime_mode == "local" else "claude")
 
+        plan_guardrail = ENTERPRISE_STRATEGY.enforce_plan_guardrails(
+            plan_id=customer_ctx["plan_id"],
+            mode=runtime_mode,
+            max_tokens=request.max_tokens,
+            feature="vision" if has_images else "chat",
+        )
+        runtime_mode = plan_guardrail["effective_mode"]
+
+        compliance_decision = ENTERPRISE_STRATEGY.route_request(
+            mode=runtime_mode,
+            provider=chosen_provider,
+            classification=ENTERPRISE_STRATEGY.classify_data(request.message, has_images=has_images),
+            jurisdiction=customer_ctx["jurisdiction"],
+            policy_preset=tenant_policy.get("policy_preset", customer_ctx["policy_preset"]),
+            tenant_policy=tenant_policy,
+        )
+        runtime_mode = compliance_decision["effective"]["mode"]
+        chosen_provider = compliance_decision["effective"]["provider"]
+
         # Applica routing JetEngine™ (local-first / parallel-sprint)
         if not has_images and not request.provider:
             routed_provider = _jet_decision.routing.provider
@@ -1640,7 +1737,7 @@ async def chat(request: ChatRequest):
             messages.insert(0, {"role": "system", "content": request.system_prompt})
 
         # Orchestratore con timeout guardrail
-        effective_max_tokens = _cap_request_tokens(request.max_tokens)
+        effective_max_tokens = _cap_request_tokens(plan_guardrail["effective_max_tokens"])
         effective_temperature = _effective_temperature(request.temperature)
 
         # Per vision: scegli provider cloud con vision capability
@@ -1699,6 +1796,20 @@ async def chat(request: ChatRequest):
             provider=result["provider"],
             model=result["model"],
             mode=runtime_mode,
+        )
+
+        ENTERPRISE_STRATEGY.write_audit_event(
+            event_type="chat_completed",
+            payload={
+                "conversation_id": conv_id,
+                "provider": result["provider"],
+                "model": result["model"],
+                "latency_ms": result.get("latency_ms", 0),
+                "request_type": str(result.get("request_type", "general")),
+                "compliance": compliance_decision,
+                "plan_guardrail": plan_guardrail,
+                "tenant": customer_ctx["tenant_id"],
+            },
         )
 
         chat_response = ChatResponse(
@@ -2092,6 +2203,85 @@ async def intelligence_status():
     return result
 
 
+@app.post("/reasoning/multistep")
+async def reasoning_multistep(payload: dict = Body(...)):
+    from backend.core.multistep_reasoning import get_multistep_reasoner
+
+    message = str(payload.get("message", "")).strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message obbligatorio")
+
+    mode = str(payload.get("mode", "local") or "local")
+    provider = str(payload.get("provider", "ollama") or "ollama")
+    model = str(payload.get("model", "qwen2.5-coder:3b") or "qwen2.5-coder:3b")
+    complexity = float(payload.get("complexity", 0.75) or 0.75)
+    domain = str(payload.get("domain", "general") or "general")
+    force_multistep = bool(payload.get("force_multistep", True))
+
+    async def ai_call_fn(messages, system_prompt, max_tokens, temperature):
+        full_messages = [{"role": "system", "content": system_prompt}, *messages]
+        result = await orchestrate(
+            messages=full_messages,
+            mode=mode,
+            provider=provider,
+            model=model,
+            ollama_model=model,
+            auto_routing=False,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return {
+            "content": result.get("content", ""),
+            "tokens": int(result.get("tokens_used", 0) or 0),
+            "provider": result.get("provider", provider),
+            "model": result.get("model", model),
+        }
+
+    reasoner = get_multistep_reasoner()
+    result = await reasoner.reason(
+        user_input=message,
+        ai_call_fn=ai_call_fn,
+        complexity=complexity,
+        domain=domain,
+        force_multistep=force_multistep,
+        max_tokens_per_step=int(payload.get("max_tokens_per_step", 2048) or 2048),
+        temperature=float(payload.get("temperature", 0.4) or 0.4),
+    )
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="reasoning_multistep_executed",
+        payload={
+            "domain": domain,
+            "steps": result.steps_executed,
+            "verification_passed": result.verification_passed,
+            "quality": result.quality_estimate,
+        },
+    )
+
+    return {
+        "status": "ok",
+        "final_output": result.final_output,
+        "steps_executed": result.steps_executed,
+        "verification_passed": result.verification_passed,
+        "refined": result.refined,
+        "total_tokens": result.total_tokens,
+        "total_latency_ms": result.total_latency_ms,
+        "quality_estimate": result.quality_estimate,
+        "steps": [
+            {
+                "step_name": s.step_name,
+                "step_number": s.step_number,
+                "provider": s.provider,
+                "model": s.model,
+                "tokens_used": s.tokens_used,
+                "latency_ms": s.latency_ms,
+                "quality_estimate": s.quality_estimate,
+            }
+            for s in result.steps
+        ],
+    }
+
+
 # ═══════════════════════════════════════════════
 # PROVIDERS
 # ═══════════════════════════════════════════════
@@ -2159,6 +2349,305 @@ async def api_orchestration_elite_stacks():
             "Replica ad alta fedeltà di capacità, orchestrazione e runtime locale/proxy è invece implementabile e già parzialmente presente nel progetto.",
             "Per task medico-legali è consigliata la strict evidence policy con knowledge base e fonti certificate.",
         ],
+    }
+
+
+# ═══════════════════════════════════════════════
+# CUSTOMER, STRATEGY, COMPLIANCE FOUNDATION
+# ═══════════════════════════════════════════════
+
+@app.get("/strategy/positioning")
+async def strategy_positioning():
+    return {
+        "status": "ok",
+        "positioning": ENTERPRISE_STRATEGY.positioning,
+    }
+
+
+@app.get("/strategy/customer")
+async def strategy_customer():
+    return {
+        "status": "ok",
+        "customer": ENTERPRISE_STRATEGY.customer_profile,
+    }
+
+
+@app.get("/strategy/policy-presets")
+async def strategy_policy_presets():
+    return {
+        "status": "ok",
+        "policy_presets": ENTERPRISE_STRATEGY.list_policy_presets(),
+    }
+
+
+@app.get("/strategy/plan-guardrails")
+async def strategy_plan_guardrails():
+    return {
+        "status": "ok",
+        "guardrails": ENTERPRISE_STRATEGY.get_plan_guardrails(),
+    }
+
+
+@app.get("/strategy/customers")
+async def strategy_customers():
+    data = ENTERPRISE_STRATEGY.list_customer_profiles()
+    return {
+        "status": "ok",
+        "total": len(data.get("customers", [])),
+        "data": data,
+    }
+
+
+@app.post("/strategy/onboarding")
+async def strategy_onboarding(payload: dict = Body(...)):
+    try:
+        customer = ENTERPRISE_STRATEGY.onboarding_customer(
+            company=str(payload.get("company", "")),
+            contact_email=str(payload.get("contact_email", "")),
+            segment=str(payload.get("segment", "")),
+            policy_preset=str(payload.get("policy_preset", "generic_eu")),
+            plan_id=str(payload.get("plan_id", "starter")),
+            use_case=str(payload.get("use_case", "")),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="customer_onboarded",
+        payload={
+            "customer_id": customer.get("customer_id"),
+            "segment": customer.get("segment"),
+            "plan_id": customer.get("plan_id"),
+        },
+    )
+    return {"status": "ok", "customer": customer}
+
+
+@app.get("/strategy/pricing")
+async def strategy_pricing():
+    return {
+        "status": "ok",
+        "pricing": ENTERPRISE_STRATEGY.pricing,
+    }
+
+
+@app.get("/strategy/metrics")
+async def strategy_metrics():
+    return {
+        "status": "ok",
+        "metrics": ENTERPRISE_STRATEGY.metrics,
+    }
+
+
+@app.get("/strategy/go-no-go")
+async def strategy_go_no_go():
+    return {
+        "status": "ok",
+        "criteria": ENTERPRISE_STRATEGY.go_no_go,
+    }
+
+
+@app.get("/strategy/roadmap")
+async def strategy_roadmap():
+    return {
+        "status": "ok",
+        "roadmap": ENTERPRISE_STRATEGY.roadmap,
+    }
+
+
+@app.get("/strategy/design-partners")
+async def strategy_design_partners():
+    data = ENTERPRISE_STRATEGY.list_design_partners()
+    return {
+        "status": "ok",
+        "total": len(data.get("partners", [])),
+        "data": data,
+    }
+
+
+@app.post("/strategy/design-partners")
+async def strategy_add_design_partner(payload: dict = Body(...)):
+    try:
+        partner = ENTERPRISE_STRATEGY.add_design_partner(
+            company=str(payload.get("company", "")),
+            contact_email=str(payload.get("contact_email", "")),
+            segment=str(payload.get("segment", "regulated-eu")),
+            notes=str(payload.get("notes", "")),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="design_partner_added",
+        payload={"company": partner.get("company"), "segment": partner.get("segment")},
+    )
+
+    return {
+        "status": "ok",
+        "partner": partner,
+    }
+
+
+@app.put("/strategy/design-partners/{partner_id}/status")
+async def strategy_update_design_partner_status(partner_id: str, payload: dict = Body(...)):
+    try:
+        partner = ENTERPRISE_STRATEGY.update_design_partner_status(
+            partner_id=partner_id,
+            status=str(payload.get("status", "prospect")),
+            monthly_ticket_eur=int(payload.get("monthly_ticket_eur", 0) or 0),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="design_partner_status_updated",
+        payload={
+            "partner_id": partner.get("partner_id"),
+            "status": partner.get("status"),
+            "monthly_ticket_eur": partner.get("monthly_ticket_eur", 0),
+        },
+    )
+    return {"status": "ok", "partner": partner}
+
+
+@app.get("/strategy/design-partners/funnel")
+async def strategy_design_partner_funnel():
+    return {
+        "status": "ok",
+        "funnel": ENTERPRISE_STRATEGY.design_partner_funnel(),
+    }
+
+
+@app.get("/compliance/capabilities")
+async def compliance_capabilities():
+    return {
+        "status": "ok",
+        "audit_trail": str(ENTERPRISE_STRATEGY.audit_path),
+        "rbac_roles": list(ENTERPRISE_STRATEGY.rbac_permissions.keys()),
+        "tenant_policies_path": str(ENTERPRISE_STRATEGY.tenant_policies_path),
+        "policy_presets": list(ENTERPRISE_STRATEGY.list_policy_presets().keys()),
+        "policy": {
+            "sensitive_data_forces_local": True,
+            "jurisdiction_header": "x-vio-jurisdiction",
+        },
+    }
+
+
+@app.post("/compliance/route-preview")
+async def compliance_route_preview(payload: dict = Body(...)):
+    text = str(payload.get("message", ""))
+    has_images = bool(payload.get("has_images", False))
+    mode = str(payload.get("mode", "local"))
+    provider = payload.get("provider")
+    jurisdiction = str(payload.get("jurisdiction", "eu"))
+
+    tenant_id = str(payload.get("tenant_id", "public"))
+    policy_preset = str(payload.get("policy_preset", "generic_eu"))
+    tenant_policy = ENTERPRISE_STRATEGY.get_tenant_policy(tenant_id)
+    classification = ENTERPRISE_STRATEGY.classify_data(text, has_images=has_images)
+    decision = ENTERPRISE_STRATEGY.route_request(
+        mode=mode,
+        provider=provider,
+        classification=classification,
+        jurisdiction=jurisdiction,
+        policy_preset=policy_preset,
+        tenant_policy=tenant_policy,
+    )
+    return {"status": "ok", "decision": decision}
+
+
+@app.get("/compliance/audit/recent")
+async def compliance_recent_audit(limit: int = Query(50, ge=1, le=500)):
+    return {
+        "status": "ok",
+        "events": ENTERPRISE_STRATEGY.read_recent_audit(limit=limit),
+    }
+
+
+@app.get("/compliance/audit/export")
+async def compliance_export_audit(format: str = Query("json")):
+    exported = ENTERPRISE_STRATEGY.export_audit(format_name=format)
+    return {
+        "status": "ok",
+        "export": exported,
+    }
+
+
+@app.get("/compliance/tenant-policy")
+async def compliance_tenant_policy(tenant_id: str = Query(...)):
+    return {
+        "status": "ok",
+        "policy": ENTERPRISE_STRATEGY.get_tenant_policy(tenant_id),
+    }
+
+
+@app.put("/compliance/tenant-policy")
+async def compliance_set_tenant_policy(payload: dict = Body(...)):
+    try:
+        policy = ENTERPRISE_STRATEGY.set_tenant_policy(
+            tenant_id=str(payload.get("tenant_id", "")),
+            policy_preset=str(payload.get("policy_preset", "generic_eu")),
+            jurisdiction=str(payload.get("jurisdiction", "eu")),
+            data_residency=str(payload.get("data_residency", "eu-only")),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="tenant_policy_updated",
+        payload={
+            "tenant_id": policy.get("tenant_id"),
+            "policy_preset": policy.get("policy_preset"),
+            "data_residency": policy.get("data_residency"),
+        },
+    )
+    return {"status": "ok", "policy": policy}
+
+
+@app.get("/roi/dashboard")
+async def roi_dashboard(days: int = Query(30, ge=1, le=365)):
+    metrics = get_metrics_summary(days=days)
+    dashboard = ENTERPRISE_STRATEGY.compute_roi_dashboard(days=days, metrics_summary=metrics)
+    return {"status": "ok", "dashboard": dashboard}
+
+
+@app.get("/community/use-cases")
+async def community_use_cases():
+    return {
+        "status": "ok",
+        "use_cases": [
+            {
+                "id": "legal-eu-assistant",
+                "name": "Legal EU Assistant",
+                "target": "studi legali e compliance team",
+                "value": "draft, controllo e validazione policy con audit trail",
+            },
+            {
+                "id": "health-ops-safe-ai",
+                "name": "Health Ops Safe AI",
+                "target": "team operativi healthcare",
+                "value": "orchestrazione locale su dati sensibili con routing forzato",
+            },
+            {
+                "id": "finance-ops-copilot",
+                "name": "Finance Ops Copilot",
+                "target": "CFO office e consulenza contabile",
+                "value": "analisi documenti e processi con governance enterprise",
+            },
+        ],
+    }
+
+
+@app.get("/community/sdk/quickstart")
+async def community_sdk_quickstart():
+    return {
+        "status": "ok",
+        "quickstart": {
+            "step_1": "Chiama /plugins per scoprire plugin e tools disponibili",
+            "step_2": "Usa /plugins/{plugin_id}/execute per invocare tool specifici",
+            "step_3": "Inserisci /plugins/tools/context nel prompt agentico",
+            "step_4": "Per enterprise usa header tenant/policy: x-vio-tenant, x-vio-policy-preset, x-vio-jurisdiction",
+        },
     }
 
 
@@ -3185,6 +3674,21 @@ async def openclaw_run(request: Request):
     provider = body.get("provider", "ollama")
     max_iterations = min(body.get("max_iterations", 8), 12)
 
+    if _AGENT_APPROVAL_REQUIRED:
+        approval_id = (body.get("approval_id", "") or "").strip()
+        approval = _AGENT_APPROVALS.get(approval_id)
+        expected_fp = _task_fingerprint(task, provider, model)
+        if not approval or not approval.get("approved") or approval.get("fingerprint") != expected_fp:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": "Agent approval required",
+                    "hint": "Prima richiedi approvazione su /openclaw/approvals/request",
+                },
+            )
+        if approval.get("expires_at", 0) < time.time():
+            raise HTTPException(status_code=403, detail="Approval scaduta")
+
     registry = _get_plugin_registry()
     result = await run_agent(
         task=task,
@@ -3212,12 +3716,157 @@ async def openclaw_run(request: Request):
     }
 
 
+@app.post("/openclaw/approvals/request")
+async def openclaw_approval_request(payload: dict = Body(...)):
+    task = str(payload.get("task", "")).strip()
+    provider = str(payload.get("provider", "ollama")).strip()
+    model = str(payload.get("model", "qwen2.5-coder:3b")).strip()
+    if not task:
+        raise HTTPException(status_code=400, detail="task obbligatorio")
+
+    approval_id = f"apr-{uuid.uuid4().hex[:12]}"
+    item = {
+        "approval_id": approval_id,
+        "task": task,
+        "provider": provider,
+        "model": model,
+        "fingerprint": _task_fingerprint(task, provider, model),
+        "created_at": _now_iso(),
+        "approved": False,
+        "approved_by": None,
+        "expires_at": time.time() + _AGENT_APPROVAL_TTL_SEC,
+    }
+    _AGENT_APPROVALS[approval_id] = item
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="agent_approval_requested",
+        payload={"approval_id": approval_id, "provider": provider, "model": model},
+    )
+    return {"status": "ok", "approval": item}
+
+
+@app.get("/openclaw/approvals/{approval_id}")
+async def openclaw_approval_get(approval_id: str):
+    item = _AGENT_APPROVALS.get(approval_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="approval non trovata")
+    return {"status": "ok", "approval": item}
+
+
+@app.post("/openclaw/approvals/{approval_id}/decide")
+async def openclaw_approval_decide(approval_id: str, payload: dict = Body(...)):
+    item = _AGENT_APPROVALS.get(approval_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="approval non trovata")
+
+    approved = bool(payload.get("approved", False))
+    approver = str(payload.get("approver", "owner")).strip() or "owner"
+    item["approved"] = approved
+    item["approved_by"] = approver
+    item["decided_at"] = _now_iso()
+    _AGENT_APPROVALS[approval_id] = item
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="agent_approval_decided",
+        payload={"approval_id": approval_id, "approved": approved, "approver": approver},
+    )
+    return {"status": "ok", "approval": item}
+
+
 @app.get("/openclaw/capabilities")
 async def openclaw_capabilities():
     """Return OpenClaw agent capabilities and loaded tools."""
     from backend.openclaw.agent import get_agent_capabilities
     registry = _get_plugin_registry()
-    return get_agent_capabilities(registry)
+    caps = get_agent_capabilities(registry)
+    caps["approval_required"] = _AGENT_APPROVAL_REQUIRED
+    caps["approval_ttl_sec"] = _AGENT_APPROVAL_TTL_SEC
+    return caps
+
+
+@app.get("/verticals/legal-eu/pack")
+async def vertical_legal_eu_pack():
+    return {
+        "status": "ok",
+        "vertical": "legal-eu",
+        "offer": {
+            "name": "Legal EU Compliance Copilot",
+            "positioning": ENTERPRISE_STRATEGY.positioning,
+            "ticket_eur_month_team": [99, 299, 599],
+        },
+        "required_policy": {
+            "policy_preset": "legal",
+            "jurisdiction": "eu",
+            "data_residency": "eu-only",
+        },
+        "runbook": [
+            "1) Onboarding customer con segmento legal e preset legal",
+            "2) Configura tenant policy su /compliance/tenant-policy",
+            "3) Route preview su /compliance/route-preview",
+            "4) Chat con header tenant/policy/jurisdiction",
+            "5) Export audit via /compliance/audit/export",
+            "6) Leggi ROI su /roi/dashboard",
+        ],
+    }
+
+
+@app.get("/verticals/legal-eu/runbook")
+async def vertical_legal_eu_runbook():
+    return {
+        "status": "ok",
+        "runbook": {
+            "step_1_offer": "Scegli offerta unica: Legal EU Compliance Copilot",
+            "step_2_onboarding": "POST /strategy/onboarding con segment=legal policy_preset=legal",
+            "step_3_tenant_policy": "PUT /compliance/tenant-policy con data_residency=eu-only",
+            "step_4_reasoning": "POST /reasoning/multistep per task legali complessi",
+            "step_5_agent_gate": "openclaw approvals request/decide prima di /openclaw/run",
+            "step_6_evidence": "GET /compliance/audit/export + GET /roi/dashboard",
+            "step_7_funnel": "GET /strategy/design-partners/funnel per KPI paganti/churn",
+        },
+    }
+
+
+@app.post("/verticals/legal-eu/demo")
+async def vertical_legal_eu_demo(payload: dict = Body(...)):
+    message = str(payload.get("message", "Analizza rischio contrattuale in ottica EU compliance.")).strip()
+    tenant_id = str(payload.get("tenant_id", "legal-demo")).strip()
+    plan_id = str(payload.get("plan_id", "pro")).strip().lower()
+
+    classification = ENTERPRISE_STRATEGY.classify_data(message, has_images=False)
+    tenant_policy = ENTERPRISE_STRATEGY.get_tenant_policy(tenant_id)
+    decision = ENTERPRISE_STRATEGY.route_request(
+        mode="cloud",
+        provider="claude",
+        classification=classification,
+        jurisdiction=tenant_policy.get("jurisdiction", "eu"),
+        policy_preset=tenant_policy.get("policy_preset", "legal"),
+        tenant_policy=tenant_policy,
+    )
+    guardrail = ENTERPRISE_STRATEGY.enforce_plan_guardrails(plan_id=plan_id, mode=decision["effective"]["mode"], max_tokens=4096)
+
+    ENTERPRISE_STRATEGY.write_audit_event(
+        event_type="legal_eu_demo_executed",
+        payload={
+            "tenant_id": tenant_id,
+            "classification": classification,
+            "decision": decision,
+            "guardrail": guardrail,
+        },
+    )
+
+    return {
+        "status": "ok",
+        "demo": {
+            "message": message,
+            "classification": classification,
+            "routing_decision": decision,
+            "plan_guardrail": guardrail,
+            "next_steps": [
+                "Esegui /strategy/onboarding per customer reale",
+                "Definisci tenant policy /compliance/tenant-policy",
+                "Usa /chat con header enterprise per produzione",
+            ],
+        },
+    }
 
 
 @app.get("/openclaw/health")
@@ -3232,6 +3881,189 @@ async def openclaw_health():
         "plugins": caps["plugins_loaded"],
         "tools": caps["total_tools"],
     }
+
+
+# ═══════════════════════════════════════════════
+# SEO & GROWTH ANALYTICS ENDPOINTS
+# ═══════════════════════════════════════════════
+
+@app.post("/growth/run-cycle")
+async def api_growth_run_cycle():
+    """Run complete growth cycle: SEO ping + analytics + AI insights + webhooks."""
+    try:
+        results = await run_full_growth_cycle()
+        return {
+            "status": "success",
+            "data": results,
+        }
+    except Exception as e:
+        _log.error(f"Growth cycle error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/growth/metrics")
+async def api_growth_metrics():
+    """Get current growth metrics dashboard."""
+    try:
+        metrics = get_dashboard_metrics()
+        return {
+            "status": "success",
+            "metrics": metrics,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/growth/analytics")
+async def api_growth_analytics(days: int = Query(30, ge=7, le=365)):
+    """Get growth analytics with trend analysis."""
+    try:
+        growth = calculate_growth_metrics(days)
+        funnel = calculate_sponsor_funnel()
+        return {
+            "status": "success",
+            "period_days": days,
+            "growth_metrics": growth,
+            "sponsor_funnel_estimate": funnel,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/growth/insights")
+async def api_growth_insights():
+    """Generate AI-powered growth insights."""
+    try:
+        insights = await generate_ai_insights()
+        return {
+            "status": "success",
+            "insights": insights,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sponsor/funnel")
+async def api_sponsor_funnel(days: int = Query(90, ge=7, le=365)):
+    """Get sponsor funnel metrics: visitor → subscriber → paying."""
+    try:
+        funnel = get_funnel_metrics(days)
+        return {
+            "status": "success",
+            "funnel": funnel,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sponsor/cohorts")
+async def api_sponsor_cohorts():
+    """Get cohort analysis of sponsor lifecycle."""
+    try:
+        cohorts = get_cohort_analysis()
+        return {
+            "status": "success",
+            "cohorts": cohorts,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sponsor/ltv")
+async def api_sponsor_ltv(
+    avg_monthly: float = Query(5.0, ge=0.1),
+    lifespan_months: int = Query(12, ge=1, le=60)
+):
+    """Calculate sponsor Lifetime Value."""
+    try:
+        ltv = estimate_ltv(avg_monthly, lifespan_months)
+        return {
+            "status": "success",
+            "ltv": ltv,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sponsor/health")
+async def api_sponsor_health():
+    """Get complete sponsor growth health dashboard."""
+    try:
+        dashboard = get_health_dashboard()
+        return {
+            "status": "success",
+            "dashboard": dashboard,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sponsor/track/visitor")
+async def api_sponsor_track_visitor(
+    user_id: str = Body(...),
+    source: str = Body("organic"),
+    utm_params: dict = Body(None)
+):
+    """Track a new visitor in sponsor funnel."""
+    try:
+        event = track_visitor(user_id, source, utm_params)
+        return {
+            "status": "tracked",
+            "event": event,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sponsor/track/subscriber")
+async def api_sponsor_track_subscriber(
+    user_id: str = Body(...),
+    email: str = Body(...)
+):
+    """Track email subscriber in sponsor funnel."""
+    try:
+        event = track_subscriber(user_id, email)
+        return {
+            "status": "tracked",
+            "event": event,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sponsor/track/paid")
+async def api_sponsor_track_paid(
+    user_id: str = Body(...),
+    tier: str = Body("silver"),
+    amount: float = Body(5.0),
+    interval: str = Body("monthly")
+):
+    """Track paying sponsor."""
+    try:
+        event = track_paying_sponsor(user_id, tier, amount, interval)
+        return {
+            "status": "tracked",
+            "event": event,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sponsor/track/churn")
+async def api_sponsor_track_churn(
+    user_id: str = Body(...),
+    reason: str = Body("unknown")
+):
+    """Track churned sponsor."""
+    try:
+        event = track_churn(user_id, reason)
+        return {
+            "status": "tracked",
+            "event": event,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ═══════════════════════════════════════════════

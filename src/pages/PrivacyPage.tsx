@@ -199,9 +199,17 @@ export default function PrivacyPage() {
             {t('privacyPage.security')}
           </div>
           <div style={{ display: 'grid', gap: '6px', fontSize: '13px', color: 'var(--vio-text-secondary)' }}>
-            {(t('privacyPage.securityItems') as unknown as string[]).map((item: string, idx: number) => (
-              <div key={idx}>• {item}</div>
-            ))}
+            {(() => {
+              const items = t('privacyPage.securityItems', { returnObjects: true });
+              const arr: string[] = Array.isArray(items)
+                ? items
+                : typeof items === 'string'
+                  ? items.split(',').map((s: string) => s.trim()).filter(Boolean)
+                  : [];
+              return arr.map((item: string, idx: number) => (
+                <div key={idx}>• {item}</div>
+              ));
+            })()}
           </div>
           <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--vio-text-dim)' }}>
             {t('privacyPage.vulnReport')} <a href="mailto:porcu.v.83@gmail.com" style={{ color: 'var(--vio-cyan)' }}>porcu.v.83@gmail.com</a>

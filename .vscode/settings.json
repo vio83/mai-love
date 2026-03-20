@@ -281,5 +281,17 @@
     "smartcommit"
   ],
   "editor.codeActions.triggerOnFocusChange": true,
-  "files.autoSave": "afterDelay"
+  "files.autoSave": "afterDelay",
+  "workbench.editor.revealIfOpen": true,
+  "workbench.editor.scrollToSwitchTabs": true,
+  "workbench.editor.sharedViewState": true,
+  "workbench.editor.wrapTabs": true,
+  "workbench.editor.useModal": "all",
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
 }

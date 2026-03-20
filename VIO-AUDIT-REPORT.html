@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIO AI Orchestra — Audit Completo Marzo 2026</title>
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --card: #1a1a2e; --border: #2a2a3e;
+    --text: #e0e0e0; --text-dim: #8888aa; --accent: #6c63ff; --green: #22c55e;
+    --red: #ef4444; --yellow: #f59e0b; --blue: #3b82f6; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 2em; text-align: center; margin: 40px 0 10px; background: linear-gradient(135deg, var(--accent), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  h2 { color: var(--accent); margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 1.4em; }
+  h3 { color: var(--cyan); margin: 20px 0 10px; font-size: 1.1em; }
+  .subtitle { text-align: center; color: var(--text-dim); margin-bottom: 40px; }
+
+  /* Score Overview */
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+  .score-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .score-card .label { font-size: 0.85em; color: var(--text-dim); margin-bottom: 8px; }
+  .score-card .value { font-size: 2.2em; font-weight: 700; }
+  .score-card .value.green { color: var(--green); }
+  .score-card .value.yellow { color: var(--yellow); }
+  .score-card .value.red { color: var(--red); }
+  .score-card .detail { font-size: 0.8em; color: var(--text-dim); margin-top: 5px; }
+
+  /* Progress bars */
+  .progress-section { margin: 15px 0; }
+  .progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em; }
+  .progress-bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
+  .fill-green { background: var(--green); }
+  .fill-yellow { background: var(--yellow); }
+  .fill-red { background: var(--red); }
+  .fill-blue { background: var(--blue); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+  th { background: var(--card); color: var(--accent); font-weight: 600; }
+  tr:hover { background: rgba(108, 99, 255, 0.05); }
+  .status-ok { color: var(--green); font-weight: 600; }
+  .status-warn { color: var(--yellow); font-weight: 600; }
+  .status-fail { color: var(--red); font-weight: 600; }
+  .status-missing { color: var(--red); font-weight: 600; }
+
+  /* Cards for sections */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 15px 0; }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .card-header .icon { font-size: 1.4em; }
+
+  /* Code blocks */
+  code { background: #1e1e2e; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; color: var(--cyan); }
+  pre { background: #1e1e2e; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82em; line-height: 1.5; margin: 10px 0; border: 1px solid var(--border); }
+
+  /* Pro/Con lists */
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+  .pro-list, .con-list { background: var(--card); border-radius: 12px; padding: 18px; }
+  .pro-list { border-left: 3px solid var(--green); }
+  .con-list { border-left: 3px solid var(--red); }
+  .pro-list h4 { color: var(--green); margin-bottom: 10px; }
+  .con-list h4 { color: var(--red); margin-bottom: 10px; }
+  .pro-list li, .con-list li { margin: 6px 0; padding-left: 5px; font-size: 0.9em; list-style: none; }
+  .pro-list li::before { content: "✅ "; }
+  .con-list li::before { content: "❌ "; }
+
+  /* Tabs */
+  .tab-container { margin: 20px 0; }
+  .tab-buttons { display: flex; gap: 5px; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+  .tab-btn { padding: 10px 20px; background: transparent; color: var(--text-dim); border: none; cursor: pointer; font-size: 0.9em; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; padding: 15px 0; }
+  .tab-content.active { display: block; }
+
+  /* Priority badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; }
+  .badge-critical { background: rgba(239,68,68,0.2); color: var(--red); }
+  .badge-high { background: rgba(245,158,11,0.2); color: var(--yellow); }
+  .badge-medium { background: rgba(59,130,246,0.2); color: var(--blue); }
+  .badge-low { background: rgba(34,197,94,0.2); color: var(--green); }
+
+  @media (max-width: 768px) {
+    .pro-con { grid-template-columns: 1fr; }
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>VIO 83 AI Orchestra</h1>
+<p class="subtitle">Audit Tecnico Completo — 20 Marzo 2026 — Versione 0.9.0-beta</p>
+
+<!-- ============================================================ -->
+<!-- SCORE OVERVIEW -->
+<!-- ============================================================ -->
+<h2>📊 Score Attuale vs Target</h2>
+<div class="score-grid">
+  <div class="score-card">
+    <div class="label">SCORE GLOBALE</div>
+    <div class="value yellow">5.2/10</div>
+    <div class="detail">Target: 8.5/10</div>
+  </div>
+  <div class="score-card">
+    <div class="label">BACKEND</div>
+    <div class="value yellow">6.0/10</div>
+    <div class="detail">60 moduli Python, 37K LOC</div>
+  </div>
+  <div class="score-card">
+    <div class="label">FRONTEND</div>
+    <div class="value yellow">5.5/10</div>
+    <div class="detail">24 componenti React, 10K LOC</div>
+  </div>
+  <div class="score-card">
+    <div class="label">INTEGRAZIONE</div>
+    <div class="value red">3.0/10</div>
+    <div class="detail">7/8 nuovi moduli NON collegati</div>
+  </div>
+  <div class="score-card">
+    <div class="label">TEST</div>
+    <div class="value red">3.5/10</div>
+    <div class="detail">17 test, 0 per nuovi moduli ML</div>
+  </div>
+  <div class="score-card">
+    <div class="label">DEVOPS / CI/CD</div>
+    <div class="value yellow">4.5/10</div>
+    <div class="detail">6 workflow, 0 API keys configurate</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PROGRESS BARS -->
+<!-- ============================================================ -->
+<h2>📈 Progresso per Area</h2>
+
+<div class="progress-section">
+  <div class="progress-label"><span>Backend Core (FastAPI + Routing)</span><span>70%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-green" style="width:70%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>Moduli ML (Bandit, Vector, Reasoning)</span><span>40%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:40%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>Frontend React + UI</span><span>60%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:60%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>Tauri Desktop App</span><span>55%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:55%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>Test Coverage</span><span>25%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-red" style="width:25%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>API Keys / Provider Cloud</span><span>0%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-red" style="width:0%"></div></div>
+</div>
+<div class="progress-section">
+  <div class="progress-label"><span>DevOps (CI/CD + Release)</span><span>45%</span></div>
+  <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:45%"></div></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PRO / CONTRO -->
+<!-- ============================================================ -->
+<h2>⚖️ Pro vs Contro — Stato Attuale</h2>
+<div class="pro-con">
+  <div class="pro-list">
+    <h4>PRO — Cosa funziona</h4>
+    <ul>
+      <li>Architettura completa Tauri + React + FastAPI</li>
+      <li>60 moduli Python backend (37,138 LOC)</li>
+      <li>11 pagine frontend React funzionali</li>
+      <li>Tauri 2.10 con auto-updater configurato</li>
+      <li>Ollama integration locale funzionante</li>
+      <li>SQLite per DB, conversazioni, metriche</li>
+      <li>Argon2id per password hashing (OWASP)</li>
+      <li>Sistema auth completo (register/login/keys)</li>
+      <li>SSE streaming per chat</li>
+      <li>i18n (IT/EN) pronto</li>
+      <li>6 GitHub Actions workflow</li>
+      <li>Tutti i file Python compilano senza errori</li>
+      <li>17 test suite esistenti (backend + frontend)</li>
+      <li>Zustand state management frontend</li>
+      <li>Licenza duale AGPL-3.0 + Proprietary</li>
+      <li>PM2 per process management</li>
+      <li>SEO automation workflow</li>
+      <li>Icons Tauri completi (tutte le risoluzioni)</li>
+    </ul>
+  </div>
+  <div class="con-list">
+    <h4>CONTRO — Cosa NON funziona / manca</h4>
+    <ul>
+      <li>7/8 nuovi moduli ML NON collegati al server</li>
+      <li>0/10 API keys cloud configurate</li>
+      <li>0 test per i 5 nuovi moduli ML</li>
+      <li>BanditSelector esiste ma non routing reale</li>
+      <li>VectorEngine esiste ma non collegato a RAG</li>
+      <li>MultiStepReasoner non chiamato da nessuno</li>
+      <li>NativeToolCaller non integrato</li>
+      <li>OmegaOrchestrator non usato</li>
+      <li>WorldDataIntegrator non schedulato</li>
+      <li>GitHub push bloccato (no credenziali)</li>
+      <li>Python 3.14 causa incompatibilità (ChromaDB, scikit)</li>
+      <li>Nessun venv stabile (.venv su 3.14)</li>
+      <li>Frontend non testa la chat real-time</li>
+      <li>No Apple Developer cert per release firmata</li>
+      <li>No Prometheus/monitoring endpoint</li>
+      <li>No rate limiting API</li>
+      <li>No WebSocket (solo SSE)</li>
+      <li>No MCP client implementato</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- GAP ANALYSIS DETTAGLIATA -->
+<!-- ============================================================ -->
+<h2>🔍 Gap Analysis — Cosa Manca Precisamente</h2>
+
+<!-- TAB: Environment areas -->
+<div class="tab-container">
+  <div class="tab-buttons">
+    <button class="tab-btn active" onclick="showTab('tab-mac')">🖥️ Mac</button>
+    <button class="tab-btn" onclick="showTab('tab-vscode')">📝 VS Code</button>
+    <button class="tab-btn" onclick="showTab('tab-cowork')">🤖 Claude Cowork</button>
+    <button class="tab-btn" onclick="showTab('tab-backend')">⚙️ Backend</button>
+    <button class="tab-btn" onclick="showTab('tab-frontend')">🎨 Frontend</button>
+    <button class="tab-btn" onclick="showTab('tab-devops')">🚀 DevOps</button>
+  </div>
+
+  <!-- TAB: MAC -->
+  <div id="tab-mac" class="tab-content active">
+    <h3>Strumenti Mac Mancanti / Da Verificare</h3>
+    <table>
+      <tr><th>Strumento</th><th>Stato</th><th>Priorità</th><th>Azione</th></tr>
+      <tr>
+        <td><code>gh</code> (GitHub CLI)</td>
+        <td class="status-fail">NON autenticato</td>
+        <td><span class="badge badge-critical">CRITICO</span></td>
+        <td><code>brew install gh && gh auth login</code></td>
+      </tr>
+      <tr>
+        <td><code>python3.12</code> (stabile)</td>
+        <td class="status-warn">Hai 3.14 (troppo nuovo)</td>
+        <td><span class="badge badge-critical">CRITICO</span></td>
+        <td><code>brew install python@3.12</code></td>
+      </tr>
+      <tr>
+        <td>Virtual environment stabile</td>
+        <td class="status-fail">Mancante (.venv su 3.14)</td>
+        <td><span class="badge badge-critical">CRITICO</span></td>
+        <td><code>python3.12 -m venv .venv-prod</code></td>
+      </tr>
+      <tr>
+        <td><code>rust</code> + <code>cargo</code></td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-high">ALTO</span></td>
+        <td><code>brew install rust</code> o <code>rustup update</code></td>
+      </tr>
+      <tr>
+        <td><code>ollama</code></td>
+        <td class="status-ok">Installato</td>
+        <td>—</td>
+        <td>Verificare modelli scaricati</td>
+      </tr>
+      <tr>
+        <td><code>nomic-embed-text</code></td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-critical">CRITICO</span></td>
+        <td><code>ollama pull nomic-embed-text</code></td>
+      </tr>
+      <tr>
+        <td><code>pm2</code></td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-medium">MEDIO</span></td>
+        <td><code>npm install -g pm2</code></td>
+      </tr>
+      <tr>
+        <td><code>jq</code>, <code>ripgrep</code>, <code>fd</code>, <code>bat</code></td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-low">BASSO</span></td>
+        <td><code>brew install jq ripgrep fd bat fzf</code></td>
+      </tr>
+      <tr>
+        <td><code>lazygit</code></td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-low">BASSO</span></td>
+        <td><code>brew install lazygit</code></td>
+      </tr>
+      <tr>
+        <td>Xcode CLI Tools</td>
+        <td class="status-warn">Da verificare</td>
+        <td><span class="badge badge-high">ALTO</span></td>
+        <td><code>xcode-select --install</code></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- TAB: VS CODE -->
+  <div id="tab-vscode" class="tab-content">
+    <h3>Estensioni VS Code Essenziali</h3>
+    <table>
+      <tr><th>Estensione</th><th>ID</th><th>Scopo</th><th>Priorità</th></tr>
+      <tr><td>Python</td><td><code>ms-python.python</code></td><td>IntelliSense + debug Python</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td>Pylance</td><td><code>ms-python.vscode-pylance</code></td><td>Type checking avanzato</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td>ESLint</td><td><code>dbaeumer.vscode-eslint</code></td><td>Linting TypeScript/React</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td>Prettier</td><td><code>esbenp.prettier-vscode</code></td><td>Auto-formatting</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td>Tailwind CSS IntelliSense</td><td><code>bradlc.vscode-tailwindcss</code></td><td>Autocompletamento classi</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>Rust Analyzer</td><td><code>rust-lang.rust-analyzer</code></td><td>IntelliSense Rust/Tauri</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>Tauri VS Code</td><td><code>tauri-apps.tauri-vscode</code></td><td>Tauri dev integration</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>Claude Code</td><td><code>anthropic.claude-code</code></td><td>AI assistant in editor</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>GitHub Copilot</td><td><code>github.copilot</code></td><td>AI code completion</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td>Continue.dev</td><td><code>continue.continue</code></td><td>Ollama locale in VS Code</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td>GitLens</td><td><code>eamodio.gitlens</code></td><td>Git supercharged</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>SQLite Viewer</td><td><code>qwtel.sqlite-viewer</code></td><td>Ispezionare DB</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td>Error Lens</td><td><code>usernamehw.errorlens</code></td><td>Errori inline visibili</td><td><span class="badge badge-high">ALTO</span></td></tr>
+      <tr><td>Thunder Client</td><td><code>rangav.vscode-thunder-client</code></td><td>API testing (no Postman)</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td>Debug Python</td><td><code>ms-python.debugpy</code></td><td>Debugger Python</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+    </table>
+
+    <h3>File VS Code da creare nel progetto</h3>
+    <table>
+      <tr><th>File</th><th>Stato</th><th>Scopo</th></tr>
+      <tr><td><code>.vscode/settings.json</code></td><td class="status-fail">MANCANTE</td><td>Python interpreter, formatters, exclude patterns</td></tr>
+      <tr><td><code>.vscode/launch.json</code></td><td class="status-fail">MANCANTE</td><td>Debug configs: FastAPI, pytest, Tauri dev</td></tr>
+      <tr><td><code>.vscode/tasks.json</code></td><td class="status-fail">MANCANTE</td><td>Build tasks: backend start, frontend dev, tests</td></tr>
+      <tr><td><code>.vscode/extensions.json</code></td><td class="status-fail">MANCANTE</td><td>Estensioni raccomandate per il team</td></tr>
+    </table>
+  </div>
+
+  <!-- TAB: CLAUDE COWORK -->
+  <div id="tab-cowork" class="tab-content">
+    <h3>Limitazioni Claude Desktop Cowork</h3>
+    <div class="card">
+      <div class="card-header"><span class="icon">🤖</span><strong>Cosa può fare Claude Cowork</strong></div>
+      <ul style="padding-left: 20px; font-size: 0.9em;">
+        <li>Leggere e scrivere file nel workspace montato</li>
+        <li>Eseguire comandi bash nella VM sandbox</li>
+        <li>Creare/editare codice Python, TypeScript, Rust, HTML</li>
+        <li>Analizzare e fare audit del codice</li>
+        <li>Generare report, documenti, presentazioni</li>
+        <li>Accesso web search e web fetch</li>
+        <li>MCP connectors (Slack, Stripe, Canva, Webflow, ecc.)</li>
+      </ul>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div class="card-header"><span class="icon">⛔</span><strong>Cosa NON può fare Claude Cowork (limitazioni)</strong></div>
+      <table>
+        <tr><th>Limitazione</th><th>Impatto</th><th>Soluzione</th></tr>
+        <tr>
+          <td>No git push (no credenziali GitHub)</td>
+          <td class="status-fail">BLOCCANTE</td>
+          <td>Pushare dal Mac: <code>cd ~/Projects/vio83-ai-orchestra && git push</code></td>
+        </tr>
+        <tr>
+          <td>No Ollama locale (VM sandbox)</td>
+          <td class="status-warn">Non può testare AI locale</td>
+          <td>Testare direttamente sul Mac con <code>ollama run</code></td>
+        </tr>
+        <tr>
+          <td>No Tauri build (no Rust/Xcode in VM)</td>
+          <td class="status-warn">Non può compilare .app</td>
+          <td>Buildare sul Mac: <code>npm run tauri:build</code></td>
+        </tr>
+        <tr>
+          <td>No npm run dev (no browser)</td>
+          <td class="status-warn">Non può vedere UI</td>
+          <td>Usare VS Code + browser sul Mac</td>
+        </tr>
+        <tr>
+          <td>Filesystem resets tra sessioni</td>
+          <td class="status-warn">File temporanei persi</td>
+          <td>Salvare sempre in <code>/mnt/vio83-ai-orchestra/</code></td>
+        </tr>
+        <tr>
+          <td>No accesso diretto al Mac filesystem</td>
+          <td class="status-warn">Solo workspace montato</td>
+          <td>Montare la cartella progetto</td>
+        </tr>
+      </table>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <div class="card-header"><span class="icon">💡</span><strong>Workflow ottimale Mac ↔ Cowork ↔ VS Code</strong></div>
+      <p style="font-size: 0.9em; margin-top: 10px;">
+        <strong>Claude Cowork</strong>: Architettura, audit, generazione codice, refactoring, documentazione<br>
+        <strong>VS Code</strong>: Debug interattivo, test manuali, navigazione codice, git operations<br>
+        <strong>Terminale Mac</strong>: <code>git push</code>, <code>npm run tauri:build</code>, <code>ollama</code>, <code>pm2</code><br>
+        <strong>Claude Code CLI</strong>: Modifiche rapide, commit, fix veloci da terminale
+      </p>
+    </div>
+  </div>
+
+  <!-- TAB: BACKEND -->
+  <div id="tab-backend" class="tab-content">
+    <h3>Moduli Backend — Stato Collegamento</h3>
+    <table>
+      <tr><th>Modulo</th><th>Esiste</th><th>Collegato a server.py</th><th>Ha test</th><th>Azione richiesta</th></tr>
+      <tr>
+        <td><code>bandit_selector.py</code><br><small>UCB1 + Thompson Sampling</small></td>
+        <td class="status-ok">✅ 561 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Importare in direct_router.py, sostituire keyword routing, scrivere test</td>
+      </tr>
+      <tr>
+        <td><code>vector_engine.py</code><br><small>Ollama embeddings + RRF</small></td>
+        <td class="status-ok">✅ 555 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Collegare a /rag/* endpoints, sostituire ChromaDB, scrivere test</td>
+      </tr>
+      <tr>
+        <td><code>multistep_reasoning.py</code><br><small>Analyze→Solve→Verify→Refine</small></td>
+        <td class="status-ok">✅ 448 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Integrare nel flow /chat, chiamare per query complesse</td>
+      </tr>
+      <tr>
+        <td><code>native_tool_caller.py</code><br><small>Claude/OpenAI native format</small></td>
+        <td class="status-ok">✅ 378 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Usare in direct_router per tool calls, scrivere test</td>
+      </tr>
+      <tr>
+        <td><code>user_feedback.py</code><br><small>Thumbs up/down → rewards</small></td>
+        <td class="status-ok">✅ 452 LOC</td>
+        <td class="status-ok">✅ /feedback</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Collegare rewards a BanditSelector, scrivere test</td>
+      </tr>
+      <tr>
+        <td><code>world_data_integrator.py</code><br><small>RSS auto-fetch</small></td>
+        <td class="status-ok">✅ 629 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Schedulare con PM2 cron, esporre /world/* endpoint</td>
+      </tr>
+      <tr>
+        <td><code>omega_orchestrator.py</code><br><small>9-step pipeline</small></td>
+        <td class="status-ok">✅ 389 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Sostituire orchestrate() in direct_router con omega pipeline</td>
+      </tr>
+      <tr>
+        <td><code>auto_optimizer.py</code><br><small>Metrics + parameter tuning</small></td>
+        <td class="status-ok">✅ 621 LOC</td>
+        <td class="status-fail">❌ NON collegato</td>
+        <td class="status-fail">❌ No test</td>
+        <td>Avviare con backend startup, endpoint /optimization/*</td>
+      </tr>
+    </table>
+
+    <h3>Endpoint API Mancanti</h3>
+    <table>
+      <tr><th>Endpoint</th><th>Scopo</th><th>Priorità</th></tr>
+      <tr><td><code>POST /rag/search</code> (con VectorEngine)</td><td>Ricerca semantica reale</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td><code>POST /rag/add</code> (con VectorEngine)</td><td>Aggiungere documenti con embeddings</td><td><span class="badge badge-critical">CRITICO</span></td></tr>
+      <tr><td><code>GET /world/status</code></td><td>Stato world data integrator</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td><code>POST /world/refresh</code></td><td>Trigger aggiornamento RSS manuale</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td><code>GET /optimization/status</code></td><td>Metriche auto-optimizer</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td><code>GET /bandit/stats</code></td><td>Statistiche provider selection</td><td><span class="badge badge-medium">MEDIO</span></td></tr>
+      <tr><td><code>GET /metrics/prometheus</code></td><td>Metriche Prometheus</td><td><span class="badge badge-low">BASSO</span></td></tr>
+    </table>
+  </div>
+
+  <!-- TAB: FRONTEND -->
+  <div id="tab-frontend" class="tab-content">
+    <h3>Pagine Frontend — Stato</h3>
+    <table>
+      <tr><th>Pagina</th><th>LOC</th><th>Stato</th><th>Manca</th></tr>
+      <tr><td>DashboardPage</td><td>18,980</td><td class="status-ok">Funzionale</td><td>Grafici real-time bandit stats</td></tr>
+      <tr><td>OrchestraRuntimePage</td><td>55,126</td><td class="status-ok">Funzionale</td><td>Integrazione OmegaOrchestrator</td></tr>
+      <tr><td>ModelsPage</td><td>21,676</td><td class="status-ok">Funzionale</td><td>Status cloud providers (API keys)</td></tr>
+      <tr><td>PluginsPage</td><td>15,457</td><td class="status-ok">Funzionale</td><td>MCP client integration</td></tr>
+      <tr><td>OpenClawPage</td><td>15,144</td><td class="status-ok">Funzionale</td><td>NativeToolCaller integration</td></tr>
+      <tr><td>AnalyticsPage</td><td>10,758</td><td class="status-ok">Funzionale</td><td>Metriche bandit + feedback reali</td></tr>
+      <tr><td>RagPage</td><td>10,571</td><td class="status-warn">Parziale</td><td>VectorEngine non collegato, no upload</td></tr>
+      <tr><td>PrivacyPage</td><td>10,814</td><td class="status-ok">Funzionale</td><td>—</td></tr>
+      <tr><td>CrossCheckPage</td><td>7,798</td><td class="status-warn">Parziale</td><td>Multi-provider confronto non reale</td></tr>
+      <tr><td>AuthPage</td><td>7,939</td><td class="status-ok">Funzionale</td><td>—</td></tr>
+      <tr><td>WorkflowPage</td><td>8,641</td><td class="status-warn">Parziale</td><td>n8n integration non completa</td></tr>
+    </table>
+
+    <h3>Componenti Chat — Gap</h3>
+    <table>
+      <tr><th>Feature</th><th>Stato</th><th>Azione</th></tr>
+      <tr><td>Thumbs up/down feedback</td><td class="status-ok">✅ ChatMessage.tsx aggiornato</td><td>Collegare a /feedback endpoint</td></tr>
+      <tr><td>Streaming SSE</td><td class="status-ok">✅ Funziona</td><td>—</td></tr>
+      <tr><td>Markdown rendering</td><td class="status-ok">✅ react-markdown</td><td>—</td></tr>
+      <tr><td>Code syntax highlight</td><td class="status-ok">✅ react-syntax-highlighter</td><td>—</td></tr>
+      <tr><td>Provider indicator</td><td class="status-warn">⚠️ Parziale</td><td>Mostrare quale AI ha risposto + score bandit</td></tr>
+      <tr><td>Multi-step reasoning UI</td><td class="status-fail">❌ Mancante</td><td>Visualizzare steps: Analyze→Solve→Verify→Refine</td></tr>
+      <tr><td>Tool call visualization</td><td class="status-fail">❌ Mancante</td><td>Mostrare quando AI usa tool nativi</td></tr>
+      <tr><td>RAG context display</td><td class="status-fail">❌ Mancante</td><td>Mostrare fonti/documenti usati nella risposta</td></tr>
+    </table>
+  </div>
+
+  <!-- TAB: DEVOPS -->
+  <div id="tab-devops" class="tab-content">
+    <h3>CI/CD — Stato Workflow</h3>
+    <table>
+      <tr><th>Workflow</th><th>File</th><th>Stato</th><th>Problema</th></tr>
+      <tr><td>Release Gate (CI)</td><td>ci.yml</td><td class="status-warn">⚠️ Fix applicato</td><td>Deps opzionali gestite, da testare su GitHub</td></tr>
+      <tr><td>Release macOS</td><td>release.yml</td><td class="status-fail">❌ Non funziona</td><td>Mancano secrets: APPLE_CERTIFICATE, APPLE_PASSWORD, TAURI_SIGNING_PRIVATE_KEY</td></tr>
+      <tr><td>Python Tests</td><td>python-app.yml</td><td class="status-warn">⚠️ Da verificare</td><td>Potrebbe fallire su nuovi moduli</td></tr>
+      <tr><td>Deploy Pages</td><td>deploy-pages.yml</td><td class="status-ok">✅ Funziona</td><td>—</td></tr>
+      <tr><td>SEO Automation</td><td>seo-automation.yml</td><td class="status-ok">✅ Funziona</td><td>—</td></tr>
+      <tr><td>Weekly SEO Report</td><td>weekly-seo-report.yml</td><td class="status-ok">✅ Funziona</td><td>—</td></tr>
+    </table>
+
+    <h3>Secrets GitHub Mancanti</h3>
+    <table>
+      <tr><th>Secret</th><th>Scopo</th><th>Come ottenere</th></tr>
+      <tr><td><code>APPLE_CERTIFICATE</code></td><td>Firma .app macOS</td><td>Apple Developer Program ($99/anno)</td></tr>
+      <tr><td><code>APPLE_CERTIFICATE_PASSWORD</code></td><td>Password certificato</td><td>Creata durante export .p12</td></tr>
+      <tr><td><code>APPLE_SIGNING_IDENTITY</code></td><td>ID sviluppatore</td><td>Keychain Access → certificato</td></tr>
+      <tr><td><code>APPLE_ID</code></td><td>Notarizzazione</td><td>Il tuo Apple ID</td></tr>
+      <tr><td><code>APPLE_PASSWORD</code></td><td>App-specific password</td><td>appleid.apple.com → Sicurezza</td></tr>
+      <tr><td><code>TAURI_SIGNING_PRIVATE_KEY</code></td><td>Firma updater Tauri</td><td><code>npx tauri signer generate</code></td></tr>
+      <tr><td><code>TAURI_SIGNING_PRIVATE_KEY_PASSWORD</code></td><td>Password chiave updater</td><td>Scelta durante generazione</td></tr>
+    </table>
+
+    <h3>API Keys — 0/10 Configurate</h3>
+    <table>
+      <tr><th>Provider</th><th>Key</th><th>Costo</th><th>URL</th></tr>
+      <tr><td>Groq</td><td class="status-fail">VUOTA</td><td>GRATIS (14,400 req/giorno)</td><td>console.groq.com/keys</td></tr>
+      <tr><td>OpenRouter</td><td class="status-fail">VUOTA</td><td>GRATIS + $1 credito</td><td>openrouter.ai/keys</td></tr>
+      <tr><td>Together AI</td><td class="status-fail">VUOTA</td><td>$1 credito gratis</td><td>api.together.xyz</td></tr>
+      <tr><td>DeepSeek</td><td class="status-fail">VUOTA</td><td>$0.27/1M token</td><td>platform.deepseek.com</td></tr>
+      <tr><td>Mistral</td><td class="status-fail">VUOTA</td><td>$0.20/1M token</td><td>console.mistral.ai</td></tr>
+      <tr><td>Anthropic</td><td class="status-fail">VUOTA</td><td>$3-15/1M token</td><td>console.anthropic.com</td></tr>
+      <tr><td>OpenAI</td><td class="status-fail">VUOTA</td><td>$2.50-60/1M token</td><td>platform.openai.com</td></tr>
+      <tr><td>Google (Gemini)</td><td class="status-fail">VUOTA</td><td>Free tier disponibile</td><td>aistudio.google.com</td></tr>
+      <tr><td>xAI (Grok)</td><td class="status-fail">VUOTA</td><td>$2/1M token</td><td>console.x.ai</td></tr>
+      <tr><td>Perplexity</td><td class="status-fail">VUOTA</td><td>$1/1000 ricerche</td><td>console.perplexity.ai</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ROADMAP PRIORITARIA -->
+<!-- ============================================================ -->
+<h2>🎯 Roadmap Prioritaria — Da 5.2 a 8.5</h2>
+
+<div class="card">
+  <h3>FASE 1: FONDAMENTA (Score 5.2 → 6.5) — 1 settimana</h3>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Impatto</th></tr>
+    <tr><td>1</td><td>Installare Python 3.12 + creare .venv-prod stabile</td><td>+0.3</td></tr>
+    <tr><td>2</td><td>Autenticare GitHub CLI (<code>gh auth login</code>)</td><td>+0.1</td></tr>
+    <tr><td>3</td><td>Configurare almeno 3 API keys gratuite (Groq, OpenRouter, Gemini)</td><td>+0.4</td></tr>
+    <tr><td>4</td><td>Scaricare <code>nomic-embed-text</code> per Ollama</td><td>+0.2</td></tr>
+    <tr><td>5</td><td>Collegare BanditSelector + VectorEngine + MultiStepReasoner a server.py</td><td>+0.3</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>FASE 2: INTEGRAZIONE (Score 6.5 → 7.5) — 2 settimane</h3>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Impatto</th></tr>
+    <tr><td>6</td><td>Wiring completo OmegaOrchestrator come pipeline principale</td><td>+0.3</td></tr>
+    <tr><td>7</td><td>Test suite per tutti i 5 nuovi moduli ML</td><td>+0.3</td></tr>
+    <tr><td>8</td><td>Frontend: multi-step reasoning UI + tool call visualization</td><td>+0.2</td></tr>
+    <tr><td>9</td><td>WorldDataIntegrator schedulato con PM2 cron</td><td>+0.1</td></tr>
+    <tr><td>10</td><td>VS Code setup completo (settings, launch, tasks, extensions)</td><td>+0.1</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>FASE 3: PRODUZIONE (Score 7.5 → 8.5) — 2 settimane</h3>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Impatto</th></tr>
+    <tr><td>11</td><td>Tauri build firmata (Apple Developer cert)</td><td>+0.2</td></tr>
+    <tr><td>12</td><td>CI/CD verde su tutti i workflow</td><td>+0.2</td></tr>
+    <tr><td>13</td><td>Rate limiting + security hardening API</td><td>+0.2</td></tr>
+    <tr><td>14</td><td>Prometheus metrics endpoint</td><td>+0.1</td></tr>
+    <tr><td>15</td><td>E2E test completo (backend + frontend + Tauri)</td><td>+0.3</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- COMPARAZIONE -->
+<!-- ============================================================ -->
+<h2>📊 Comparazione con Competitor</h2>
+<table>
+  <tr><th>Feature</th><th>VIO 83 (oggi)</th><th>ChatGPT Desktop</th><th>Claude Desktop</th><th>Perplexity</th></tr>
+  <tr><td>Multi-AI routing</td><td class="status-warn">Codice c'è, non wired</td><td>Solo GPT</td><td>Solo Claude</td><td>Solo Perplexity</td></tr>
+  <tr><td>AI locale (Ollama)</td><td class="status-ok">✅ Funziona</td><td>❌</td><td>❌</td><td>❌</td></tr>
+  <tr><td>ML-based routing (Bandit)</td><td class="status-warn">Codice c'è, non wired</td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+  <tr><td>Vector search (RAG)</td><td class="status-warn">Codice c'è, non wired</td><td>✅ (file upload)</td><td>✅ (Projects)</td><td>✅</td></tr>
+  <tr><td>Multi-step reasoning</td><td class="status-warn">Codice c'è, non wired</td><td>✅ (o1/o3)</td><td>✅ (Extended)</td><td>✅ (Deep Research)</td></tr>
+  <tr><td>Tool calling nativo</td><td class="status-warn">Codice c'è, non wired</td><td>✅</td><td>✅ (MCP)</td><td>Parziale</td></tr>
+  <tr><td>Privacy-first (locale)</td><td class="status-ok">✅ Tutto locale</td><td>❌ Cloud only</td><td>❌ Cloud only</td><td>❌ Cloud only</td></tr>
+  <tr><td>Open source</td><td class="status-ok">✅ AGPL-3.0</td><td>❌</td><td>❌</td><td>❌</td></tr>
+  <tr><td>Cross-check multi-AI</td><td class="status-warn">UI c'è, non reale</td><td>❌</td><td>❌</td><td>❌</td></tr>
+  <tr><td>Auto-ottimizzazione</td><td class="status-warn">Codice c'è, non wired</td><td>❌</td><td>❌</td><td>❌</td></tr>
+</table>
+
+<div class="card" style="border-left: 3px solid var(--accent); margin-top: 20px;">
+  <p style="font-size: 0.95em;">
+    <strong>Verdetto:</strong> VIO AI Orchestra ha un'architettura unica e ambiziosa (multi-AI + locale + open source + ML routing) che nessun competitor offre.
+    Il problema è che il <strong>90% della potenza è nel codice ma non è collegato</strong>.
+    È come avere un motore Ferrari smontato nel garage: i pezzi ci sono tutti, ma la macchina non parte.
+    La priorità #1 è <em>collegare i moduli</em>, non scriverne di nuovi.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCRIPT -->
+<!-- ============================================================ -->
+<h2>🔧 Script di Setup — Esegui sul Mac</h2>
+<div class="card">
+  <pre>
+# ============================================
+# ESEGUI QUESTI COMANDI SUL TUO MAC
+# ============================================
+
+# 1. Rendi eseguibile lo script di setup
+cd ~/Projects/vio83-ai-orchestra
+chmod +x scripts/setup-vio-complete.sh
+
+# 2. Esegui lo script completo
+./scripts/setup-vio-complete.sh
+
+# 3. Dopo lo script, configura le API keys gratuite:
+#    Apri .env e inserisci almeno queste 3 (GRATUITE):
+#    - GROQ_API_KEY     → console.groq.com
+#    - OPENROUTER_API_KEY → openrouter.ai
+#    - GEMINI_API_KEY   → aistudio.google.com
+
+# 4. Avvia tutto:
+source .venv-prod/bin/activate
+pm2 start ecosystem.config.cjs
+npm run tauri:dev
+  </pre>
+</div>
+
+<p style="text-align: center; color: var(--text-dim); margin: 40px 0; font-size: 0.85em;">
+  Generato da Claude Opus 4.6 — 20 Marzo 2026 — VIO AI Orchestra Audit v1.0
+</p>
+
+</div>
+
+<script>
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
