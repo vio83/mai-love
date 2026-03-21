@@ -9,7 +9,7 @@
 ✅ **PRODUCT SHIPPED**: Multi-AI orchestrator desktop app with 7 cloud providers + local Ollama
 ✅ **VIRTUALPARTNERAI**: 4 emotion/memory/personality/relationship engines integrated
 ✅ **STRIPE WEBHOOKS**: Billing infrastructure ready for subscriptions
-✅ **IP PROTECTION**: AGPL-3.0 enforced + prior art timestamps + trademark registered
+✅ **IP PROTECTION**: AGPL-3.0 enforced + prior art timestamps + trademark registration path ready
 ✅ **OPEN SOURCE**: Code auditable by enterprise + investors
 
 **This is not a side project. This is a venture-scale product, built alone, shipped, and profitable-ready.**
@@ -28,9 +28,9 @@
 
 **Your investment**: Seed round accelerates hiring (founding engineer, sales, operations). 6-month runway to Series A.
 
-📄 Full IP protection + founder playbook: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
+📄 Full IP protection + founder playbook: https://github.com/vio83/mai-love/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
 
-🤝 **Want to talk?** Reach out: porcu.v.83@gmail.com ou https://linkedin.com/in/viorica-porcu
+🤝 **Want to talk?** Reach out: porcu.v.83@gmail.com or https://www.linkedin.com/in/viorica-porcu-637735139
 
 ---
 
@@ -57,16 +57,26 @@ VIO 83 AI Orchestra — Support the World's First Multi-AI Platform
 
 ```
 Solo developer from Italy building one app to orchestrate every AI. 7 providers. Verified answers. Open source. Privacy-first.
+```
 
 **UPDATED — Marzo 2026:**
 ```
-VIO 83: The AI orchestration platform with emotions. 7 providers. Verified answers. Private partnerships. VC-backed soon.
+VIO 83: The AI orchestration platform with emotions. 7 providers. Verified answers. Privacy-first and open source.
 ```
 
 *Alt (conservative):*
 ```
 Shipped multi-AI desktop app with verified cross-check + VirtualPartnerAI. Local + cloud. Privacy. Enterprise-ready.
 ```
+
+## 🔗 OFFICIAL LINKS (sync with GitHub + LinkedIn)
+
+```
+GitHub: https://github.com/vio83/mai-love
+GitHub Sponsors: https://github.com/sponsors/vio83
+Ko-fi: https://ko-fi.com/vio83_ai_orchestra_
+LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139
+Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html
 ```
 
 ---
@@ -122,7 +132,7 @@ Tech stack: Tauri 2.0 (Rust) + React 18 + TypeScript + FastAPI + ChromaDB + Zust
 
 Your support helps me cover API costs, upgrade my hardware, and keep building full-time.
 
-⭐ GitHub: github.com/vio83/vio83-ai-orchestra
+⭐ GitHub: github.com/vio83/mai-love
 🌐 Website: vio83.github.io/vio83-ai-orchestra
 
 Every coffee counts! Even €3 helps. Grazie di cuore 💚
@@ -226,7 +236,7 @@ The world's first multi-AI orchestration platform is now on GitHub.
 
 All open source. All built by one person from Italy on a MacBook Air M1.
 
-⭐ Star it: github.com/vio83/vio83-ai-orchestra
+⭐ Star it: github.com/vio83/mai-love
 💚 Sponsor: github.com/sponsors/vio83
 
 Every coffee helps keep this project alive. Grazie! 💚
@@ -300,7 +310,7 @@ Next month:
 
 Your support makes this possible. Every coffee, every membership, every share.
 
-⭐ github.com/vio83/vio83-ai-orchestra
+⭐ github.com/vio83/mai-love
 💚 github.com/sponsors/vio83
 
 Grazie di cuore! 💚
@@ -327,7 +337,7 @@ Together we make the Orchestra play. 🎵
 — Viorica, Italy 🇮🇹
 
 P.S. Your name will be added to SPONSORS.md on GitHub!
-⭐ github.com/vio83/vio83-ai-orchestra
+⭐ github.com/vio83/mai-love
 ```
 
 ---
@@ -336,7 +346,7 @@ P.S. Your name will be added to SPONSORS.md on GitHub!
 
 ```
 Website: https://vio83.github.io/vio83-ai-orchestra/
-GitHub: https://github.com/vio83/vio83-ai-orchestra
+GitHub: https://github.com/vio83/mai-love
 LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139
 GitHub Sponsors: https://github.com/sponsors/vio83
 ```

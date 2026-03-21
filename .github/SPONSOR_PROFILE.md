@@ -104,7 +104,7 @@ The foundation is solid. With your support, I can deliver the full vision.
 
 ### 🔗 Links
 
-- **GitHub Repository:** https://github.com/vio83/vio83-ai-orchestra
+- **GitHub Repository:** https://github.com/vio83/mai-love
 - **Website:** https://vio83.github.io/vio83-ai-orchestra/
 - **Support Hub:** https://vio83.github.io/vio83-ai-orchestra/support.html
 - **Ko-fi:** https://ko-fi.com/vio83_ai_orchestra_
