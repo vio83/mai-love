@@ -17,7 +17,7 @@ OUTPUT_FILE = PROJECT_ROOT / "docs" / "IP_PROTECTION_CERTIFICATE.md"
 AUTHOR = "Viorica Porcu"
 EMAIL = "porcu.v.83@gmail.com"
 PROJECT = "VIO AI Orchestra"
-GITHUB = "https://github.com/vio83/mai-love"
+GITHUB = "https://github.com/vio83/vio83-ai-orchestra"
 
 
 def git(cmd: str) -> str:

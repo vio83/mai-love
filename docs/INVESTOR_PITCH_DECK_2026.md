@@ -2,7 +2,7 @@
 ## Pre-Seed Round: €50.000 per 10-15% equity
 
 > **Contatto**: Viorica Porcu — porcu.v.83@gmail.com
-> **GitHub**: https://github.com/vio83/mai-love
+> **GitHub**: https://github.com/vio83/vio83-ai-orchestra
 > **Web**: https://vio83.github.io/vio83-ai-orchestra/
 > **Data**: Marzo 2026
 
@@ -49,7 +49,7 @@ Premi un tasto → passa a GPT-4 cloud (potente, premium)
 | Database    | SQLite + ChromaDB (vector search)               |
 | Automazione | n8n workflows integrati                         |
 
-**Prova dal vivo**: `git clone https://github.com/vio83/mai-love && ./orchestra.sh`
+**Prova dal vivo**: `git clone https://github.com/vio83/vio83-ai-orchestra && ./orchestra.sh`
 
 ---
 

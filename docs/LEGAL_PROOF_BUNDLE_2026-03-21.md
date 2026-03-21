@@ -3,7 +3,7 @@
 
 Author: Viorica Porcu (vio83)
 Project: VIO AI Orchestra
-Repository: https://github.com/vio83/mai-love
+Repository: https://github.com/vio83/vio83-ai-orchestra
 Generated at (UTC): 2026-03-21T07:22:49Z
 
 ---

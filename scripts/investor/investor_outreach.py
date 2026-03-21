@@ -17,7 +17,7 @@ OUTPUT_DIR = PROJECT_ROOT / "docs" / "investors" / "outreach"
 FOUNDER_NAME = "Viorica Porcu"
 FOUNDER_EMAIL = "porcu.v.83@gmail.com"
 PROJECT_NAME = "VIO AI Orchestra"
-GITHUB_URL = "https://github.com/vio83/mai-love"
+GITHUB_URL = "https://github.com/vio83/vio83-ai-orchestra"
 WEBSITE_URL = "https://vio83.github.io/vio83-ai-orchestra/"
 CALENDAR_URL = "https://calendly.com/vio83"  # da creare su calendly.com
 

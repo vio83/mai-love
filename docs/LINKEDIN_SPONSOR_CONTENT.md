@@ -30,7 +30,7 @@ I'm building the world's first intelligent multi-AI orchestration platform — o
 
 💻 Built entirely alone on a MacBook Air M1 (8GB RAM). No VC funding, no team, founder-led execution.
 
-🔗 GitHub: github.com/vio83/mai-love
+🔗 GitHub: github.com/vio83/vio83-ai-orchestra
 🌐 Website: vio83.github.io/vio83-ai-orchestra
 💚 Sponsor: github.com/sponsors/vio83
 ☕ Ko-fi: ko-fi.com/vio83_ai_orchestra_
@@ -43,7 +43,7 @@ Open to: sponsors, collaborators, feedback, and anyone who believes AI should be
 ## 1B. SYNC LINKS (GitHub + Ko-fi + LinkedIn)
 
 ```
-Repository: https://github.com/vio83/mai-love
+Repository: https://github.com/vio83/vio83-ai-orchestra
 Sponsor page (GitHub): https://github.com/sponsors/vio83
 Ko-fi page: https://ko-fi.com/vio83_ai_orchestra_
 Landing page: https://vio83.github.io/vio83-ai-orchestra/
@@ -53,10 +53,10 @@ Support hub: https://vio83.github.io/vio83-ai-orchestra/support.html
 ## 1C. LEGAL PROOF LINKS (for investors)
 
 ```
-IP Protection Certificate: https://github.com/vio83/mai-love/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
-Global Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
-AGPL License: https://github.com/vio83/mai-love/blob/main/LICENSE-AGPL-3.0
-Proprietary License: https://github.com/vio83/mai-love/blob/main/LICENSE-PROPRIETARY
+IP Protection Certificate: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
+Global Legal Proof Bundle: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
+AGPL License: https://github.com/vio83/vio83-ai-orchestra/blob/main/LICENSE-AGPL-3.0
+Proprietary License: https://github.com/vio83/vio83-ai-orchestra/blob/main/LICENSE-PROPRIETARY
 ```
 
 ---
@@ -73,7 +73,7 @@ AI Engineer | Building VIO 83 AI Orchestra — 7 AI models, 1 app, verified answ
 
 ```
 Link 1: "⭐ VIO 83 AI Orchestra — GitHub"
-URL: https://github.com/vio83/mai-love
+URL: https://github.com/vio83/vio83-ai-orchestra
 Descrizione: The world's first multi-AI orchestration platform. Star it!
 
 Link 2: "💚 Sponsor My Open Source Work"
@@ -117,7 +117,7 @@ Built entirely by me, alone, on a MacBook Air M1 with 8GB RAM. From Italy 🇮�
 
 The code is real. The features work. The vision is clear.
 
-⭐ GitHub: github.com/vio83/mai-love
+⭐ GitHub: github.com/vio83/vio83-ai-orchestra
 💚 Sponsor: github.com/sponsors/vio83
 🌐 Website: vio83.github.io/vio83-ai-orchestra
 
@@ -160,7 +160,7 @@ Tech stack: React 18 + TypeScript + Zustand + FastAPI + ChromaDB + SQLite FTS5 +
 
 The smartest AI isn't the biggest model — it's the one that knows which model to call.
 
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 #AIEngineering #LLMRouting #SmartAI #MultiModel #Orchestration #Tauri #React #FastAPI
 ```
@@ -198,7 +198,7 @@ The foundation is solid. With your support, I ship the future.
 
 💚 github.com/sponsors/vio83
 ☕ ko-fi.com/vio83_ai_orchestra_
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 Even a star ⭐ on GitHub helps with visibility.
 
@@ -239,7 +239,7 @@ VIO 83 doesn't sell a model. VIO 83 orchestrates ALL of them.
 
 The truth isn't in one AI. It's in the consensus.
 
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 #AIVerification #CrossCheck #TrustButVerify #AI #LLM #MultiModel #Orchestration #FactChecking
 ```
@@ -275,7 +275,7 @@ This system doesn't exist anywhere else. Not in ChatGPT. Not in Claude. Not in G
 
 It took me weeks to build. It maps the entire structure of human knowledge. And it's open source.
 
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 #KnowledgeGraph #AI #RAG #AcademicResearch #Classification #OpenSource #DataScience
 ```
@@ -313,7 +313,7 @@ The result: a desktop AI orchestrator that's lighter than Slack.
 
 Tech decisions matter. I chose the hard path because it's the right one.
 
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 #Tauri #Rust #DesktopApp #WebDev #React #TypeScript #Performance #AIApp
 ```
@@ -355,7 +355,7 @@ Even $5/month makes a difference. Early sponsors get lifetime perks.
 
 💚 github.com/sponsors/vio83
 ☕ ko-fi.com/vio83_ai_orchestra_
-⭐ github.com/vio83/mai-love
+⭐ github.com/vio83/vio83-ai-orchestra
 
 Share this if you believe open source AI deserves support.
 
@@ -383,7 +383,7 @@ I'm building VIO 83 AI Orchestra — a desktop app that orchestrates Claude, GPT
 
 I'm looking for early sponsors to cover API costs and hardware. Even $5/month helps enormously, and early sponsors get lifetime perks.
 
-GitHub: github.com/vio83/mai-love
+GitHub: github.com/vio83/vio83-ai-orchestra
 Sponsor: github.com/sponsors/vio83
 
 Would love your feedback even if sponsoring isn't your thing. The project is real and the code works.
@@ -412,7 +412,7 @@ Current status: 85% backend, 70% frontend, actively developing.
 
 Worth a 15-minute call?
 
-GitHub: github.com/vio83/mai-love
+GitHub: github.com/vio83/vio83-ai-orchestra
 
 Best,
 Viorica
@@ -431,7 +431,7 @@ I'm a solo developer from Italy, building on a MacBook Air M1 with 8GB RAM. No V
 
 Looking for early sponsors — even a star on GitHub helps enormously.
 
-GitHub: github.com/vio83/mai-love
+GitHub: github.com/vio83/vio83-ai-orchestra
 Sponsor: github.com/sponsors/vio83
 
 Grazie! 💚

@@ -10,7 +10,7 @@ PROJECT OVERVIEW:
 VIO AI Orchestra allows anyone — individuals, NGOs, journalists, SMEs — to run powerful AI (9+ models including local LLMs via Ollama) WITHOUT sending data to the cloud. Privacy is enforced architecturally: all processing runs on-device by default.
 
 TECHNICAL PROOF:
-• Public code: https://github.com/vio83/mai-love
+• Public code: https://github.com/vio83/vio83-ai-orchestra
 • Stack: FastAPI (Python), React/TypeScript, Tauri (Rust), SQLite
 • Local models: LLaMA 3, Mistral, DeepSeek, Gemma, Qwen
 • Zero external dependencies in local mode
@@ -28,4 +28,4 @@ Thank you for your consideration.
 
 Viorica Porcu
 porcu.v.83@gmail.com
-https://github.com/vio83/mai-love
+https://github.com/vio83/vio83-ai-orchestra

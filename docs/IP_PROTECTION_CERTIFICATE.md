@@ -4,7 +4,7 @@
 **Generato**: 2026-03-21T00:04:40.537869+00:00
 **Autore/Titolare**: Viorica Porcu — porcu.v.83@gmail.com
 **Progetto**: VIO AI Orchestra
-**Repository pubblico**: https://github.com/vio83/mai-love
+**Repository pubblico**: https://github.com/vio83/vio83-ai-orchestra
 
 ---
 

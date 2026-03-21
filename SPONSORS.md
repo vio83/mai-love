@@ -2,17 +2,17 @@
 
 Thank you to everyone who supports the development of **VIO 83 AI Orchestra** — the next billion-dollar platform for AI orchestration.
 
-**TO INVESTORS / VCs**: This is a solo-founder, shipped-product play. See [IP Protection Certificate](https://github.com/vio83/mai-love/blob/main/docs/IP_PROTECTION_CERTIFICATE.md) for prior art proof, AGPL-3.0 enforcement, and why venture firms should fund this immediately.
+**TO INVESTORS / VCs**: This is a solo-founder, shipped-product play. See [IP Protection Certificate](https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/IP_PROTECTION_CERTIFICATE.md) for prior art proof, AGPL-3.0 enforcement, and why venture firms should fund this immediately.
 
 ## 🔗 Official Sponsor Pipeline (Always Synced)
 
-- GitHub Repo: https://github.com/vio83/mai-love
+- GitHub Repo: https://github.com/vio83/vio83-ai-orchestra
 - GitHub Sponsors: https://github.com/sponsors/vio83
 - Ko-fi: https://ko-fi.com/vio83_ai_orchestra_
 - LinkedIn Founder Profile: https://www.linkedin.com/in/viorica-porcu-637735139
-- LinkedIn Campaign Kit: https://github.com/vio83/mai-love/blob/main/docs/LINKEDIN_SPONSOR_CONTENT.md
-- Ko-fi Campaign Kit: https://github.com/vio83/mai-love/blob/main/docs/KOFI_PAGE_CONTENT.md
-- Global Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
+- LinkedIn Campaign Kit: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/LINKEDIN_SPONSOR_CONTENT.md
+- Ko-fi Campaign Kit: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/KOFI_PAGE_CONTENT.md
+- Global Legal Proof Bundle: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 ---
 

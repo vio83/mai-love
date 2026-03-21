@@ -7,7 +7,7 @@
     "equity_offered": "10-15%",
     "valuation_pre_money": "350000",
     "contact_email": "porcu.v.83@gmail.com",
-    "github": "https://github.com/vio83/mai-love",
+    "github": "https://github.com/vio83/vio83-ai-orchestra",
     "website": "https://vio83.github.io/vio83-ai-orchestra/",
     "last_updated": "2026-03-21"
   },
@@ -322,7 +322,7 @@
     }
   ],
   "kpis_for_deck": {
-    "github_repo": "https://github.com/vio83/mai-love",
+    "github_repo": "https://github.com/vio83/vio83-ai-orchestra",
     "license": "AGPL-3.0 + Commercial",
     "ai_providers_supported": 9,
     "local_models_ollama": 7,

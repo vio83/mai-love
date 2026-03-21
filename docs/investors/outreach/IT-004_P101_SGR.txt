@@ -7,7 +7,7 @@ Mi chiamo Viorica Porcu, sviluppatrice software indipendente e fondatrice di VIO
 In 12 mesi ho costruito da zero la prima piattaforma desktop open source (AGPL-3.0) che orchestra 9+ modelli AI — locali (Ollama: Llama3, DeepSeek, Mistral, Gemma) e cloud (GPT-4, Claude, Gemini, Groq) — in un'unica app cross-platform (macOS, Windows, Linux).
 
 DATI CONCRETI:
-• Codice pubblico su GitHub: https://github.com/vio83/mai-love
+• Codice pubblico su GitHub: https://github.com/vio83/vio83-ai-orchestra
 • Stack certificato: FastAPI + React/Vite + Tauri + SQLite
 • Privacy-first: i dati NON lasciano il device in modalità local
 • Traction attuale: community developer in crescita organica
@@ -26,5 +26,5 @@ NEXT STEP:
 Con stima,
 Viorica Porcu
 porcu.v.83@gmail.com
-GitHub: https://github.com/vio83/mai-love
+GitHub: https://github.com/vio83/vio83-ai-orchestra
 Web: https://vio83.github.io/vio83-ai-orchestra/

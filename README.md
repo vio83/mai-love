@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/vio83/mai-love/stargazers"><img src="https://img.shields.io/github/stars/vio83/mai-love?style=flat-square&color=00ff00" alt="GitHub Stars" /></a>
-  <a href="https://github.com/vio83/mai-love/network/members"><img src="https://img.shields.io/github/forks/vio83/mai-love?style=flat-square&color=cyan" alt="GitHub Forks" /></a>
-  <a href="https://github.com/vio83/mai-love/issues"><img src="https://img.shields.io/github/issues/vio83/mai-love?style=flat-square&color=yellow" alt="GitHub Issues" /></a>
-  <a href="https://github.com/vio83/mai-love/blob/main/LICENSE"><img src="https://img.shields.io/github/license/vio83/mai-love?style=flat-square" alt="License" /></a>
-  <a href="https://github.com/vio83/mai-love/commits/main"><img src="https://img.shields.io/github/last-commit/vio83/mai-love?style=flat-square&color=00ff00" alt="Last Commit" /></a>
+  <a href="https://github.com/vio83/vio83-ai-orchestra/stargazers"><img src="https://img.shields.io/github/stars/vio83/vio83-ai-orchestra?style=flat-square&color=00ff00" alt="GitHub Stars" /></a>
+  <a href="https://github.com/vio83/vio83-ai-orchestra/network/members"><img src="https://img.shields.io/github/forks/vio83/vio83-ai-orchestra?style=flat-square&color=cyan" alt="GitHub Forks" /></a>
+  <a href="https://github.com/vio83/vio83-ai-orchestra/issues"><img src="https://img.shields.io/github/issues/vio83/vio83-ai-orchestra?style=flat-square&color=yellow" alt="GitHub Issues" /></a>
+  <a href="https://github.com/vio83/vio83-ai-orchestra/blob/main/LICENSE"><img src="https://img.shields.io/github/license/vio83/vio83-ai-orchestra?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/vio83/vio83-ai-orchestra/commits/main"><img src="https://img.shields.io/github/last-commit/vio83/vio83-ai-orchestra?style=flat-square&color=00ff00" alt="Last Commit" /></a>
 </p>
 
 <p align="center">
@@ -141,8 +141,8 @@ Custom dark theme with Framer Motion animations:
 
 ```bash
 # Clone
-git clone https://github.com/vio83/mai-love.git
-cd mai-love
+git clone https://github.com/vio83/vio83-ai-orchestra.git
+cd vio83-ai-orchestra
 
 # Frontend
 npm install
@@ -288,12 +288,12 @@ All inference uses **Ollama** running locally. Pull models with `ollama pull <na
 ## 💚 Sponsor This Project
 
 Official links:
-- GitHub Repo: https://github.com/vio83/mai-love
+- GitHub Repo: https://github.com/vio83/vio83-ai-orchestra
 - GitHub Sponsors: https://github.com/sponsors/vio83
 - Ko-fi: https://ko-fi.com/vio83_ai_orchestra_
 - LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139
 - Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html
-- Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
+- Legal Proof Bundle: https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 <p align="center">
   <a href="https://github.com/sponsors/vio83">
