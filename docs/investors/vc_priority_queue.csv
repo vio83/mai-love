@@ -1,0 +1,13 @@
+id,name,type,country,score,status,action,contact_email,apply_url,linkedin,focus
+IT-001,CDP Venture Capital,VC,IT,115,to_contact,send_email_and_linkedin,info@cdpventuresgf.it,https://www.cdpventuresgf.it/,https://www.linkedin.com/company/cdpventurecapital/,"Deep Tech, AI, Open Source, PMI italiane"
+IT-002,Primo Ventures,VC,IT,105,to_contact,send_email_and_linkedin,info@primomilanohub.com,https://www.primomilanohub.com/,https://www.linkedin.com/company/primo-ventures/,"B2B SaaS, AI, Dev Tools"
+OSVC-001,OSS Capital,VC,US,105,to_contact,send_email_and_linkedin,team@oss.capital,https://oss.capital/,https://www.linkedin.com/company/oss-capital/,Commercial Open Source Software (COSS)
+IT-003,United Ventures,VC,IT,85,to_contact,send_email_and_linkedin,info@unitedventures.it,https://unitedventures.it/,https://www.linkedin.com/company/united-ventures/,"Tech, SaaS, AI"
+IT-004,P101 SGR,VC,IT,85,to_contact,send_email_and_linkedin,info@p101.it,https://www.p101.it/en/apply/,https://www.linkedin.com/company/p101/,"Digital, AI, Consumer Tech"
+EU-001,NLnet Foundation,Grant,NL,85,to_contact,send_email_and_linkedin,team@nlnet.nl,https://nlnet.nl/propose/,https://www.linkedin.com/company/nlnet-foundation/,"Open Source, Privacy, Internet, AI"
+ACCL-002,Techstars,Accelerator,US/EU,75,to_apply,apply_form,,https://www.techstars.com/apply,https://www.linkedin.com/company/techstars/,"AI, Dev Tools, SaaS"
+ACCL-003,EIT Digital Accelerator,Accelerator,EU,75,to_apply,send_email_and_linkedin,accelerator@eitdigital.eu,https://www.eitdigital.eu/startup-activity/,https://www.linkedin.com/company/eit-digital/,"Deep Tech, AI, Data"
+EU-002,Prototype Fund Germany,Grant,DE,65,to_contact,send_email_and_linkedin,info@prototypefund.de,https://prototypefund.de/en/apply/,https://www.linkedin.com/company/prototype-fund/,"Open Source, Civic Tech, Software"
+EU-003,NGI Zero (NLnet / EU Horizon),Grant,EU,65,to_contact,send_email_and_linkedin,ngi@nlnet.nl,https://nlnet.nl/NGI0/,,"Privacy, AI, Open Internet"
+ACCL-001,Y Combinator,Accelerator,US,35,to_apply,apply_form,,https://www.ycombinator.com/apply/,https://www.linkedin.com/company/y-combinator/,Any tech startup
+ANGEL-001,AngelList / Wellfound,Angel Platform,US,5,to_create_profile,apply_form,,https://wellfound.com/,,Any startup globally
