@@ -1,8 +1,8 @@
 # 💚 Sponsors & Supporters
 
-Thank you to everyone who supports the development of **VIO 83 AI Orchestra** — the world's first multi-AI orchestration platform.
+Thank you to everyone who supports the development of **VIO 83 AI Orchestra** — the next billion-dollar platform for AI orchestration.
 
-Your sponsorship directly funds API testing costs, hardware upgrades, and full-time open source development.
+**TO INVESTORS / VCs**: This is a solo-founder, shipped-product play. See [IP Protection Certificate](https://github.com/vio83/vio83-ai-orchestra/blob/main/docs/IP_PROTECTION_CERTIFICATE.md) for prior art proof, AGPL-3.0 enforcement, and why venture firms should fund this immediately.
 
 ---
 
@@ -65,12 +65,12 @@ Your sponsorship directly funds API testing costs, hardware upgrades, and full-t
 
 ## Why Sponsor?
 
-| What Your Money Funds | Cost | Impact |
-|----------------------|------|--------|
-| API testing (7 providers) | ~€50/month | Test Claude, GPT-4o, Gemini, Grok, Mistral, DeepSeek daily |
-| Mac Studio M4 Ultra (192GB) | ~€5,000 | Run large local models, develop 10x faster |
-| Apple Developer Certificate | €99/year | Sign and distribute the Tauri desktop app |
-| Domain + hosting | ~€15/month | GitHub Pages, documentation, CDN |
+| What Your Money Funds       | Cost       | Impact                                                     |
+| --------------------------- | ---------- | ---------------------------------------------------------- |
+| API testing (7 providers)   | ~€50/month | Test Claude, GPT-4o, Gemini, Grok, Mistral, DeepSeek daily |
+| Mac Studio M4 Ultra (192GB) | ~€5,000    | Run large local models, develop 10x faster                 |
+| Apple Developer Certificate | €99/year   | Sign and distribute the Tauri desktop app                  |
+| Domain + hosting            | ~€15/month | GitHub Pages, documentation, CDN                           |
 
 **Current goal: €5,200** — enough for the Mac Studio + 2 months of development runway.
 

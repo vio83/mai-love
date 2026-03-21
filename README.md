@@ -54,17 +54,20 @@ VIO 83 AI Orchestra is a **local-first desktop AI app** for macOS.
 
 ### What It Includes Today
 
-| Component | Status |
-|-----------|--------|
-| Streaming chat (Ollama) | ✅ Active |
-| Smart request routing (local) | ✅ Active — classifies code/medical/reasoning/etc. |
-| Cross-check verification (local) | ✅ Active — second Ollama model verifies first |
-| Knowledge base (SQLite FTS5) | ✅ Active — ChromaDB optional, disabled on Python 3.14 |
-| Command Center dashboard | ✅ Active — real usage metrics |
-| AI Models registry | ✅ Active — shows installed Ollama models |
-| Analytics page | ✅ Active |
-| Tauri 2 desktop shell | ✅ Builds on macOS |
-| Cloud API routing | ⚠️ Keys configurable, routing locked local-only at runtime |
+| Component                                          | Status                                                    |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| Streaming chat (Ollama)                            | ✅ Active                                                  |
+| Smart request routing (local)                      | ✅ Active — classifies code/medical/reasoning/etc.         |
+| Cross-check verification (local)                   | ✅ Active — second Ollama model verifies first             |
+| Knowledge base (SQLite FTS5)                       | ✅ Active — ChromaDB optional, disabled on Python 3.14     |
+| Command Center dashboard                           | ✅ Active — real usage metrics                             |
+| AI Models registry                                 | ✅ Active — shows installed Ollama models                  |
+| Analytics page                                     | ✅ Active                                                  |
+| Tauri 2 desktop shell                              | ✅ Builds on macOS                                         |
+| Cloud API routing                                  | ⚠️ Keys configurable, routing locked local-only at runtime |
+| **VirtualPartnerAI (emotion/memory/relationship)** | ✅ **NEW** — 4 engines integrated + bridge                 |
+| **Stripe Billing Webhooks**                        | ✅ **NEW** — subscription management ready                 |
+| **IP Protection Certificate**                      | ✅ **NEW** — prior art timestamps + AGPL-3.0 enforcement   |
 
 ---
 
@@ -114,14 +117,14 @@ Custom dark theme with Framer Motion animations:
 
 ## 📸 UI Pages
 
-| Page | Description |
-|------|-------------|
-| 🏠 **Dashboard** | Command Center with live stats, model distribution, activity feed |
-| 💬 **AI Chat** | Local streaming chat with markdown rendering + cross-check |
-| 🛡️ **Cross-Check** | Multi-model local verification with concordance scoring |
-| 📈 **Analytics** | Usage tracking per model |
-| 📚 **Knowledge Base** | FTS5 knowledge base manager with quality badges |
-| 🤖 **AI Models** | Ollama model registry with benchmarks and configuration |
+| Page                 | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| 🏠 **Dashboard**      | Command Center with live stats, model distribution, activity feed |
+| 💬 **AI Chat**        | Local streaming chat with markdown rendering + cross-check        |
+| 🛡️ **Cross-Check**    | Multi-model local verification with concordance scoring           |
+| 📈 **Analytics**      | Usage tracking per model                                          |
+| 📚 **Knowledge Base** | FTS5 knowledge base manager with quality badges                   |
+| 🤖 **AI Models**      | Ollama model registry with benchmarks and configuration           |
 
 ---
 
@@ -236,18 +239,18 @@ USER types a question
 
 ### Tech Stack
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Desktop | **Tauri 2.0** | Lightweight native shell vs Electron. |
-| Frontend | **React 18 + TypeScript** | Type-safe, fast, large ecosystem. |
-| Styling | **CSS Variables + Tailwind** | Custom dark theme. |
-| Animations | **Framer Motion** | Smooth page transitions. |
-| State | **Zustand** | Lightweight persistent store. |
-| Icons | **Lucide React** | Tree-shakeable SVG icons. |
-| Local AI | **Ollama** | Run any model locally. Zero cloud calls. |
-| Backend | **FastAPI** | Async Python, SSE streaming. |
-| Knowledge DB | **SQLite FTS5** | Full-text search, no external service. |
-| Bundler | **Vite 7** | Fast HMR, optimized builds. |
+| Layer        | Technology                   | Why                                      |
+| ------------ | ---------------------------- | ---------------------------------------- |
+| Desktop      | **Tauri 2.0**                | Lightweight native shell vs Electron.    |
+| Frontend     | **React 18 + TypeScript**    | Type-safe, fast, large ecosystem.        |
+| Styling      | **CSS Variables + Tailwind** | Custom dark theme.                       |
+| Animations   | **Framer Motion**            | Smooth page transitions.                 |
+| State        | **Zustand**                  | Lightweight persistent store.            |
+| Icons        | **Lucide React**             | Tree-shakeable SVG icons.                |
+| Local AI     | **Ollama**                   | Run any model locally. Zero cloud calls. |
+| Backend      | **FastAPI**                  | Async Python, SSE streaming.             |
+| Knowledge DB | **SQLite FTS5**              | Full-text search, no external service.   |
+| Bundler      | **Vite 7**                   | Fast HMR, optimized builds.              |
 
 ---
 
@@ -255,13 +258,13 @@ USER types a question
 
 All inference uses **Ollama** running locally. Pull models with `ollama pull <name>`:
 
-| Model | Size | RAM | Best For |
-|-------|------|-----|----------|
-| `qwen2.5-coder:3b` | 2.0 GB | 2.5 GB | Code generation |
-| `llama3.2:3b` | 2.0 GB | 2.5 GB | General assistant |
-| `mistral:latest` | 4.1 GB | 5.0 GB | Reasoning, legal, medical |
-| `deepseek-r1:latest` | varies | 5+ GB | Deep reasoning |
-| `gemma2:2b` | 1.6 GB | 2.0 GB | Ultra-fast responses |
+| Model                | Size   | RAM    | Best For                  |
+| -------------------- | ------ | ------ | ------------------------- |
+| `qwen2.5-coder:3b`   | 2.0 GB | 2.5 GB | Code generation           |
+| `llama3.2:3b`        | 2.0 GB | 2.5 GB | General assistant         |
+| `mistral:latest`     | 4.1 GB | 5.0 GB | Reasoning, legal, medical |
+| `deepseek-r1:latest` | varies | 5+ GB  | Deep reasoning            |
+| `gemma2:2b`          | 1.6 GB | 2.0 GB | Ultra-fast responses      |
 
 > Cloud model routing (Claude, GPT-4, Gemini, etc.) is configurable in Settings but **not active at runtime**. Runtime enforces local-only.
 
@@ -310,12 +313,12 @@ I'm building VIO 83 because I believe access to intelligent AI should not requir
 
 ### What Your Sponsorship Funds
 
-| Priority | Need | Why It Matters |
-|----------|------|----------------|
-| **#1 Hardware** | Mac Studio M4 Ultra (192GB) | Current M1 8GB limits large local models |
-| **#2 Time** | Full-time development | More hours = faster features, better quality |
-| **#3 Infrastructure** | Server for the Knowledge Base | Scaling FTS5/vector index to millions of docs |
-| **#4 Optional cloud** | API credits for future cloud mode | Testing optional multi-provider routing |
+| Priority              | Need                              | Why It Matters                                |
+| --------------------- | --------------------------------- | --------------------------------------------- |
+| **#1 Hardware**       | Mac Studio M4 Ultra (192GB)       | Current M1 8GB limits large local models      |
+| **#2 Time**           | Full-time development             | More hours = faster features, better quality  |
+| **#3 Infrastructure** | Server for the Knowledge Base     | Scaling FTS5/vector index to millions of docs |
+| **#4 Optional cloud** | API credits for future cloud mode | Testing optional multi-provider routing       |
 
 ### Current Progress (Live — 17 March 2026)
 
@@ -332,13 +335,13 @@ Analytics Dashboard:  ████████████████░░░�
 
 ### Sponsor Tiers
 
-| Tier | Monthly | What You Get |
-|------|---------|--------------|
-| ☕ **Supporter** | $5 | Name in SPONSORS.md + early access to all releases |
-| 🎵 **Musician** | $15 | Above + priority on feature requests + private Discord |
-| 🎼 **Conductor** | $50 | Above + monthly video call + custom AI routing rules |
-| 🏆 **Patron** | $100 | Above + your logo in the app UI + dedicated support |
-| 🏢 **Enterprise** | $500 | Commercial license + custom deployment + 1:1 support |
+| Tier             | Monthly | What You Get                                           |
+| ---------------- | ------- | ------------------------------------------------------ |
+| ☕ **Supporter**  | $5      | Name in SPONSORS.md + early access to all releases     |
+| 🎵 **Musician**   | $15     | Above + priority on feature requests + private Discord |
+| 🎼 **Conductor**  | $50     | Above + monthly video call + custom AI routing rules   |
+| 🏆 **Patron**     | $100    | Above + your logo in the app UI + dedicated support    |
+| 🏢 **Enterprise** | $500    | Commercial license + custom deployment + 1:1 support   |
 
 > **Target:** first 10 founding sponsors by **17 April 2026**. This is a public goal, not a guaranteed outcome.
 
@@ -365,10 +368,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, code standards, 
 
 **Dual Licensed:**
 
-| Use Case | License | What It Means |
-|----------|---------|---------------|
-| **Commercial** | [Proprietary](LICENSE-PROPRIETARY) | All Rights Reserved. Contact for licensing. |
-| **Open Source** | [AGPL-3.0](LICENSE-AGPL-3.0) | Free to use, must share source, network use = distribution |
+| Use Case        | License                            | What It Means                                              |
+| --------------- | ---------------------------------- | ---------------------------------------------------------- |
+| **Commercial**  | [Proprietary](LICENSE-PROPRIETARY) | All Rights Reserved. Contact for licensing.                |
+| **Open Source** | [AGPL-3.0](LICENSE-AGPL-3.0)       | Free to use, must share source, network use = distribution |
 
 See [LICENSE](LICENSE) for full details. Copyright (c) 2026 Viorica Porcu (vio83).
 
