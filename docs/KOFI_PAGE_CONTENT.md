@@ -6,7 +6,7 @@
 
 ## 🚀 SHIPPING STATUS — Marzo 2026
 
-✅ **PRODUCT SHIPPED**: Multi-AI orchestrator desktop app with 7 cloud providers + local Ollama
+✅ **PRODUCT SHIPPED**: Multi-AI desktop orchestrator with local-first runtime + cloud-ready integrations
 ✅ **VIRTUALPARTNERAI**: 4 emotion/memory/personality/relationship engines integrated
 ✅ **STRIPE WEBHOOKS**: Billing infrastructure ready for subscriptions
 ✅ **IP PROTECTION**: AGPL-3.0 enforced + prior art timestamps + trademark registration path ready
@@ -20,8 +20,8 @@
 
 **Why fund VIO 83 AI Orchestra?**
 
-1. **Founder**: Solo developer with 77 commits, verifiable prior art on GitHub, MIT-level execution speed.
-2. **Product**: Working app, 7 AI providers integrated, 3 local models running, Stripe billing ready.
+1. **Founder**: Solo developer with 82 commits, verifiable prior art on GitHub, execution-focused delivery.
+2. **Product**: Working app, 7 provider integrations configured (local active + cloud-ready), 3 local models running, Stripe billing ready.
 3. **Market**: AI orchestration is a $50B+ TAM. Every Fortune 500 needs this. Enterprise wants verified answers (cross-check feature) at enterprise scale.
 4. **IP Protected**: AGPL-3.0 prevents forks. Dual commercial license available. Trademark path clear.
 5. **Roadmap**: VirtualPartnerAI (emotion × AI) is a 100% new vertical nobody else has shipped.
@@ -132,7 +132,7 @@ Tech stack: Tauri 2.0 (Rust) + React 18 + TypeScript + FastAPI + ChromaDB + Zust
 
 Your support helps me cover API costs, upgrade my hardware, and keep building full-time.
 
-⭐ GitHub: github.com/vio83/mai-love
+⭐ GitHub: https://github.com/vio83/mai-love
 🌐 Website: vio83.github.io/vio83-ai-orchestra
 
 Every coffee counts! Even €3 helps. Grazie di cuore 💚
