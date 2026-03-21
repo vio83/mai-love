@@ -50,6 +50,15 @@ Landing page: https://vio83.github.io/vio83-ai-orchestra/
 Support hub: https://vio83.github.io/vio83-ai-orchestra/support.html
 ```
 
+## 1C. LEGAL PROOF LINKS (for investors)
+
+```
+IP Protection Certificate: https://github.com/vio83/mai-love/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
+Global Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
+AGPL License: https://github.com/vio83/mai-love/blob/main/LICENSE-AGPL-3.0
+Proprietary License: https://github.com/vio83/mai-love/blob/main/LICENSE-PROPRIETARY
+```
+
 ---
 
 ## 2. HEADLINE LINKEDIN (sotto il nome)

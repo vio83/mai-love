@@ -293,6 +293,7 @@ Official links:
 - Ko-fi: https://ko-fi.com/vio83_ai_orchestra_
 - LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139
 - Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html
+- Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 <p align="center">
   <a href="https://github.com/sponsors/vio83">

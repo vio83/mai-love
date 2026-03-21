@@ -29,6 +29,7 @@
 **Your investment**: Seed round accelerates hiring (founding engineer, sales, operations). 6-month runway to Series A.
 
 📄 Full IP protection + founder playbook: https://github.com/vio83/mai-love/blob/main/docs/IP_PROTECTION_CERTIFICATE.md
+📄 Global legal proof bundle (hash + commit evidence): https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 🤝 **Want to talk?** Reach out: porcu.v.83@gmail.com or https://www.linkedin.com/in/viorica-porcu-637735139
 
@@ -77,6 +78,7 @@ GitHub Sponsors: https://github.com/sponsors/vio83
 Ko-fi: https://ko-fi.com/vio83_ai_orchestra_
 LinkedIn: https://www.linkedin.com/in/viorica-porcu-637735139
 Support Hub: https://vio83.github.io/vio83-ai-orchestra/support.html
+Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 ```
 
 ---

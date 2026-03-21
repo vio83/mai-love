@@ -12,6 +12,7 @@ Thank you to everyone who supports the development of **VIO 83 AI Orchestra** â€
 - LinkedIn Founder Profile: https://www.linkedin.com/in/viorica-porcu-637735139
 - LinkedIn Campaign Kit: https://github.com/vio83/mai-love/blob/main/docs/LINKEDIN_SPONSOR_CONTENT.md
 - Ko-fi Campaign Kit: https://github.com/vio83/mai-love/blob/main/docs/KOFI_PAGE_CONTENT.md
+- Global Legal Proof Bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 ---
 

@@ -106,6 +106,7 @@ Current development snapshot:
 - Date: 21 March 2026
 - Git history: 82 commits on main
 - Repository: https://github.com/vio83/mai-love
+- Global legal proof bundle: https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 ---
 
@@ -116,6 +117,7 @@ Current development snapshot:
 - **Support Hub:** https://vio83.github.io/vio83-ai-orchestra/support.html
 - **Ko-fi:** https://ko-fi.com/vio83_ai_orchestra_
 - **LinkedIn:** https://www.linkedin.com/in/viorica-porcu-637735139
+- **Legal Proof Bundle:** https://github.com/vio83/mai-love/blob/main/docs/LEGAL_PROOF_BUNDLE_2026-03-21.md
 
 ---
 
