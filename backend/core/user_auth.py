@@ -167,7 +167,7 @@ class UserAuthManager:
     def __init__(self, db_path: Optional[Path] = None):
         self._db_path = db_path or DB_PATH
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection = sqlite3.connect(":memory:")  # placeholder
         self._init_db()
 
     def _init_db(self) -> None:
@@ -447,7 +447,7 @@ class UserAuthManager:
     def close(self) -> None:
         if self._conn:
             self._conn.close()
-            self._conn = None
+            self._conn = sqlite3.connect(":memory:")  # reset to dummy
 
 
 # ─── Singleton ──────────────────────────────────────────────────────

@@ -34,6 +34,9 @@ trap cleanup EXIT
   # Manutenzione pesante: sempre su ciclo hourly.
   bash "$ROOT_DIR/scripts/runtime/run_real_max_maintenance.sh" || true
 
+  # VS Code autofix: ESLint, TSC, Python compile, cache cleanup
+  bash "$ROOT_DIR/scripts/runtime/vscode_autofix_cycle.sh" || true
+
   # Rinforzo quotidiano: doppio passaggio maintenance per autotune più aggressivo.
   if [[ "$MODE" == "daily" ]]; then
     sleep 5

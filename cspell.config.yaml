@@ -1,8 +1,72 @@
-
 version: "0.2"
-ignorePaths: []
-dictionaryDefinitions: []
-dictionaries: []
-words: []
+language: "en,it"
+ignorePaths:
+  - "node_modules/**"
+  - "dist/**"
+  - "target/**"
+  - "data/**"
+  - "docs/**"
+  - "AI-LOVE/**"
+  - "automation/**"
+  - "logs/**"
+  - "vio-tasks/**"
+  - "*.bundle"
+  - "*.min.js"
+  - "*.min.css"
+  - "*.html"
+  - "package-lock.json"
+  - "**/__pycache__/**"
+  - ".git/**"
+  - "src-tauri/target/**"
+  - "public/**"
+dictionaryDefinitions:
+  - name: "vio83-project"
+    path: ".cspell/project-words.txt"
+    addWords: true
+dictionaries:
+  - "vio83-project"
+words:
+  - "vio83"
+  - "tauri"
+  - "ollama"
+  - "deepseek"
+  - "groq"
+  - "openrouter"
+  - "openclaw"
+  - "legalroom"
+  - "vpartner"
+  - "zustand"
+  - "pydantic"
+  - "uvicorn"
+  - "fastapi"
+  - "chromadb"
+  - "litellm"
+  - "codellama"
+  - "qwen"
+  - "llama"
+  - "gemma"
+  - "smollm"
+  - "nomic"
+  - "tavily"
+  - "argon2"
+  - "argon2id"
+  - "Starlette"
+  - "starlette"
+  - "Viorica"
+  - "Porcu"
+  - "padronavio"
+  - "Cowork"
+  - "Sparkline"
+  - "Timsort"
+  - "healthz"
 ignoreWords: []
 import: []
+overrides:
+  - filename: "**/*.py"
+    language: "en,it"
+  - filename: "**/*.{ts,tsx}"
+    language: "en,it"
+  - filename: "**/*.md"
+    language: "en,it"
+enableGlobDot: false
+allowCompoundWords: true

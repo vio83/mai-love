@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vio83.vscode-autofix-hourly</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/runtime/vscode_autofix_cycle.sh</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/vscode-autofix-launchd-out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/vscode-autofix-launchd-err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/padronavio</string>
+    <key>PYTHONPATH</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra</string>
+  </dict>
+
+  <key>Nice</key>
+  <integer>10</integer>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

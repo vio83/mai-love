@@ -164,7 +164,7 @@ class IntentDecoder:
         format_scores = {}
         for fmt, kws in self._FORMAT_KW.items():
             format_scores[fmt] = sum(1 for kw in kws if kw in text)
-        best_fmt = max(format_scores, key=format_scores.get)
+        best_fmt = max(format_scores, key=lambda k: format_scores[k])
         if format_scores[best_fmt] > 0:
             format_pref = best_fmt
 
@@ -179,7 +179,7 @@ class IntentDecoder:
         # ── domain ──
         domain = "general"
         domain_scores = {d: sum(1 for kw in kws if kw in text) for d, kws in self._DOMAIN_KW.items()}
-        best_domain = max(domain_scores, key=domain_scores.get)
+        best_domain = max(domain_scores, key=lambda k: domain_scores[k])
         if domain_scores[best_domain] > 0:
             domain = best_domain
 

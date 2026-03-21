@@ -2374,7 +2374,8 @@ async def reasoning_multistep(payload: dict = Body(...)):
 async def list_providers():
     """Lista provider runtime effettivi — rispetta VIO_NO_HYBRID da .env."""
     ollama = await check_ollama_status()
-    no_hybrid = _as_bool(os.environ.get("VIO_NO_HYBRID", ""))
+    env_map = _read_project_env_map()
+    no_hybrid = _as_bool(_runtime_env_value(env_map, "VIO_NO_HYBRID"))
 
     local = {
         "ollama": {

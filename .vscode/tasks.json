@@ -221,6 +221,30 @@
         "reveal": "always",
         "panel": "shared"
       }
+    },
+    {
+      "label": "vscode-autofix-now",
+      "type": "shell",
+      "command": "bash scripts/runtime/vscode_autofix_cycle.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PYTHONPATH": "${workspaceFolder}" }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "install-vscode-autofix-autopilot",
+      "type": "shell",
+      "command": "bash scripts/runtime/install_vscode_autofix_autopilot.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     }
   ]
 }
