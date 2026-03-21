@@ -158,19 +158,28 @@ def _stripe_signature_valid(payload_bytes: bytes, signature_header: str, secret:
     if not signature_header or not secret:
         return False
 
+    ts = ""
+    sig_v1_list: list[str] = []
     try:
-        parts = dict(item.split("=", 1) for item in signature_header.split(",") if "=" in item)
+        for item in signature_header.split(","):
+            if "=" not in item:
+                continue
+            key, value = item.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if key == "t" and value:
+                ts = value
+            elif key == "v1" and value:
+                sig_v1_list.append(value)
     except Exception:
         return False
 
-    ts = parts.get("t", "")
-    sig_v1 = parts.get("v1", "")
-    if not ts or not sig_v1:
+    if not ts or not sig_v1_list:
         return False
 
     signed_payload = f"{ts}.".encode("utf-8") + payload_bytes
     expected = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, sig_v1)
+    return any(hmac.compare_digest(expected, candidate) for candidate in sig_v1_list)
 
 
 def _compute_business_kpi_snapshot() -> dict[str, Any]:
@@ -4146,7 +4155,9 @@ async def api_billing_webhook_stripe(request: Request):
     """Stripe webhook endpoint with signature verification and local event journaling."""
     payload_bytes = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
-    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
+    # Prefer project .env to avoid stale shell/session env values during local resets.
+    env_map = _read_project_env_map()
+    webhook_secret = (env_map.get("STRIPE_WEBHOOK_SECRET") or os.environ.get("STRIPE_WEBHOOK_SECRET", "")).strip()
 
     if not webhook_secret:
         raise HTTPException(status_code=503, detail="STRIPE_WEBHOOK_SECRET not configured")
