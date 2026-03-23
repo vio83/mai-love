@@ -15,7 +15,8 @@ npm-debug.log*
 src-tauri/target/
 .pids/
 *.pid
-data/
+data/*
+!data/sponsor-stats.json
 *.db
 *.db-journal
 *.db-wal

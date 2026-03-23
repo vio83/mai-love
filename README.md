@@ -130,6 +130,14 @@ Custom dark theme with Framer Motion animations:
 
 ## 🚀 Quick Start
 
+> **⚡ TL;DR — Start in 3 commands:**
+> ```bash
+> git clone https://github.com/vio83/vio83-ai-orchestra.git && cd vio83-ai-orchestra
+> npm install && pip3 install fastapi uvicorn httpx && ollama pull qwen2.5-coder:3b
+> ./orchestra.sh
+> ```
+> Open **http://localhost:5173** — Orchestra is running. 🎵
+
 ### Prerequisites
 - **macOS** (Apple Silicon recommended)
 - **Node.js** 20+ (`nvm install 20`)
