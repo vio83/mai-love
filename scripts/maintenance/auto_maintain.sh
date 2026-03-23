@@ -120,8 +120,12 @@ run_check() {
 
   # ── 3. Flake8 backend ───────────────────────
   log "\n${BLUE}[3/7] Python Linting (E/F codes)${NC}"
-  if command -v flake8 &>/dev/null; then
-    FLAKE_OUT=$(flake8 backend/ --select=E,F --max-line-length=120 \
+  # Cerca flake8: PATH di sistema, poi venv locale
+  FLAKE8_BIN=$(command -v flake8 2>/dev/null \
+    || echo "${SCRIPT_DIR}/../../.venv-1/bin/flake8" 2>/dev/null)
+  [ -x "$FLAKE8_BIN" ] || FLAKE8_BIN=""
+  if [ -n "$FLAKE8_BIN" ]; then
+    FLAKE_OUT=$("$FLAKE8_BIN" backend/ --select=E,F --max-line-length=120 \
       --exclude=backend/__pycache__,backend/rag/ 2>&1 | head -20 || true)
     if [ -n "$FLAKE_OUT" ]; then
       warn "Flake8: errori presenti (vedi log)"
