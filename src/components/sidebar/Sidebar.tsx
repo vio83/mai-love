@@ -1,20 +1,20 @@
 // VIO 83 AI ORCHESTRA - Sidebar con Navigazione Multi-Pagina
 import {
-    BarChart3,
-    BookOpen,
-    ChevronLeft,
-    Cpu,
-    GitBranch,
-    LayoutDashboard, MessageSquare,
-    MessageSquarePlus,
-    Music,
-    Orbit,
-    Puzzle,
-    Scale,
-    Settings,
-    Shield,
-    Trash2,
-    Zap
+  BarChart3,
+  BookOpen,
+  ChevronLeft,
+  Cpu,
+  GitBranch,
+  LayoutDashboard, MessageSquare,
+  MessageSquarePlus,
+  Music,
+  Orbit,
+  Puzzle,
+  Scale,
+  Settings,
+  Shield,
+  Trash2,
+  Zap
 } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
@@ -36,17 +36,15 @@ const NAV_ITEMS: { id: AppPage; labelKey: string; icon: typeof LayoutDashboard }
 
 export default function Sidebar() {
   const { t } = useI18n();
-  const {
-    conversations,
-    activeConversationId,
-    currentPage,
-    sidebarOpen,
-    createConversation,
-    setActiveConversation,
-    deleteConversation,
-    toggleSidebar,
-    setCurrentPage,
-  } = useAppStore();
+  const conversations = useAppStore(s => s.conversations);
+  const activeConversationId = useAppStore(s => s.activeConversationId);
+  const currentPage = useAppStore(s => s.currentPage);
+  const sidebarOpen = useAppStore(s => s.sidebarOpen);
+  const createConversation = useAppStore(s => s.createConversation);
+  const setActiveConversation = useAppStore(s => s.setActiveConversation);
+  const deleteConversation = useAppStore(s => s.deleteConversation);
+  const toggleSidebar = useAppStore(s => s.toggleSidebar);
+  const setCurrentPage = useAppStore(s => s.setCurrentPage);
 
   if (!sidebarOpen) return null;
 

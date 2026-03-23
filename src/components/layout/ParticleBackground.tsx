@@ -51,7 +51,7 @@ export default function ParticleBackground() {
 
       particles.forEach((a, index) => {
         for (let i = index + 1; i < particles.length; i += 1) {
-          const b = particles[i];
+          const b = particles[i]!;
           const distance = Math.hypot(a.x - b.x, a.y - b.y);
           if (distance < 120) {
             ctx.beginPath();

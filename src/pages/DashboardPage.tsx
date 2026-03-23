@@ -21,7 +21,8 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { conversations, settings } = useAppStore();
+  const conversations = useAppStore(s => s.conversations);
+  const settings = useAppStore(s => s.settings);
   const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
   const [recentActivity, setRecentActivity] = useState<Array<{ time: string; action: string; model: string }>>([]);
   const { t, lang } = useI18n();

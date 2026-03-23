@@ -19,6 +19,11 @@ export default defineConfig({
       polyfill: false, // Modern browsers only
     },
     rollupOptions: {
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false,
+      },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;

@@ -10,16 +10,14 @@ import ChatMessage from './ChatMessage';
 
 export default function ChatView() {
   const { t } = useI18n();
-  const {
-    conversations,
-    activeConversationId,
-    settings,
-    isStreaming,
-    createConversation,
-    addMessage,
-    setStreaming,
-    setAbortController,
-  } = useAppStore();
+  const conversations = useAppStore(s => s.conversations);
+  const activeConversationId = useAppStore(s => s.activeConversationId);
+  const settings = useAppStore(s => s.settings);
+  const isStreaming = useAppStore(s => s.isStreaming);
+  const createConversation = useAppStore(s => s.createConversation);
+  const addMessage = useAppStore(s => s.addMessage);
+  const setStreaming = useAppStore(s => s.setStreaming);
+  const setAbortController = useAppStore(s => s.setAbortController);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamBufferRef = useRef('');

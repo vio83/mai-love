@@ -49,7 +49,7 @@ export function detectLocale(): SupportedLocale {
   const stored = localStorage.getItem('vio83-locale');
   if (stored === 'it' || stored === 'en') return stored;
 
-  const browserLang = (navigator.language || 'it').split('-')[0].toLowerCase();
+  const browserLang = (navigator.language || 'it').split('-')[0]?.toLowerCase() ?? 'it';
   if (browserLang === 'en') return 'en';
   return 'it'; // Default to Italian (primary user language)
 }

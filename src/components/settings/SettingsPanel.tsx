@@ -44,7 +44,11 @@ type SettingsPanelProps = {
 
 export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
   const { t } = useI18n();
-  const { settings, toggleSettings, updateSettings, setCurrentPage, activateFullOrchestration } = useAppStore();
+  const settings = useAppStore(s => s.settings);
+  const toggleSettings = useAppStore(s => s.toggleSettings);
+  const updateSettings = useAppStore(s => s.updateSettings);
+  const setCurrentPage = useAppStore(s => s.setCurrentPage);
+  const activateFullOrchestration = useAppStore(s => s.activateFullOrchestration);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
@@ -239,7 +243,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                       <span className="text-white font-medium text-sm">{info.name}</span>
                     </div>
                     <a href={info.url} target="_blank" rel="noopener noreferrer"
-                       className="text-xs hover:underline" style={{ color: info.color }}>
+                      className="text-xs hover:underline" style={{ color: info.color }}>
                       {t('settingsPanel.getApiKey')}
                     </a>
                   </div>
@@ -315,7 +319,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
 
               {LOCAL_MODELS.map(model => (
                 <div key={model.id} className="flex items-center justify-between rounded-xl p-4"
-                     style={{ backgroundColor: '#111', border: '1px solid #222' }}>
+                  style={{ backgroundColor: '#111', border: '1px solid #222' }}>
                   <div>
                     <p className="text-white text-sm font-medium">{model.name}</p>
                     <p className="text-gray-500 text-xs mt-1">RAM: {model.ram} · {t('settingsPanel.bestFor')}: {t(model.bestKey)}</p>

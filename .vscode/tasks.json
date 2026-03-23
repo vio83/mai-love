@@ -285,6 +285,34 @@
         "reveal": "always",
         "panel": "shared"
       }
+    },
+    {
+      "label": "🔧 Auto-Maintain — Health Check 100x",
+      "type": "shell",
+      "command": "bash scripts/maintenance/auto_maintain.sh --fix",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "maintenance"
+      }
+    },
+    {
+      "label": "🔧 Auto-Maintain — Install Autostart (3x/day)",
+      "type": "shell",
+      "command": "bash scripts/maintenance/auto_maintain.sh --install-autostart",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "maintenance"
+      }
     }
   ]
 }

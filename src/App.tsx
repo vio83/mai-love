@@ -27,7 +27,13 @@ const OpenClawPage = lazy(() => import('./pages/OpenClawPage'));
 const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
-  const { sidebarOpen, toggleSidebar, settings, settingsOpen, currentPage, updateSettings, authToken } = useAppStore();
+  const sidebarOpen = useAppStore(s => s.sidebarOpen);
+  const toggleSidebar = useAppStore(s => s.toggleSidebar);
+  const settings = useAppStore(s => s.settings);
+  const settingsOpen = useAppStore(s => s.settingsOpen);
+  const currentPage = useAppStore(s => s.currentPage);
+  const updateSettings = useAppStore(s => s.updateSettings);
+  const authToken = useAppStore(s => s.authToken);
   const { t } = useI18n();
 
   useEffect(() => {

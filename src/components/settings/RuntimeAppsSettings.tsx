@@ -110,7 +110,7 @@ function badgeColor(ok: boolean) {
 }
 
 export function RuntimeAppsSettings() {
-  const { settings } = useAppStore();
+  const settings = useAppStore(s => s.settings);
   const [snapshot, setSnapshot] = useState<RuntimeAppsSnapshot | null>(null);
   const [form, setForm] = useState<RuntimeConfigForm>(defaultForm);
   const [loading, setLoading] = useState(false);

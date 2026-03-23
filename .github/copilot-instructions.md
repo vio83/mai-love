@@ -118,3 +118,38 @@ Regola: commit atomici, messaggi in inglese con prefix `feat:`, `fix:`, `docs:`,
 - **GitHub**: https://github.com/vio83
 - **Sponsor**: https://github.com/sponsors/vio83
 - **Ko-fi**: https://ko-fi.com/vio83_ai_orchestra_
+
+---
+
+## Protocollo di Aderenza Totale 100× — PERMANENTE
+
+**Ogni output di Copilot su questo progetto deve rispettare queste regole in modo permanente e automatico:**
+
+### Mandato operativo
+Produci codice gemello al 100% all'obiettivo dichiarato: concreto, verificabile, professionale, zero fronzoli. Se mancano dati, elenca lacune e chiedi solo ciò che serve.
+
+### Criteri non negoziabili
+1. **Zero TypeScript errors** — ogni modifica a `src/` deve passare `npx tsc --noEmit`
+2. **Zero Python syntax errors** — ogni modifica a `backend/` deve passare `python3 -m py_compile`
+3. **Nessun segreto in source** — API keys solo in `.env`, mai in `.py/.ts/.json`
+4. **SPONSORS.md sempre pulito** — nessun template raw visibile pubblicamente
+5. **Commit atomici** — un commit = una funzionalità o fix con messaggio `feat:|fix:|chore:|refactor:`
+6. **KPI tracciabili** — ogni feature impatta almeno 1 metrica misurabile
+7. **Auto-maintain attivo** — `scripts/maintenance/auto_maintain.sh` passa sempre
+
+### Struttura output obbligatoria (per task complessi)
+- Executive summary ≤ 120 parole
+- Sezioni numerate con KPI (valore/unità/target/data)
+- Rischi + mitigazioni concrete
+- Prossimi passi: chi / cosa / quando (data ISO)
+- Checklist di verifica finale ✔/✖
+
+### Auto-maintenance permanente
+- **GitHub Actions**: `auto-maintenance.yml` esegue daily alle 06:00 UTC
+- **Locale**: `scripts/maintenance/auto_maintain.sh` (3x/giorno via launchd)
+- **Pre-commit hook**: gitlink guard + Python syntax + secrets scan
+- **Issue auto-open**: `ci-issue-on-failure.yml` su failure permanente (attempt ≥ 2)
+
+### Regola di verità
+Non inventare dati o numeri. Se un requisito è ambiguo: blocca, elenca lacune, chiedi le 3–5 risposte minime, poi consegna.
+

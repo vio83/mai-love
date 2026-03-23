@@ -145,7 +145,7 @@ export default function AnalyticsPage() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[...modelStats].sort((a, b) => b.quality - a.quality).map(m => (
-              <Bar key={m.name} value={m.quality} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0]} />
+              <Bar key={m.name} value={m.quality} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0] ?? m.name} />
             ))}
           </div>
         </motion.div>
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[...modelStats].sort((a, b) => b.speed - a.speed).map(m => (
-              <Bar key={m.name} value={m.speed} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0]} />
+              <Bar key={m.name} value={m.speed} maxValue={100} color={PROVIDER_COLORS[m.id] || '#888'} label={m.name.split(' ')[0] ?? m.name} />
             ))}
           </div>
         </motion.div>

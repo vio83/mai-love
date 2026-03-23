@@ -3,13 +3,13 @@ import { Activity, AlertTriangle, Bot, CheckCircle2, CircleAlert, Clock3, Cpu, G
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../hooks/useI18n';
 import {
-    ERROR_RATE_WINDOW_MINUTES,
-    getRuntimeAutopilotState,
-    runRuntimeOptimizationTick,
-    type RuntimeAutopilotState,
-    type RuntimeTarget,
-    setRuntimeTargetAutoOptimize,
-    setRuntimeTickInterval
+  ERROR_RATE_WINDOW_MINUTES,
+  getRuntimeAutopilotState,
+  runRuntimeOptimizationTick,
+  type RuntimeAutopilotState,
+  type RuntimeTarget,
+  setRuntimeTargetAutoOptimize,
+  setRuntimeTickInterval
 } from '../runtime/runtimeAutopilot';
 import { useAppStore } from '../stores/appStore';
 
@@ -230,7 +230,9 @@ export default function OrchestraRuntimePage() {
   const [updatingKnowledgePolicy, setUpdatingKnowledgePolicy] = useState(false);
   const [exportingAudit, setExportingAudit] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const { settings, activateFullOrchestration, updateSettings } = useAppStore();
+  const settings = useAppStore(s => s.settings);
+  const activateFullOrchestration = useAppStore(s => s.activateFullOrchestration);
+  const updateSettings = useAppStore(s => s.updateSettings);
   const { t, lang } = useI18n();
 
   const notify = (message: string, kind: ToastKind = 'success') => {

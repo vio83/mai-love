@@ -23,7 +23,9 @@ function detectLanguage(): 'it' | 'en' {
 }
 
 export default function OnboardingWizard({ onComplete }: Props) {
-  const { settings, updateSettings, setCurrentPage } = useAppStore();
+  const settings = useAppStore(s => s.settings);
+  const updateSettings = useAppStore(s => s.updateSettings);
+  const setCurrentPage = useAppStore(s => s.setCurrentPage);
 
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<'local' | 'cloud'>(settings.orchestrator.mode || 'local');
@@ -36,7 +38,7 @@ export default function OnboardingWizard({ onComplete }: Props) {
     translateForLocale(language, key, options);
 
   const selectedProvider = useMemo(
-    () => CLOUD_PROVIDER_OPTIONS.find((option) => option.id === provider) || CLOUD_PROVIDER_OPTIONS[0],
+    () => CLOUD_PROVIDER_OPTIONS.find((option) => option.id === provider) ?? CLOUD_PROVIDER_OPTIONS[0]!,
     [provider],
   );
 
@@ -50,14 +52,14 @@ export default function OnboardingWizard({ onComplete }: Props) {
     const updatedKeys =
       mode === 'cloud' && apiKey.trim().length >= 6
         ? [
-            ...existing,
-            {
-              provider,
-              key: apiKey.trim(),
-              isValid: true,
-              lastChecked: Date.now(),
-            },
-          ]
+          ...existing,
+          {
+            provider,
+            key: apiKey.trim(),
+            isValid: true,
+            lastChecked: Date.now(),
+          },
+        ]
         : existing;
 
     localStorage.setItem('vio83-locale', language);

@@ -31,9 +31,10 @@ def get_db_path() -> str:
 @contextmanager
 def get_connection():
     """Context manager per connessione SQLite thread-safe."""
-    conn = sqlite3.connect(get_db_path(), timeout=10)
+    conn = sqlite3.connect(get_db_path(), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     try:
         yield conn
@@ -143,17 +144,40 @@ def list_conversations(limit: int = 50, offset: int = 0, include_archived: bool 
 
 
 def get_conversation(conv_id: str) -> Optional[dict]:
-    """Ottieni una conversazione con tutti i messaggi."""
+    """Ottieni una conversazione con tutti i messaggi (single query with LEFT JOIN)."""
     with get_connection() as conn:
-        conv = conn.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
-        if not conv:
-            return None
-        messages = conn.execute(
-            "SELECT * FROM messages WHERE conversation_id = ? ORDER BY timestamp ASC",
+        rows = conn.execute(
+            """SELECT c.id, c.title, c.created_at, c.updated_at, c.mode,
+                      c.primary_provider, c.message_count, c.total_tokens, c.archived,
+                      m.id AS msg_id, m.role, m.content, m.provider AS msg_provider,
+                      m.model, m.tokens_used, m.latency_ms, m.verified,
+                      m.quality_score, m.timestamp AS msg_timestamp
+               FROM conversations c
+               LEFT JOIN messages m ON m.conversation_id = c.id
+               WHERE c.id = ?
+               ORDER BY m.timestamp ASC""",
             (conv_id,)
         ).fetchall()
-        result = dict(conv)
-        result["messages"] = [dict(m) for m in messages]
+        if not rows:
+            return None
+        first = rows[0]
+        result = {
+            "id": first["id"], "title": first["title"],
+            "created_at": first["created_at"], "updated_at": first["updated_at"],
+            "mode": first["mode"], "primary_provider": first["primary_provider"],
+            "message_count": first["message_count"], "total_tokens": first["total_tokens"],
+            "archived": first["archived"], "messages": [],
+        }
+        for r in rows:
+            if r["msg_id"] is not None:
+                result["messages"].append({
+                    "id": r["msg_id"], "conversation_id": conv_id,
+                    "role": r["role"], "content": r["content"],
+                    "provider": r["msg_provider"], "model": r["model"],
+                    "tokens_used": r["tokens_used"], "latency_ms": r["latency_ms"],
+                    "verified": r["verified"], "quality_score": r["quality_score"],
+                    "timestamp": r["msg_timestamp"],
+                })
         return result
 
 
@@ -184,9 +208,9 @@ def archive_conversation(conv_id: str):
 # === MESSAGGI ===
 
 def add_message(conversation_id: str, role: str, content: str,
-                provider: str = None, model: str = None,
+                provider: Optional[str] = None, model: Optional[str] = None,
                 tokens_used: int = 0, latency_ms: int = 0,
-                verified: bool = None, quality_score: float = None) -> dict:
+                verified: Optional[bool] = None, quality_score: Optional[float] = None) -> dict:
     """Aggiungi un messaggio a una conversazione."""
     msg_id = str(uuid.uuid4())
     now = time.time()
@@ -213,9 +237,9 @@ def add_message(conversation_id: str, role: str, content: str,
 
 # === METRICHE ===
 
-def log_metric(provider: str, model: str, request_type: str = None,
+def log_metric(provider: str, model: str, request_type: Optional[str] = None,
                tokens_used: int = 0, latency_ms: int = 0,
-               success: bool = True, error_message: str = None):
+               success: bool = True, error_message: Optional[str] = None):
     """Registra una metrica per analytics."""
     with get_connection() as conn:
         conn.execute(
@@ -273,7 +297,7 @@ def get_metrics_summary(days: int = 30) -> dict:
 
 # === IMPOSTAZIONI ===
 
-def get_setting(key: str, default: str = None) -> Optional[str]:
+def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
     """Ottieni un'impostazione."""
     with get_connection() as conn:
         row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()

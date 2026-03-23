@@ -7,7 +7,7 @@ const API_BASE = 'http://localhost:4000';
 
 export default function AuthPage() {
   const { t } = useI18n();
-  const { setAuth } = useAppStore();
+  const setAuth = useAppStore(s => s.setAuth);
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');

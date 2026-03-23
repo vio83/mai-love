@@ -14,6 +14,7 @@ import os
 import time
 import json
 import asyncio
+import logging
 from typing import Optional, AsyncGenerator
 from urllib.request import Request, urlopen
 from urllib.error import URLError
@@ -30,6 +31,9 @@ try:
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
+    logging.getLogger(__name__).warning(
+        "httpx non disponibile — fallback a urllib (prestazioni ridotte in async)"
+    )
 
 try:
     import aiohttp

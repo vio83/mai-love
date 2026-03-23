@@ -1,10 +1,10 @@
 // VIO 83 AI ORCHESTRA - Input Chat con selettore modello, allegati, stop, voice
 import { Cpu, FileText, HardDrive, Image, Plus, Send, Square, X, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import VoiceMode from './VoiceMode';
 import { useI18n } from '../../hooks/useI18n';
 import { useAppStore } from '../../stores/appStore';
 import type { Attachment } from '../../types';
+import VoiceMode from './VoiceMode';
 
 // Modelli Ollama disponibili localmente (su MacBook Air M1 8GB)
 const OLLAMA_MODELS = [
@@ -27,7 +27,10 @@ export default function ChatInput({ onSend, disabled, lastAssistantMessage }: Ch
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { settings, setOllamaModel, isStreaming, stopStreaming } = useAppStore();
+  const settings = useAppStore(s => s.settings);
+  const setOllamaModel = useAppStore(s => s.setOllamaModel);
+  const isStreaming = useAppStore(s => s.isStreaming);
+  const stopStreaming = useAppStore(s => s.stopStreaming);
   const currentOllamaModel = settings.ollamaModel || 'llama3.2:3b';
 
   // Auto-resize textarea

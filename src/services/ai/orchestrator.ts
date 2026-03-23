@@ -164,7 +164,7 @@ function optimizeConversationWindow(messages: Message[]): Message[] {
   let totalChars = 0;
 
   for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
+    const msg = messages[i]!;
     const content = (msg.content || '').trim();
     const msgChars = content.length;
 
@@ -481,7 +481,7 @@ async function callCloud(
   maxTokens: number = 768,
 ): Promise<AIResponse> {
   const start = Date.now();
-  const model = CLOUD_MODELS[provider];
+  const model = CLOUD_MODELS[provider]!;
   if (provider !== 'perplexity' && !model) throw new Error(`Provider non supportato: ${provider}`);
 
   const keyMap: Record<string, string> = {
