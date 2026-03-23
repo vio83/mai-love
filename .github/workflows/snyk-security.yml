@@ -1,0 +1,85 @@
+name: Snyk Security
+
+"on":
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snyk-node:
+    name: Snyk Node Scan
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight token check
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "SNYK_TOKEN non configurato: salto scan Node."
+            exit 0
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Setup Snyk
+        uses: snyk/actions/setup@master
+
+      - name: Snyk test (high+)
+        run: snyk test --severity-threshold=high --all-projects --detection-depth=4
+
+      - name: Snyk monitor (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: snyk monitor --all-projects --detection-depth=4
+
+  snyk-python:
+    name: Snyk Python Scan
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight token check
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "SNYK_TOKEN non configurato: salto scan Python."
+            exit 0
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Snyk
+        uses: snyk/actions/setup@master
+
+      - name: Snyk test requirements.txt (high+)
+        run: snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high
+
+      - name: Snyk test requirements-rag.txt (best effort)
+        run: snyk test --file=requirements-rag.txt --package-manager=pip --severity-threshold=high || true
+
+      - name: Snyk monitor python manifests (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          snyk monitor --file=requirements.txt --package-manager=pip
+          snyk monitor --file=requirements-rag.txt --package-manager=pip || true
