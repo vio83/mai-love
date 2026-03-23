@@ -33,14 +33,17 @@ jobs:
     steps:
       - name: Check available secrets
         id: check
+        env:
+          APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          TAURI_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         run: |
-          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+          if [ -n "$APPLE_CERT" ]; then
             echo "has_apple_cert=true" >> $GITHUB_OUTPUT
           else
             echo "has_apple_cert=false" >> $GITHUB_OUTPUT
             echo "::warning::Apple Certificate not configured — build will be UNSIGNED"
           fi
-          if [ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]; then
+          if [ -n "$TAURI_KEY" ]; then
             echo "has_tauri_key=true" >> $GITHUB_OUTPUT
           else
             echo "has_tauri_key=false" >> $GITHUB_OUTPUT

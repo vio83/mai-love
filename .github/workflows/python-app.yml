@@ -40,7 +40,7 @@ jobs:
 
       - name: Flake8 — critical errors only
         run: |
-          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics || true
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Compile check — all Python modules
         run: python -m compileall -q backend/
@@ -62,5 +62,6 @@ jobs:
           total = len(list(pathlib.Path('.').rglob('*.py')))
           print(f'Checked {total} files, {errors} errors')
           if errors:
-              print('WARNING: Syntax issues detected')
+              print('ERROR: Syntax issues detected')
+              sys.exit(1)
           PYEOF

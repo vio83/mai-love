@@ -71,6 +71,15 @@ jobs:
 
           echo "Report generated: data/weekly-report-${TODAY}.md"
 
+      - name: Close previous weekly report issues
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue list --label "weekly-report" --state open --json number --jq '.[].number' | while read -r num; do
+            gh issue close "$num" -c "Superseded by new weekly report" || true
+          done
+
       - name: Create GitHub Issue with report
         continue-on-error: true
         env:
@@ -82,6 +91,7 @@ jobs:
           if [ -f "$REPORT_FILE" ]; then
             gh issue create \
               --title "Weekly Growth Report — Week ${WEEK} (${TODAY})" \
+              --label "weekly-report" \
               --body-file "$REPORT_FILE" || echo "Issue creation skipped"
           else
             echo "No report file found — skipping issue creation"
@@ -95,5 +105,6 @@ jobs:
           git add data/ 2>/dev/null || true
           git diff --cached --quiet && echo "No changes to commit" || {
             git commit -m "chore(report): weekly growth report [skip ci]"
+            git pull --rebase --autostash || true
             git push || echo "Push skipped — will retry next run"
           }

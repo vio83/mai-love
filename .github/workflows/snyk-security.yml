@@ -22,30 +22,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight token check
+      - name: Check SNYK_TOKEN
+        id: token
         run: |
           if [ -z "$SNYK_TOKEN" ]; then
-            echo "SNYK_TOKEN non configurato: salto scan Node."
-            exit 0
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::SNYK_TOKEN not configured — skipping Node scan"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup Node
+        if: steps.token.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install deps
+        if: steps.token.outputs.skip != 'true'
         run: npm ci
 
       - name: Setup Snyk
-        uses: snyk/actions/setup@master
+        if: steps.token.outputs.skip != 'true'
+        uses: snyk/actions/setup@0.4.0
 
       - name: Snyk test (high+)
+        if: steps.token.outputs.skip != 'true'
         run: snyk test --severity-threshold=high --all-projects --detection-depth=4
 
       - name: Snyk monitor (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.token.outputs.skip != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: snyk monitor --all-projects --detection-depth=4
 
   snyk-python:
@@ -57,29 +64,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight token check
+      - name: Check SNYK_TOKEN
+        id: token
         run: |
           if [ -z "$SNYK_TOKEN" ]; then
-            echo "SNYK_TOKEN non configurato: salto scan Python."
-            exit 0
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::SNYK_TOKEN not configured — skipping Python scan"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup Python
+        if: steps.token.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Setup Snyk
-        uses: snyk/actions/setup@master
+        if: steps.token.outputs.skip != 'true'
+        uses: snyk/actions/setup@0.4.0
 
       - name: Snyk test requirements.txt (high+)
+        if: steps.token.outputs.skip != 'true'
         run: snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high
 
       - name: Snyk test requirements-rag.txt (best effort)
+        if: steps.token.outputs.skip != 'true'
         run: snyk test --file=requirements-rag.txt --package-manager=pip --severity-threshold=high || true
 
       - name: Snyk monitor python manifests (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.token.outputs.skip != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           snyk monitor --file=requirements.txt --package-manager=pip
           snyk monitor --file=requirements-rag.txt --package-manager=pip || true

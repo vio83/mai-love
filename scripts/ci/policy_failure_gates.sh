@@ -26,9 +26,23 @@ pass "required repository files present"
 pass "lockfile present"
 
 # Gate 3: release workflow must use pinned major versions for critical actions.
+# Check only in workflows that actually use these actions.
+GATE3_FAIL=0
 for action in actions/checkout@v4 actions/setup-node@v4 actions/setup-python@v5; do
-  grep -R --line-number "$action" .github/workflows >/dev/null || fail "missing recommended action pin: $action"
+  ACTION_NAME=$(echo "$action" | cut -d@ -f1)
+  # Find workflows that reference this action at all
+  USERS=$(grep -Rl "$ACTION_NAME" .github/workflows 2>/dev/null || true)
+  if [ -n "$USERS" ]; then
+    # Verify they use the pinned version
+    if ! grep -R --quiet "$action" .github/workflows; then
+      echo -e "${RED}WARN: $action found unpinned in workflows${NC}"
+      GATE3_FAIL=1
+    fi
+  fi
 done
+if [ "$GATE3_FAIL" -eq 1 ]; then
+  fail "some workflow action pins are not at expected versions"
+fi
 pass "workflow action pins found"
 
 # Gate 4: disallow obvious leaked API keys in tracked files.
