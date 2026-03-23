@@ -1,4 +1,3 @@
-
 {
   // ============================================================
   // VIO 83 AI ORCHESTRA — Build & Run Tasks
@@ -16,7 +15,11 @@
         "fileLocation": "relative",
         "pattern": {
           "regexp": "^(.+):(\\d+):(\\d+): (error|warning) (.+)$",
-          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
         },
         "background": {
           "activeOnStart": true,
@@ -38,7 +41,9 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": ["$tsc"],
+      "problemMatcher": [
+        "$tsc"
+      ],
       "presentation": {
         "reveal": "always",
         "panel": "shared"
@@ -51,7 +56,9 @@
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PYTHONPATH": "${workspaceFolder}" }
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        }
       },
       "problemMatcher": [],
       "presentation": {
@@ -67,7 +74,9 @@
       "isBackground": true,
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PYTHONPATH": "${workspaceFolder}" }
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        }
       },
       "problemMatcher": [],
       "presentation": {
@@ -114,7 +123,9 @@
       "type": "shell",
       "command": "npx tsc --noEmit",
       "group": "build",
-      "problemMatcher": ["$tsc"],
+      "problemMatcher": [
+        "$tsc"
+      ],
       "presentation": {
         "reveal": "silent",
         "panel": "shared"
@@ -144,7 +155,11 @@
     },
     {
       "label": "🎵 Start Full Orchestra",
-      "dependsOn": ["ollama-start", "backend-dev", "vite-dev"],
+      "dependsOn": [
+        "ollama-start",
+        "backend-dev",
+        "vite-dev"
+      ],
       "dependsOrder": "parallel",
       "problemMatcher": [],
       "presentation": {
@@ -228,7 +243,9 @@
       "command": "bash scripts/runtime/vscode_autofix_cycle.sh",
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PYTHONPATH": "${workspaceFolder}" }
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        }
       },
       "problemMatcher": [],
       "presentation": {
@@ -240,6 +257,29 @@
       "label": "install-vscode-autofix-autopilot",
       "type": "shell",
       "command": "bash scripts/runtime/install_vscode_autofix_autopilot.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "ci-pre-push-gate",
+      "type": "shell",
+      "command": "bash scripts/ci/pre_push_gate.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "install-mac-optimizer",
+      "type": "shell",
+      "command": "bash scripts/runtime/install_mac_optimizer.sh",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
