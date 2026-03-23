@@ -5,7 +5,8 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/frontend/**/*.test.ts'],
     coverage: {
-      enabled: false,
+      enabled: true,
+      reporter: ['text', 'lcov'],
     },
   },
 });

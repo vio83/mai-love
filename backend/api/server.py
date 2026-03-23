@@ -33,6 +33,21 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 from collections import defaultdict
 
+# === Structured Logging (GAP-06) ===
+try:
+    import sys as _sys
+    from loguru import logger as _loguru  # type: ignore[import-untyped]
+    _loguru.remove()
+    _loguru.add(_sys.stderr, serialize=True, level="INFO")
+    _loguru.add(
+        str(Path(__file__).resolve().parents[2] / "data" / "logs" / "backend.jsonl"),
+        serialize=True, level="WARNING", rotation="10 MB", retention="7 days",
+        compression="gz",
+    )
+    _LOG_STRUCTURED = True
+except ImportError:
+    _LOG_STRUCTURED = False  # fallback: print() già presenti
+
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -100,6 +115,25 @@ except Exception as e:
 load_dotenv()
 START_TIME = time.time()
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# === Sentry Error Tracking (GAP-01) ===
+# Attivo solo se SENTRY_DSN è configurato in .env
+_SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            integrations=[StarletteIntegration(), FastApiIntegration()],
+            traces_sample_rate=0.1,
+            environment=os.getenv("VIO_ENV", "development"),
+            release="vio83-ai-orchestra@1.0.0",
+        )
+        print("✔ Sentry error tracking: ATTIVO")
+    except ImportError:
+        print("⚠ sentry-sdk non installato — pip install sentry-sdk[fastapi]")
 PROJECT_ENV_PATH = PROJECT_ROOT / ".env"
 RUNTIME_SUPERVISOR_STATE_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor-state.json"
 RUNTIME_SUPERVISOR_PID_PATH = PROJECT_ROOT / ".pids" / "runtime-supervisor.pid"
@@ -1069,8 +1103,8 @@ app.add_middleware(
         "http://127.0.0.1:1420",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Vio-Admin-Pin", "X-Requested-With", "Accept"],
 )
 
 

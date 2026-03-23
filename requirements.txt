@@ -49,3 +49,12 @@ tavily-python>=0.5.0
 
 # === Metriche e Osservabilità ===
 # prometheus-client>=0.21.0  # Metriche Prometheus
+
+# === Error Tracking (GAP-01) ===
+sentry-sdk[fastapi]>=2.0.0   # Error tracking produzione (SENTRY_DSN in .env)
+
+# === Structured Logging (GAP-06) ===
+loguru>=0.7.0                # JSON-serializable structured logging
+
+# === Security Static Analysis (GAP-03 — dev/CI only) ===
+bandit>=1.8.0; extra == "dev"  # SAST: rileva OWASP A03/A06 in Python

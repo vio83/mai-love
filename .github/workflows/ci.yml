@@ -48,11 +48,9 @@ jobs:
 
       - name: ESLint
         run: npm run lint
-        continue-on-error: true
 
       - name: Unit tests (Vitest)
         run: npm run test:frontend
-        continue-on-error: true
 
       - name: Production build
         run: npm run build
@@ -86,8 +84,7 @@ jobs:
       - name: Backend unit tests
         run: |
           pip install pytest || true
-          PYTHONPATH=. python -m pytest tests/backend/ -v --tb=short 2>&1 || true
-        continue-on-error: true
+          PYTHONPATH=. python -m pytest tests/backend/ -v --tb=short
 
   tauri-check:
     name: Tauri Cargo Check (macOS)

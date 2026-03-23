@@ -19,14 +19,14 @@ In breve:
 
 ## Requisiti di sistema
 
-| Componente | Minimo | Raccomandato |
-|------------|--------|--------------|
-| macOS | 12 Monterey | 14 Sonoma / 15 Sequoia |
-| RAM | 8 GB | 16 GB (per modelli locali 7B+) |
-| Spazio disco | 4 GB | 20 GB (con modelli Ollama) |
-| Python | 3.11 | 3.12 |
-| Node.js | 18 | 20 LTS |
-| Rust | 1.75 | latest (per Tauri build) |
+| Componente   | Minimo      | Raccomandato                   |
+| ------------ | ----------- | ------------------------------ |
+| macOS        | 12 Monterey | 14 Sonoma / 15 Sequoia         |
+| RAM          | 8 GB        | 16 GB (per modelli locali 7B+) |
+| Spazio disco | 4 GB        | 20 GB (con modelli Ollama)     |
+| Python       | 3.11        | 3.12                           |
+| Node.js      | 18          | 20 LTS                         |
+| Rust         | 1.75        | latest (per Tauri build)       |
 
 ---
 
@@ -123,7 +123,7 @@ Il backend sarà disponibile su `http://127.0.0.1:4000`
 npm run dev
 ```
 
-Il frontend sarà disponibile su `http://localhost:1420`
+Il frontend sarà disponibile su `http://localhost:5173` (porta 1420 solo con Tauri desktop)
 
 ### Modalità desktop Tauri (app nativa macOS)
 
@@ -163,13 +163,13 @@ Una volta avviata l'app:
 
 ### Esempi per iniziare
 
-| Cosa vuoi fare | Messaggio di esempio |
-|---------------|---------------------|
-| Scrivere codice | `Scrivi una funzione Python che ordina una lista per frequenza` |
-| Spiegare un concetto | `Spiega la differenza tra RAM e SSD in parole semplici` |
-| Revisione legale | `Analizza questa clausola contrattuale GDPR` |
-| Aiuto medico | `Quali sono i sintomi del diabete tipo 2?` |
-| Scrittura creativa | `Scrivi un haiku sulla tecnologia AI` |
+| Cosa vuoi fare       | Messaggio di esempio                                            |
+| -------------------- | --------------------------------------------------------------- |
+| Scrivere codice      | `Scrivi una funzione Python che ordina una lista per frequenza` |
+| Spiegare un concetto | `Spiega la differenza tra RAM e SSD in parole semplici`         |
+| Revisione legale     | `Analizza questa clausola contrattuale GDPR`                    |
+| Aiuto medico         | `Quali sono i sintomi del diabete tipo 2?`                      |
+| Scrittura creativa   | `Scrivi un haiku sulla tecnologia AI`                           |
 
 ---
 
@@ -182,17 +182,17 @@ Vai alla sezione **AI Models** per:
 
 ### Modelli cloud supportati
 
-| Provider | Modello | Chiave necessaria |
-|----------|---------|------------------|
-| Anthropic | Claude 3.5 Sonnet | `ANTHROPIC_API_KEY` |
-| OpenAI | GPT-4o | `OPENAI_API_KEY` |
-| Google | Gemini 1.5 Pro | `GEMINI_API_KEY` |
-| Mistral | Mistral Large | `MISTRAL_API_KEY` |
-| DeepSeek | DeepSeek Chat | `DEEPSEEK_API_KEY` |
-| xAI | Grok | `XAI_API_KEY` |
-| Groq | Llama 3.1 70B (fast) | `GROQ_API_KEY` |
-| Together AI | Mixtral 8x7B | `TOGETHER_API_KEY` |
-| OpenRouter | Multi-model | `OPENROUTER_API_KEY` |
+| Provider    | Modello              | Chiave necessaria    |
+| ----------- | -------------------- | -------------------- |
+| Anthropic   | Claude 3.5 Sonnet    | `ANTHROPIC_API_KEY`  |
+| OpenAI      | GPT-4o               | `OPENAI_API_KEY`     |
+| Google      | Gemini 1.5 Pro       | `GEMINI_API_KEY`     |
+| Mistral     | Mistral Large        | `MISTRAL_API_KEY`    |
+| DeepSeek    | DeepSeek Chat        | `DEEPSEEK_API_KEY`   |
+| xAI         | Grok                 | `XAI_API_KEY`        |
+| Groq        | Llama 3.1 70B (fast) | `GROQ_API_KEY`       |
+| Together AI | Mixtral 8x7B         | `TOGETHER_API_KEY`   |
+| OpenRouter  | Multi-model          | `OPENROUTER_API_KEY` |
 
 ---
 
@@ -286,11 +286,11 @@ VIO_RATE_LIMIT_CHAT_PER_MIN=100
 
 ### File importanti da conservare
 
-| File/Cartella | Contenuto | Dove salvarlo |
-|---------------|-----------|---------------|
-| `.env` | API Keys e configurazione | Password manager o 1Password |
-| `data/conversations.db` | Storico conversazioni | iCloud / backup locale |
-| `data/knowledge_distilled.db` | Knowledge base | Disco esterno |
+| File/Cartella                 | Contenuto                 | Dove salvarlo                |
+| ----------------------------- | ------------------------- | ---------------------------- |
+| `.env`                        | API Keys e configurazione | Password manager o 1Password |
+| `data/conversations.db`       | Storico conversazioni     | iCloud / backup locale       |
+| `data/knowledge_distilled.db` | Knowledge base            | Disco esterno                |
 
 ### Non committare mai
 

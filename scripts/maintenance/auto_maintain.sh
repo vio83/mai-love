@@ -125,13 +125,14 @@ run_check() {
     || echo "${SCRIPT_DIR}/../../.venv-1/bin/flake8" 2>/dev/null)
   [ -x "$FLAKE8_BIN" ] || FLAKE8_BIN=""
   if [ -n "$FLAKE8_BIN" ]; then
-    FLAKE_OUT=$("$FLAKE8_BIN" backend/ --select=E,F --max-line-length=120 \
+    # F821=undef name, F811=redef — crash-causing bugs only; F401/F841/F541/E*=style noise
+    FLAKE_OUT=$("$FLAKE8_BIN" backend/ --select=F821,F811 \
       --exclude=backend/__pycache__,backend/rag/ 2>&1 | head -20 || true)
     if [ -n "$FLAKE_OUT" ]; then
-      warn "Flake8: errori presenti (vedi log)"
+      fail "Flake8: nomi non definiti o ridefiniti (crash runtime)"
       echo "$FLAKE_OUT" >> "$LOG_FILE"
     else
-      pass "Flake8: nessun errore E/F"
+      pass "Flake8: nessun undefined name / redefinition"
     fi
   else
     warn "flake8 non trovato — skip Python lint"

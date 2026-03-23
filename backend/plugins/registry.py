@@ -25,6 +25,7 @@ import os
 import shlex
 import socket
 import subprocess
+import sys
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field, asdict
@@ -349,14 +350,33 @@ class CalculatorPlugin(BasePlugin):
     def _tool_calculate(self, expression: str) -> dict:
         # Security: block dangerous keywords
         forbidden = ["import", "__", "exec", "eval", "open", "os", "sys",
-                     "subprocess", "globals", "locals", "getattr", "setattr"]
+                     "subprocess", "globals", "locals", "getattr", "setattr",
+                     "delattr", "compile", "breakpoint", "classmethod"]
         lower_expr = expression.lower()
         for f in forbidden:
             if f in lower_expr:
                 return {"error": f"Espressione non consentita (parola vietata: {f})"}
+        if len(expression) > 500:
+            return {"error": "Espressione troppo lunga (max 500 caratteri)"}
         try:
-            result = eval(expression, {"__builtins__": {}}, self._SAFE_NAMES)  # noqa: S307
+            # AST validation: only allow safe node types
+            import ast
+            tree = ast.parse(expression, mode="eval")
+            _ALLOWED_NODES = (
+                ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Num,
+                ast.Call, ast.Name, ast.Load, ast.Add, ast.Sub, ast.Mult,
+                ast.Div, ast.Pow, ast.Mod, ast.FloorDiv, ast.USub, ast.UAdd,
+                ast.Compare, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
+                ast.BoolOp, ast.And, ast.Or, ast.IfExp, ast.Tuple, ast.List,
+            )
+            for node in ast.walk(tree):
+                if not isinstance(node, _ALLOWED_NODES):
+                    return {"error": f"Nodo AST non consentito: {type(node).__name__}"}
+            code = compile(tree, "<calc>", "eval")
+            result = eval(code, {"__builtins__": {}}, self._SAFE_NAMES)  # noqa: S307
             return {"expression": expression, "result": result}
+        except SyntaxError as e:
+            return {"error": f"Sintassi non valida: {e}", "expression": expression}
         except Exception as e:
             return {"error": str(e), "expression": expression}
 
@@ -670,31 +690,36 @@ class CodeRunnerPlugin(BasePlugin):
                        "subprocess.", "shutil."}
 
     def _tool_python(self, code: str) -> dict:
-        # Security check
+        # Security check — keyword blocklist
         for blocked in self._PYTHON_BLOCKED:
             if blocked in code:
                 return {"error": f"Codice non consentito (contiene: {blocked})"}
+        if len(code) > 5000:
+            return {"error": "Codice troppo lungo (max 5000 caratteri)"}
         try:
-            import io
-            import contextlib
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            safe_globals = {"__builtins__": {"print": print, "range": range, "len": len,
-                            "str": str, "int": int, "float": float, "list": list,
-                            "dict": dict, "set": set, "tuple": tuple, "bool": bool,
-                            "sorted": sorted, "reversed": reversed, "enumerate": enumerate,
-                            "zip": zip, "map": map, "filter": filter, "sum": sum,
-                            "min": min, "max": max, "abs": abs, "round": round,
-                            "type": type, "isinstance": isinstance, "True": True,
-                            "False": False, "None": None}}
-            safe_globals.update(vars(math))
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                exec(code, safe_globals)  # noqa: S102
-            return {
-                "stdout": stdout.getvalue()[:5000],
-                "stderr": stderr.getvalue()[:2000],
-                "success": True,
-            }
+            # Subprocess isolation: run in a fresh Python process with no network
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+                f.write(code)
+                f.flush()
+                tmp_path = f.name
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-u", tmp_path],
+                    capture_output=True, text=True, timeout=10,
+                    cwd=str(Path(tempfile.gettempdir())),
+                    env={"PATH": "", "HOME": str(Path.home()), "LANG": "en_US.UTF-8"},
+                )
+                return {
+                    "stdout": result.stdout[:5000],
+                    "stderr": result.stderr[:2000],
+                    "success": result.returncode == 0,
+                }
+            finally:
+                import os as _os
+                _os.unlink(tmp_path)
+        except subprocess.TimeoutExpired:
+            return {"error": "Timeout (max 10s)", "success": False}
         except Exception as e:
             return {"error": str(e), "success": False}
 

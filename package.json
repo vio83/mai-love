@@ -6,6 +6,10 @@
   "description": "Local-first AI orchestration desktop app for macOS. React + Tauri frontend, FastAPI backend, Ollama runtime, evidence-aware knowledge base.",
   "author": "Viorica Porcu <porcu.v.83@gmail.com> (https://github.com/vio83)",
   "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "homepage": "https://vio83.github.io/vio83-ai-orchestra/",
   "repository": {
     "type": "git",
