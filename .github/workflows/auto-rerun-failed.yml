@@ -1,0 +1,42 @@
+name: Auto Rerun Failed Workflows
+
+"on":
+  workflow_run:
+    workflows:
+      - "CI — Release Gate"
+      - "Python Backend — Lint & Test"
+      - "Snyk Security"
+      - "Release — VIO 83 AI Orchestra"
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun-once:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 2 &&
+      github.event.workflow_run.name != 'Auto Rerun Failed Workflows'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run failed jobs once
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const runId = context.payload.workflow_run.id;
+
+            core.info(`Re-running failed jobs for run ${runId}`);
+            await github.rest.actions.reRunWorkflowFailedJobs({
+              owner,
+              repo,
+              run_id: runId
+            });
+
+      - name: Summary
+        run: |
+          echo "Auto-rerun triggered for failed workflow run: ${{ github.event.workflow_run.id }}"
