@@ -56,6 +56,32 @@
 		"workbench.editor.scrollToSwitchTabs": true,
 		"workbench.editor.sharedViewState": true,
 		"workbench.editor.wrapTabs": true,
-		"workbench.editor.useModal": "all"
+		"workbench.editor.useModal": "all",
+		"chat.checkpoints.showFileChanges": true,
+		"chat.restoreLastPanelSession": true,
+		"chat.unifiedAgentsBar.enabled": true,
+		"chat.viewProgressBadge.enabled": true,
+		"chat.exitAfterDelegation": true,
+		"chat.agentSessionProjection.enabled": true,
+		"chat.tools.terminal.sandbox.enabled": true,
+		"chat.tools.terminal.autoReplyToPrompts": true,
+		"chat.tools.terminal.ignoreDefaultAutoApproveRules": true,
+		"chat.mcp.discovery.enabled": {
+			"claude-desktop": true,
+			"windsurf": true,
+			"cursor-global": true,
+			"cursor-workspace": true
+		},
+		"chat.mcp.gallery.enabled": true,
+		"chat.mcp.assisted.nuget.enabled": true,
+		"chat.includeReferencedInstructions": true,
+		"chat.experimental.useSkillAdherencePrompt": true,
+		"chat.useNestedAgentsMdFiles": true,
+		"inlineChat.enableV2": true,
+		"inlineChat.notebookAgent": true,
+		"chat.allowAnonymousAccess": true,
+		"chat.disableAIFeatures": true,
+		"chat.editing.explainChanges.enabled": true,
+		"inlineChat.affordance": "editor"
 	}
 }
