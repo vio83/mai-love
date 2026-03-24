@@ -20,11 +20,10 @@ Funzionalità:
 
 import os
 import time
-import json
 import sqlite3
 import logging
-from typing import Optional, Any
-from dataclasses import dataclass, field
+from typing import Optional
+from dataclasses import dataclass
 from contextlib import contextmanager
 
 # ============================================================

@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
 import re
 import sqlite3
@@ -35,8 +34,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("vio83.search_engine")
 
@@ -401,7 +399,7 @@ class FTS5SearchEngine(SearchBackend):
         return snippet
 
     def _highlight(self, content: str, query: str, max_highlights: int = 3) -> List[str]:
-        """Evidenzia matches nel contenuto."""
+        """Evnzia matches nel contenuto."""
         highlights = []
         for word in query.lower().split():
             if len(word) < 2:
@@ -920,17 +918,14 @@ def available_search_backends() -> Dict[str, bool]:
     has_es = False
     has_meili = False
     try:
-        import whoosh
         has_whoosh = True
     except ImportError:
         pass
     try:
-        import elasticsearch
         has_es = True
     except ImportError:
         pass
     try:
-        import meilisearch
         has_meili = True
     except ImportError:
         pass

@@ -20,12 +20,9 @@ Features:
 import asyncio
 import json
 import os
-import time
-import statistics
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, Dict, List, Any
-from collections import defaultdict
 
 import httpx
 
@@ -260,7 +257,7 @@ def calculate_sponsor_funnel() -> Dict[str, Any]:
 
     latest = history[-1]
     stars = latest.get("stars", 1)
-    watchers = latest.get("watchers", 1)
+    latest.get("watchers", 1)
 
     # Assumptions: 1 sponsor per ~200 active users (visitors)
     # Conversion: watchers → active interest, stars → engaged users
@@ -387,5 +384,5 @@ async def run_full_growth_cycle() -> Dict[str, Any]:
         "status": "complete"
     }
 
-    _log(f"=== FULL GROWTH CYCLE COMPLETE ===")
+    _log("=== FULL GROWTH CYCLE COMPLETE ===")
     return result

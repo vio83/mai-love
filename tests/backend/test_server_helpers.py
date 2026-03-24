@@ -18,7 +18,7 @@ class ServerHelpersTest(unittest.TestCase):
         self.assertEqual(payload['status'], 'ok')
         self.assertGreater(payload['coverage']['domain_count'], 0)
         self.assertGreaterEqual(payload['scores']['average_reliability'], 0)
-        self.assertIn('strict_evidence_mode', payload['policy'])
+        self.assertIn('strict_evnce_mode', payload['policy'])
         self.assertTrue(any(domain['id'] == 'computer-ai' for domain in payload['domains']))
 
 

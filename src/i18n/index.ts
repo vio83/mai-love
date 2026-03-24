@@ -97,7 +97,7 @@ export async function initI18n(): Promise<boolean> {
       });
 
     i18nReady = true;
-    console.log('[VIO i18n] Initialized. Locale:', i18n.language);
+    console.warn('[VIO i18n] Initialized. Locale:', i18n.language);
     return true;
   } catch (err) {
     // Graceful degradation — app works without i18n (Italian hardcoded)

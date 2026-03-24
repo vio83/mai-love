@@ -52,7 +52,7 @@ class EnterpriseStrategy:
                     "Team con dati sensibili e bisogno di auditability",
                 ],
                 "buying_triggers": [
-                    "Necessita data residency e controllo locale/ibrido",
+                    "Necessita data resncy e controllo locale/ibrido",
                     "Richiesta tracciabilita completa delle decisioni AI",
                     "Riduzione rischio compliance con policy enforceable",
                 ],
@@ -99,7 +99,7 @@ class EnterpriseStrategy:
             "go": [
                 ">=10 design partner paganti",
                 "Riduzione tempo task >=30%",
-                "0 incidenti critici su dati sensibili",
+                "0 incnti critici su dati sensibili",
             ],
             "no_go": [
                 "<3 clienti paganti in 90 giorni",
@@ -230,12 +230,12 @@ class EnterpriseStrategy:
             "health", "medical", "patient", "diagnosi", "sanitario", "iban", "passport", "ssn", "fiscale",
             "credito", "payment", "password", "token", "chiave api", "api key",
         ]
-        confidential_keywords = ["contract", "nda", "bilancio", "invoice", "stipendio", "employee", "cliente", "customer"]
+        confntial_keywords = ["contract", "nda", "bilancio", "invoice", "stipendio", "employee", "cliente", "customer"]
 
         if any(k in payload for k in restricted_keywords):
             return "restricted"
-        if any(k in payload for k in confidential_keywords):
-            return "confidential"
+        if any(k in payload for k in confntial_keywords):
+            return "confntial"
         if has_images:
             return "internal"
         return "public"
@@ -243,48 +243,48 @@ class EnterpriseStrategy:
     def route_request(
         self,
         mode: str,
-        provider: str | None,
+        provr: str | None,
         classification: str,
         jurisdiction: str = "eu",
         policy_preset: str = "generic_eu",
         tenant_policy: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         requested_mode = mode or "local"
-        requested_provider = provider or ("ollama" if requested_mode == "local" else "claude")
+        requested_provr = provr or ("ollama" if requested_mode == "local" else "claude")
 
         reason = "allowed"
         effective_mode = requested_mode
-        effective_provider = requested_provider
+        effective_provr = requested_provr
         cloud_allowed = True
         preset = self.policy_presets.get(policy_preset, self.policy_presets["generic_eu"])
         allowed_cloud_for_public = set(preset.get("allowed_cloud_for_public", []))
 
-        if tenant_policy and tenant_policy.get("data_residency") in {"local-only", "eu-only"} and requested_mode == "cloud":
+        if tenant_policy and tenant_policy.get("data_resncy") in {"local-only", "eu-only"} and requested_mode == "cloud":
             cloud_allowed = False
             effective_mode = "local"
-            effective_provider = "ollama"
-            reason = "tenant-data-residency-forced-local"
+            effective_provr = "ollama"
+            reason = "tenant-data-resncy-forced-local"
 
-        if classification in {"restricted", "confidential"}:
+        if classification in {"restricted", "confntial"}:
             cloud_allowed = False
             effective_mode = "local"
-            effective_provider = "ollama"
+            effective_provr = "ollama"
             reason = "forced-local-sensitive-data"
 
         if jurisdiction.lower() in {"eu", "it"} and classification == "internal" and requested_mode == "cloud":
             reason = "eu-internal-cloud-review-required"
 
         if classification == "public" and cloud_allowed and effective_mode == "cloud":
-            if allowed_cloud_for_public and effective_provider not in allowed_cloud_for_public:
-                effective_provider = next(iter(allowed_cloud_for_public))
-                reason = "preset-adjusted-provider"
+            if allowed_cloud_for_public and effective_provr not in allowed_cloud_for_public:
+                effective_provr = next(iter(allowed_cloud_for_public))
+                reason = "preset-adjusted-provr"
 
         return {
             "classification": classification,
             "jurisdiction": jurisdiction,
             "policy_preset": policy_preset,
-            "requested": {"mode": requested_mode, "provider": requested_provider},
-            "effective": {"mode": effective_mode, "provider": effective_provider},
+            "requested": {"mode": requested_mode, "provr": requested_provr},
+            "effective": {"mode": effective_mode, "provr": effective_provr},
             "cloud_allowed": cloud_allowed,
             "reason": reason,
         }
@@ -388,7 +388,7 @@ class EnterpriseStrategy:
                 "tenant_id": tenant_id,
                 "policy_preset": "generic_eu",
                 "jurisdiction": "eu",
-                "data_residency": "eu-only",
+                "data_resncy": "eu-only",
                 "updated_at": self._now_iso(),
             }
         return policy
@@ -398,19 +398,19 @@ class EnterpriseStrategy:
         tenant_id: str,
         policy_preset: str,
         jurisdiction: str,
-        data_residency: str,
+        data_resncy: str,
     ) -> dict[str, Any]:
         tenant_norm = (tenant_id or "").strip()
         preset_norm = (policy_preset or "").strip().lower()
         jurisdiction_norm = (jurisdiction or "eu").strip().lower()
-        residency_norm = (data_residency or "eu-only").strip().lower()
+        resncy_norm = (data_resncy or "eu-only").strip().lower()
 
         if not tenant_norm:
             raise ValueError("tenant_id obbligatorio")
         if preset_norm not in self.policy_presets:
             raise ValueError("policy_preset non valido")
-        if residency_norm not in {"local-only", "eu-only", "global"}:
-            raise ValueError("data_residency non valida")
+        if resncy_norm not in {"local-only", "eu-only", "global"}:
+            raise ValueError("data_resncy non valida")
 
         data = self.list_tenant_policies()
         tenants = data.get("tenants", {})
@@ -421,7 +421,7 @@ class EnterpriseStrategy:
             "tenant_id": tenant_norm,
             "policy_preset": preset_norm,
             "jurisdiction": jurisdiction_norm,
-            "data_residency": residency_norm,
+            "data_resncy": resncy_norm,
             "updated_at": self._now_iso(),
         }
         tenants[tenant_norm] = policy
@@ -494,7 +494,7 @@ class EnterpriseStrategy:
 
         saved_minutes = max(0.0, (baseline_minutes_per_task - ai_minutes_per_task) * total_calls)
         saved_hours = round(saved_minutes / 60.0, 2)
-        estimated_cost_avoided_eur = round(saved_hours * 42.0, 2)
+        estimated_cost_avod_eur = round(saved_hours * 42.0, 2)
         risk_reduction_score = min(100, 20 + int(total_calls / 10) + (8 if token_total > 100000 else 0))
 
         return {
@@ -506,7 +506,7 @@ class EnterpriseStrategy:
             },
             "roi": {
                 "estimated_time_saved_hours": saved_hours,
-                "estimated_cost_avoided_eur": estimated_cost_avoided_eur,
+                "estimated_cost_avod_eur": estimated_cost_avod_eur,
                 "estimated_task_time_reduction_percent": round(max(0.0, (saved_minutes / max(1.0, baseline_minutes_per_task * max(1, total_calls))) * 100.0), 1),
                 "estimated_risk_reduction_score": risk_reduction_score,
             },
@@ -541,7 +541,7 @@ class EnterpriseStrategy:
             raise ValueError("contact_email gia presente")
 
         partner = {
-            "partner_id": f"dp-{hashlib.sha1(email_norm.encode('utf-8')).hexdigest()[:12]}",
+            "partner_id": f"dp-{hashlib.blake2s(email_norm.encode('utf-8'), digest_size=6).hexdigest()}",
             "company": company_norm,
             "contact_email": email_norm,
             "segment": segment_norm or "regulated-eu",

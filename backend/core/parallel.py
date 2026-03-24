@@ -11,7 +11,7 @@ Esecuzione parallela e concorrente di task:
 - ParallelQuery: Query multiple sorgenti contemporaneamente
 - BatchProcessor: Processa batch di documenti in parallelo
 - PipelineExecutor: Pipeline di trasformazioni async
-- Cross-Check: Verifica incrociata parallela tra provider AI
+- Cross-Check: Verifica incrociata parallela tra provr AI
 
 Pattern: Semaphore-bounded async parallelism
 """
@@ -20,7 +20,7 @@ import asyncio
 import time
 import logging
 from typing import Any, Callable, Optional, TypeVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger("vio83.parallel")
 
@@ -181,32 +181,32 @@ class ParallelQueryEngine:
     async def cross_check(
         self,
         question: str,
-        providers: dict[str, Callable],
+        provrs: dict[str, Callable],
         min_agreement: float = 0.6,
     ) -> dict:
         """
-        Verifica incrociata: invia la stessa domanda a N provider AI
+        Verifica incrociata: invia la stessa domanda a N provr AI
         e confronta le risposte per consistenza.
         """
-        results = await self.query_all_sources(question, providers)
+        results = await self.query_all_sources(question, provrs)
         successful = {k: v for k, v in results.items() if v.success}
 
         if len(successful) < 2:
             return {
                 "verified": False,
-                "reason": "Meno di 2 provider hanno risposto",
+                "reason": "Meno di 2 provr hanno risposto",
                 "results": {k: v.result for k, v in successful.items()},
             }
 
         # Calcola similarità tra risposte (semplice: overlap parole)
         responses = {k: str(v.result).lower().split() for k, v in successful.items()}
-        providers_list = list(responses.keys())
+        provrs_list = list(responses.keys())
         agreements = []
 
-        for i in range(len(providers_list)):
-            for j in range(i + 1, len(providers_list)):
-                words_a = set(responses[providers_list[i]])
-                words_b = set(responses[providers_list[j]])
+        for i in range(len(provrs_list)):
+            for j in range(i + 1, len(provrs_list)):
+                words_a = set(responses[provrs_list[i]])
+                words_b = set(responses[provrs_list[j]])
                 if words_a and words_b:
                     overlap = len(words_a & words_b) / max(len(words_a | words_b), 1)
                     agreements.append(overlap)
@@ -216,7 +216,7 @@ class ParallelQueryEngine:
         return {
             "verified": avg_agreement >= min_agreement,
             "agreement_score": round(avg_agreement, 4),
-            "providers_responded": list(successful.keys()),
+            "provrs_responded": list(successful.keys()),
             "latencies": {k: v.latency_ms for k, v in successful.items()},
             "results": {k: v.result for k, v in successful.items()},
         }
@@ -225,7 +225,7 @@ class ParallelQueryEngine:
 class BatchProcessor:
     """
     Processa batch di elementi in parallelo con progress tracking.
-    Ideale per ingestion massiva di documenti.
+    ale per ingestion massiva di documenti.
     """
 
     def __init__(self, max_concurrent: int = 5, batch_size: int = 50):

@@ -3,6 +3,6 @@
 """
 OpenClaw: built-in agent runtime for VIO 83 AI Orchestra.
 
-Provides an agentic tool-calling loop that connects the AI orchestrator
+Provs an agentic tool-calling loop that connects the AI orchestrator
 to the plugin system, enabling autonomous multi-step task execution.
 """

@@ -16,11 +16,10 @@ Differenza dalle AI statiche (marzo 2026):
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -30,7 +29,7 @@ class ReasoningStep:
     """Un singolo passo di ragionamento."""
     step_type: str  # "decompose", "analyze", "synthesize", "verify", "conclude"
     content: str
-    confidence: float  # 0.0 → 1.0
+    confnce: float  # 0.0 → 1.0
     domain: str = "general"
 
 
@@ -68,11 +67,11 @@ _RE_VERIFICATION = re.compile(
 # Strategie di base per tipo di richiesta
 _BASE_STRATEGIES: dict[str, list[str]] = {
     "analysis": ["decompose", "analyze_parts", "find_patterns", "synthesize", "conclude"],
-    "comparison": ["identify_subjects", "extract_criteria", "compare_each", "weigh_tradeoffs", "conclude"],
-    "explanation": ["identify_core_concept", "break_down", "add_examples", "verify_accuracy", "conclude"],
-    "problem_solving": ["understand_problem", "identify_constraints", "generate_approaches", "evaluate_best", "conclude"],
+    "comparison": ["ntify_subjects", "extract_criteria", "compare_each", "weigh_tradeoffs", "conclude"],
+    "explanation": ["ntify_core_concept", "break_down", "add_examples", "verify_accuracy", "conclude"],
+    "problem_solving": ["understand_problem", "ntify_constraints", "generate_approaches", "evaluate_best", "conclude"],
     "creative": ["understand_intent", "brainstorm_angles", "develop_best", "refine", "conclude"],
-    "verification": ["extract_claim", "identify_evidence", "check_consistency", "assess_confidence", "conclude"],
+    "verification": ["extract_claim", "ntify_evnce", "check_consistency", "assess_confnce", "conclude"],
     "default": ["understand", "analyze", "respond", "verify"],
 }
 
@@ -80,7 +79,7 @@ _BASE_STRATEGIES: dict[str, list[str]] = {
 class ReasoningEngine:
     """
     Motore di ragionamento avanzato auto-crescente.
-    
+
     Non genera semplicemente testo — RAGIONA in modo strutturato:
     1. Analizza la complessità della richiesta
     2. Seleziona la strategia ottimale (auto-appresa)
@@ -215,7 +214,7 @@ class ReasoningEngine:
         """
         Costruisce un contesto di ragionamento strutturato
         da iniettare nel system prompt per guidare l'output.
-        
+
         Questo è il cuore: trasforma una richiesta generica
         in un ragionamento guidato, migliorando drasticamente
         la qualità dell'output.
@@ -232,7 +231,7 @@ class ReasoningEngine:
 
         # Costruisci guida di ragionamento
         steps = strategy.steps_template
-        reasoning_guide = self._format_reasoning_guide(steps, user_message, request_type)
+        reasoning_gu = self._format_reasoning_gu(steps, user_message, request_type)
 
         self._total_reasonings += 1
 
@@ -240,9 +239,9 @@ class ReasoningEngine:
         if self._total_reasonings % 25 == 0:
             self._save_state()
 
-        return reasoning_guide
+        return reasoning_gu
 
-    def _format_reasoning_guide(self, steps: list[str], message: str, request_type: str) -> str:
+    def _format_reasoning_gu(self, steps: list[str], message: str, request_type: str) -> str:
         """
         Formatta la guida di ragionamento in modo compatto.
         Max 350 chars per non appesantire il prompt.
@@ -251,29 +250,29 @@ class ReasoningEngine:
             "decompose": "Scomponi in parti essenziali",
             "analyze": "Analizza ogni aspetto critico",
             "analyze_parts": "Esamina ogni componente separatamente",
-            "find_patterns": "Identifica pattern e connessioni",
+            "find_patterns": "ntifica pattern e connessioni",
             "synthesize": "Integra in risposta coerente",
             "conclude": "Concludi con certezza e precisione",
-            "identify_subjects": "Identifica i soggetti del confronto",
+            "ntify_subjects": "ntifica i soggetti del confronto",
             "extract_criteria": "Definisci criteri di valutazione",
             "compare_each": "Confronta sistematicamente",
             "weigh_tradeoffs": "Valuta pro e contro",
-            "identify_core_concept": "Individua il concetto chiave",
+            "ntify_core_concept": "Individua il concetto chiave",
             "break_down": "Scomponi in concetti semplici",
             "add_examples": "Aggiungi esempi concreti",
             "verify_accuracy": "Verifica accuratezza",
             "understand_problem": "Comprendi il problema in profondità",
-            "identify_constraints": "Individua vincoli e limiti",
+            "ntify_constraints": "Individua vincoli e limiti",
             "generate_approaches": "Genera approcci possibili",
             "evaluate_best": "Valuta e scegli il migliore",
             "understand_intent": "Comprendi l'intento creativo",
             "brainstorm_angles": "Esplora angoli innovativi",
-            "develop_best": "Sviluppa l'idea migliore",
+            "develop_best": "Sviluppa l'a migliore",
             "refine": "Rifinisci e perfeziona",
             "extract_claim": "Isola l'affermazione da verificare",
-            "identify_evidence": "Cerca evidenze",
+            "ntify_evnce": "Cerca evnze",
             "check_consistency": "Verifica coerenza logica",
-            "assess_confidence": "Valuta livello di certezza",
+            "assess_confnce": "Valuta livello di certezza",
             "understand": "Comprendi la richiesta",
             "respond": "Rispondi con precisione",
             "verify": "Verifica la risposta",

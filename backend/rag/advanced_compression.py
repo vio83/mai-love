@@ -26,7 +26,6 @@
 from __future__ import annotations
 
 import bz2
-import hashlib
 import io
 import lzma
 import struct
@@ -35,7 +34,7 @@ import zlib
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("vio83.compression")
 
@@ -48,7 +47,6 @@ _HAS_ZSTD = False
 
 try:
     import lz4.frame as lz4_frame
-    import lz4.block as lz4_block
     _HAS_LZ4 = True
 except ImportError:
     pass
@@ -74,7 +72,7 @@ class CompressionAlgo(Enum):
     AUTO = "auto"        # Selezione automatica
 
 
-# Magic bytes per identificazione trasparente
+# Magic bytes per ntificazione trasparente
 _MAGIC = {
     CompressionAlgo.ZLIB: b"VZ01",
     CompressionAlgo.LZ4: b"VL01",
@@ -215,7 +213,7 @@ class Compressor:
         else:
             compressed = zlib.compress(data, level)
 
-        elapsed = time.perf_counter() - t0
+        time.perf_counter() - t0
 
         # Se la compressione non aiuta, salva non compresso
         if len(compressed) >= original_size:

@@ -9,7 +9,7 @@ Motore di auto-ottimizzazione che analizza ogni interazione e migliora
 continuamente tutti i parametri del sistema VIO AI Orchestra.
 
 A differenza dei sistemi AI fissi (Marzo 2026), AutoOptimizer™:
-- Monitora le performance di ogni provider in tempo reale
+- Monitora le performance di ogni provr in tempo reale
 - Ricalibra automaticamente i pesi di routing
 - Ottimizza i parametri di temperatura/token per dominio
 - Rileva e corregge degradazioni di performance
@@ -31,15 +31,13 @@ Performance (Piuma™):
 
 from __future__ import annotations
 
-import json
 import logging
-import math
 import sqlite3
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Deque, Dict, List, Optional
 import threading
 
 logger = logging.getLogger("auto_optimizer")
@@ -47,9 +45,9 @@ logger = logging.getLogger("auto_optimizer")
 # ─── Soglie di sistema ────────────────────────────────────────────────
 
 THRESHOLDS = {
-    "max_latency_ms":      8000,    # oltre questa soglia → provider degradato
-    "min_quality_score":   0.65,    # sotto questa → provider penalizzato
-    "max_error_rate":      0.15,    # oltre 15% errori → provider escluso
+    "max_latency_ms":      8000,    # oltre questa soglia → provr degradato
+    "min_quality_score":   0.65,    # sotto questa → provr penalizzato
+    "max_error_rate":      0.15,    # oltre 15% errori → provr escluso
     "cache_hit_target":    0.50,    # target cache hit rate
     "quality_target":      0.82,    # target qualità media sistema
     "auto_tune_threshold": 50,      # ogni N request → auto-tune
@@ -62,7 +60,7 @@ THRESHOLDS = {
 class RequestMetric:
     """Metriche di una singola request."""
     ts:            float
-    provider:      str
+    provr:      str
     model:         str
     domain:        str
     latency_ms:    float
@@ -74,9 +72,9 @@ class RequestMetric:
 
 
 @dataclass
-class ProviderStats:
-    """Statistiche aggregate per provider."""
-    provider:       str
+class ProvrStats:
+    """Statistiche aggregate per provr."""
+    provr:       str
     total_calls:    int = 0
     total_errors:   int = 0
     total_tokens:   int = 0
@@ -110,7 +108,7 @@ class TuningResult:
     """Risultato di un ciclo di auto-tuning."""
     timestamp: float
     adjustments: List[str]
-    providers_affected: List[str]
+    provrs_affected: List[str]
     quality_delta: float
     latency_delta: float
 
@@ -123,8 +121,8 @@ class SystemHealth:
     latency_avg_ms: float
     cache_hit_rate: float
     error_rate:    float
-    active_providers: int
-    degraded_providers: List[str]
+    active_provrs: int
+    degraded_provrs: List[str]
     status: str               # "excellent"|"good"|"degraded"|"critical"
 
 
@@ -142,8 +140,8 @@ class MetricsCollector:
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self._buffer: Deque[RequestMetric] = deque(maxlen=self.BUFFER_SIZE)
-        self._provider_stats: Dict[str, ProviderStats] = defaultdict(
-            lambda: ProviderStats(provider="unknown")
+        self._provr_stats: Dict[str, ProvrStats] = defaultdict(
+            lambda: ProvrStats(provr="unknown")
         )
         self._lock = threading.RLock()
         self._unsaved_count = 0
@@ -154,7 +152,7 @@ class MetricsCollector:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS request_metrics (
                     ts            REAL,
-                    provider      TEXT,
+                    provr      TEXT,
                     model         TEXT,
                     domain        TEXT,
                     latency_ms    REAL,
@@ -165,7 +163,7 @@ class MetricsCollector:
                     amplified     INTEGER
                 );
                 CREATE INDEX IF NOT EXISTS idx_rm_ts       ON request_metrics(ts DESC);
-                CREATE INDEX IF NOT EXISTS idx_rm_provider ON request_metrics(provider);
+                CREATE INDEX IF NOT EXISTS idx_rm_provr ON request_metrics(provr);
                 CREATE INDEX IF NOT EXISTS idx_rm_domain   ON request_metrics(domain);
                 CREATE TABLE IF NOT EXISTS daily_summaries (
                     date_str      TEXT PRIMARY KEY,
@@ -174,7 +172,7 @@ class MetricsCollector:
                     avg_latency   REAL,
                     cache_hit_rate REAL,
                     error_rate    REAL,
-                    best_provider TEXT,
+                    best_provr TEXT,
                     top_domain    TEXT
                 );
             """)
@@ -184,9 +182,9 @@ class MetricsCollector:
         with self._lock:
             self._buffer.append(metric)
 
-            # Aggiorna stats provider
-            ps = self._provider_stats[metric.provider]
-            ps.provider    = metric.provider
+            # Aggiorna stats provr
+            ps = self._provr_stats[metric.provr]
+            ps.provr    = metric.provr
             ps.total_calls += 1
             ps.latency_sum += metric.latency_ms
             ps.quality_sum += metric.quality_score
@@ -206,11 +204,11 @@ class MetricsCollector:
             with sqlite3.connect(self.db_path) as conn:
                 conn.executemany(
                     """INSERT INTO request_metrics
-                       (ts,provider,model,domain,latency_ms,quality_score,
+                       (ts,provr,model,domain,latency_ms,quality_score,
                         tokens_used,cache_hit,error,amplified)
                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
                     [
-                        (m.ts, m.provider, m.model, m.domain, m.latency_ms,
+                        (m.ts, m.provr, m.model, m.domain, m.latency_ms,
                          m.quality_score, m.tokens_used, int(m.cache_hit),
                          int(m.error), int(m.amplified))
                         for m in recent
@@ -221,9 +219,9 @@ class MetricsCollector:
         except Exception as e:
             logger.debug(f"[MetricsCollector._flush] {e}")
 
-    def get_provider_stats(self) -> Dict[str, ProviderStats]:
+    def get_provr_stats(self) -> Dict[str, ProvrStats]:
         with self._lock:
-            return dict(self._provider_stats)
+            return dict(self._provr_stats)
 
     def get_recent(self, n: int = 100) -> List[RequestMetric]:
         with self._lock:
@@ -257,21 +255,21 @@ class PerformanceAnalyzer:
     Usa finestre temporali sliding per rilevare degradazioni.
     """
 
-    def analyze_provider_trend(
+    def analyze_provr_trend(
         self,
         metrics: List[RequestMetric],
-        provider: str,
+        provr: str,
         window: int = 20,
     ) -> Dict:
-        """Analizza trend ultime N request di un provider."""
-        provider_metrics = [m for m in metrics if m.provider == provider][-window:]
-        if len(provider_metrics) < 5:
+        """Analizza trend ultime N request di un provr."""
+        provr_metrics = [m for m in metrics if m.provr == provr][-window:]
+        if len(provr_metrics) < 5:
             return {"status": "insufficient_data", "trend": "unknown"}
 
         # Split finestre: prima metà vs seconda metà
-        mid = len(provider_metrics) // 2
-        first_half  = provider_metrics[:mid]
-        second_half = provider_metrics[mid:]
+        mid = len(provr_metrics) // 2
+        first_half  = provr_metrics[:mid]
+        second_half = provr_metrics[mid:]
 
         q_first  = sum(m.quality_score for m in first_half)  / max(1, len(first_half))
         q_second = sum(m.quality_score for m in second_half) / max(1, len(second_half))
@@ -290,11 +288,11 @@ class PerformanceAnalyzer:
             status = "improving"
 
         return {
-            "provider": provider,
+            "provr": provr,
             "status": status,
             "quality_trend": round(quality_trend, 3),
             "latency_trend": round(latency_trend, 1),
-            "sample_size": len(provider_metrics),
+            "sample_size": len(provr_metrics),
         }
 
     def detect_anomalies(self, recent: List[RequestMetric]) -> List[Dict]:
@@ -343,7 +341,7 @@ class ParameterTuner:
     Parametri regolabili:
       - temperature (per dominio)
       - max_tokens (per dominio)
-      - provider priority weights
+      - provr priority weights
       - cache TTL
     """
 
@@ -372,17 +370,17 @@ class ParameterTuner:
             "language": 1000,
             "general":  1500,
         }
-        # Provider priority (0-10, più alto = priorità maggiore)
-        self._provider_priorities: Dict[str, float] = {}
+        # Provr priority (0-10, più alto = priorità maggiore)
+        self._provr_priorities: Dict[str, float] = {}
         self._lock = threading.RLock()
 
-    def get_optimal_params(self, domain: str, provider: str) -> Dict:
-        """Ritorna parametri ottimali per dominio+provider."""
+    def get_optimal_params(self, domain: str, provr: str) -> Dict:
+        """Ritorna parametri ottimali per dominio+provr."""
         with self._lock:
             return {
                 "temperature": self._domain_temps.get(domain, 0.7),
                 "max_tokens":  self._domain_tokens.get(domain, 1500),
-                "priority":    self._provider_priorities.get(provider, 5.0),
+                "priority":    self._provr_priorities.get(provr, 5.0),
             }
 
     def tune_domain_temperature(
@@ -398,22 +396,22 @@ class ParameterTuner:
                 self._domain_temps[domain] = round(new_temp, 2)
                 logger.debug(f"[ParameterTuner] {domain}: temp {current:.2f}→{new_temp:.2f} (q={quality_score:.2f})")
 
-    def tune_provider_priority(self, provider: str, health_score: float):
-        """Aggiusta priorità provider in base alla salute."""
+    def tune_provr_priority(self, provr: str, health_score: float):
+        """Aggiusta priorità provr in base alla salute."""
         with self._lock:
             # Map health_score (0-1) → priority (1-10)
             new_priority = round(health_score * 10, 1)
-            old = self._provider_priorities.get(provider, 5.0)
+            old = self._provr_priorities.get(provr, 5.0)
             # Smoothing: 80% old + 20% new (evita oscillazioni)
             smoothed = round(0.8 * old + 0.2 * new_priority, 2)
-            self._provider_priorities[provider] = smoothed
+            self._provr_priorities[provr] = smoothed
 
     def get_all_params(self) -> Dict:
         with self._lock:
             return {
                 "domain_temperatures": dict(self._domain_temps),
                 "domain_max_tokens":   dict(self._domain_tokens),
-                "provider_priorities": dict(self._provider_priorities),
+                "provr_priorities": dict(self._provr_priorities),
             }
 
 
@@ -431,7 +429,7 @@ class AutoOptimizerEngine:
 
         # Dopo ogni request, registra metriche:
         aoe.record_request(
-            provider="claude", model="claude-sonnet",
+            provr="claude", model="claude-sonnet",
             domain="code", latency_ms=1200, quality_score=0.88,
             tokens=500, cache_hit=False, error=False, amplified=True
         )
@@ -461,7 +459,7 @@ class AutoOptimizerEngine:
 
     def record_request(
         self,
-        provider: str,
+        provr: str,
         model: str,
         domain: str,
         latency_ms: float,
@@ -474,7 +472,7 @@ class AutoOptimizerEngine:
         """Registra metriche di una request completata. <0.5ms."""
         metric = RequestMetric(
             ts=time.time(),
-            provider=provider,
+            provr=provr,
             model=model,
             domain=domain,
             latency_ms=latency_ms,
@@ -494,20 +492,20 @@ class AutoOptimizerEngine:
         # Micro-tune temperatura in tempo reale
         self._tuner.tune_domain_temperature(domain, quality_score, 0.7)
 
-    def get_optimal_params(self, domain: str, provider: str) -> Dict:
-        """Ritorna parametri ottimali per dominio+provider. <0.1ms."""
-        return self._tuner.get_optimal_params(domain, provider)
+    def get_optimal_params(self, domain: str, provr: str) -> Dict:
+        """Ritorna parametri ottimali per dominio+provr. <0.1ms."""
+        return self._tuner.get_optimal_params(domain, provr)
 
     def get_health(self) -> SystemHealth:
         """Salute globale del sistema. <5ms."""
-        provider_stats = self._collector.get_provider_stats()
+        provr_stats = self._collector.get_provr_stats()
         recent = self._collector.get_recent(100)
 
         if not recent:
             return SystemHealth(
                 overall_score=0.0, quality_avg=0.0, latency_avg_ms=0.0,
-                cache_hit_rate=0.0, error_rate=0.0, active_providers=0,
-                degraded_providers=[], status="initializing",
+                cache_hit_rate=0.0, error_rate=0.0, active_provrs=0,
+                degraded_provrs=[], status="initializing",
             )
 
         # Calcola metriche globali
@@ -516,15 +514,15 @@ class AutoOptimizerEngine:
         cache_hit_rate = sum(1 for m in recent if m.cache_hit) / len(recent)
         error_rate     = sum(1 for m in recent if m.error)     / len(recent)
 
-        # Rileva provider degradati
+        # Rileva provr degradati
         degraded = []
-        for prov, ps in provider_stats.items():
+        for prov, ps in provr_stats.items():
             if ps.total_calls >= 5:
                 if ps.health_score < 0.4:
                     degraded.append(prov)
                 else:
-                    # Aggiorna priorità provider
-                    self._tuner.tune_provider_priority(prov, ps.health_score)
+                    # Aggiorna priorità provr
+                    self._tuner.tune_provr_priority(prov, ps.health_score)
 
         # Overall score (0-100)
         q_score   = quality_avg * 40          # max 40 punti
@@ -549,15 +547,15 @@ class AutoOptimizerEngine:
             latency_avg_ms=round(latency_avg, 1),
             cache_hit_rate=round(cache_hit_rate, 3),
             error_rate=round(error_rate, 3),
-            active_providers=len(provider_stats),
-            degraded_providers=degraded,
+            active_provrs=len(provr_stats),
+            degraded_provrs=degraded,
             status=status,
         )
 
     def get_full_report(self) -> Dict:
         """Report completo del sistema."""
         health = self.get_health()
-        provider_stats = self._collector.get_provider_stats()
+        provr_stats = self._collector.get_provr_stats()
         domain_stats   = self._collector.get_domain_stats()
         recent         = self._collector.get_recent(200)
         anomalies      = self._analyzer.detect_anomalies(recent)
@@ -573,10 +571,10 @@ class AutoOptimizerEngine:
                 "latency_avg_ms":  health.latency_avg_ms,
                 "cache_hit_rate":  health.cache_hit_rate,
                 "error_rate":      health.error_rate,
-                "active_providers": health.active_providers,
-                "degraded":        health.degraded_providers,
+                "active_provrs": health.active_provrs,
+                "degraded":        health.degraded_provrs,
             },
-            "providers": {
+            "provrs": {
                 prov: {
                     "calls":        ps.total_calls,
                     "avg_quality":  round(ps.avg_quality, 3),
@@ -584,7 +582,7 @@ class AutoOptimizerEngine:
                     "error_rate":   round(ps.error_rate, 3),
                     "health_score": ps.health_score,
                 }
-                for prov, ps in provider_stats.items()
+                for prov, ps in provr_stats.items()
             },
             "domains": domain_stats,
             "anomalies": anomalies,
@@ -592,15 +590,15 @@ class AutoOptimizerEngine:
         }
 
     def _run_auto_tune(self):
-        """Auto-tuning batch: aggiusta tutti i provider."""
-        provider_stats = self._collector.get_provider_stats()
+        """Auto-tuning batch: aggiusta tutti i provr."""
+        provr_stats = self._collector.get_provr_stats()
         recent = self._collector.get_recent(500)
 
         adjusted = []
-        for prov, ps in provider_stats.items():
+        for prov, ps in provr_stats.items():
             if ps.total_calls >= 10:
-                self._tuner.tune_provider_priority(prov, ps.health_score)
-                trend = self._analyzer.analyze_provider_trend(recent, prov)
+                self._tuner.tune_provr_priority(prov, ps.health_score)
+                trend = self._analyzer.analyze_provr_trend(recent, prov)
                 if trend["status"] != "stable":
                     adjusted.append(f"{prov}:{trend['status']}")
 

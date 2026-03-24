@@ -1,6 +1,6 @@
 """
 Test di integrazione VIO 83 AI Orchestra
-Verifica le interazioni tra moduli: cache, router, DB, schemas, providers.
+Verifica le interazioni tra moduli: cache, router, DB, schemas, provrs.
 """
 import os
 import sys
@@ -14,9 +14,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 # ═══════════════════════════════════════════════════════════════
 
 @pytest.fixture(scope="session")
-def provider_config():
-    from backend.config.providers import CLOUD_PROVIDERS, LOCAL_PROVIDERS
-    return {"cloud": CLOUD_PROVIDERS, "local": LOCAL_PROVIDERS}
+def provr_config():
+    from backend.config.provrs import CLOUD_PROVRS, LOCAL_PROVRS
+    return {"cloud": CLOUD_PROVRS, "local": LOCAL_PROVRS}
 
 
 @pytest.fixture(scope="function")
@@ -62,8 +62,8 @@ class TestCacheIntegration:
 
     def test_cache_make_key_deterministic(self, temp_cache):
         """make_key genera lo stesso hash per gli stessi input."""
-        k1 = temp_cache.make_key("test", provider="groq")
-        k2 = temp_cache.make_key("test", provider="groq")
+        k1 = temp_cache.make_key("test", provr="groq")
+        k2 = temp_cache.make_key("test", provr="groq")
         assert k1 == k2
 
     def test_cache_make_key_differs_for_different_input(self, temp_cache):
@@ -73,10 +73,10 @@ class TestCacheIntegration:
 
 
 # ═══════════════════════════════════════════════════════════════
-# INTEGRATION: Router + Providers
+# INTEGRATION: Router + Provrs
 # ═══════════════════════════════════════════════════════════════
 
-class TestRouterProvidersIntegration:
+class TestRouterProvrsIntegration:
 
     def test_classify_returns_valid_intent_for_code(self):
         from backend.orchestrator.direct_router import classify_request
@@ -132,24 +132,24 @@ class TestSchemasValidationIntegration:
         from backend.models.schemas import ChatRequest
         req = ChatRequest(message="Test")
         assert req.message == "Test"
-        assert req.provider is None  # opzionale
+        assert req.provr is None  # opzionale
 
-    def test_chat_request_with_provider_and_mode(self):
+    def test_chat_request_with_provr_and_mode(self):
         from backend.models.schemas import ChatRequest
         req = ChatRequest(
             message="Scrivi codice Python",
             mode="cloud",
-            provider="claude",
+            provr="claude",
             system_prompt="Sei un esperto Python.",
         )
         assert req.mode == "cloud"
-        assert req.provider == "claude"
+        assert req.provr == "claude"
 
     def test_chat_response_fields(self):
         from backend.models.schemas import ChatResponse
         resp = ChatResponse(
             content="Risposta di test",
-            provider="ollama",
+            provr="ollama",
             model="qwen2.5-coder:3b",
             tokens_used=100,
             latency_ms=500,
@@ -161,11 +161,11 @@ class TestSchemasValidationIntegration:
         from backend.models.schemas import ClassifyResponse
         resp = ClassifyResponse(
             request_type="code",
-            confidence=0.95,
-            suggested_provider="claude",
+            confnce=0.95,
+            suggested_provr="claude",
         )
         assert resp.request_type == "code"
-        assert resp.confidence == 0.95
+        assert resp.confnce == 0.95
 
     def test_error_response_with_code(self):
         from backend.models.schemas import ErrorResponse
@@ -181,38 +181,38 @@ class TestSchemasValidationIntegration:
 
 
 # ═══════════════════════════════════════════════════════════════
-# INTEGRATION: Provider Config
+# INTEGRATION: Provr Config
 # ═══════════════════════════════════════════════════════════════
 
-class TestProviderConfigIntegration:
+class TestProvrConfigIntegration:
 
-    def test_cloud_providers_have_required_fields(self, provider_config):
-        for name, cfg in provider_config["cloud"].items():
+    def test_cloud_provrs_have_required_fields(self, provr_config):
+        for name, cfg in provr_config["cloud"].items():
             assert "model" in cfg or "default_model" in cfg, \
-                f"Provider '{name}' manca di 'model' o 'default_model'"
+                f"Provr '{name}' manca di 'model' o 'default_model'"
 
-    def test_local_providers_have_host_or_url(self, provider_config):
-        """Provider locale usa 'host' come URL base."""
-        for name, cfg in provider_config["local"].items():
+    def test_local_provrs_have_host_or_url(self, provr_config):
+        """Provr locale usa 'host' come URL base."""
+        for name, cfg in provr_config["local"].items():
             has_endpoint = "host" in cfg or "url" in cfg or "base_url" in cfg
-            assert has_endpoint, f"Provider locale '{name}' manca di endpoint"
+            assert has_endpoint, f"Provr locale '{name}' manca di endpoint"
 
-    def test_get_available_cloud_providers_returns_dict(self):
-        from backend.config.providers import get_available_cloud_providers
-        result = get_available_cloud_providers()
+    def test_get_available_cloud_provrs_returns_dict(self):
+        from backend.config.provrs import get_available_cloud_provrs
+        result = get_available_cloud_provrs()
         assert isinstance(result, dict)
 
     def test_get_elite_stacks_not_empty(self):
-        from backend.config.providers import get_elite_task_stacks
+        from backend.config.provrs import get_elite_task_stacks
         stacks = get_elite_task_stacks()
         assert isinstance(stacks, dict)
         assert len(stacks) > 0
 
-    def test_free_cloud_providers_subset_of_all(self):
-        from backend.config.providers import get_free_cloud_providers, get_available_cloud_providers
-        free = get_free_cloud_providers()
-        all_available = get_available_cloud_providers()
+    def test_free_cloud_provrs_subset_of_all(self):
+        from backend.config.provrs import get_free_cloud_provrs, get_available_cloud_provrs
+        free = get_free_cloud_provrs()
+        all_available = get_available_cloud_provrs()
         assert isinstance(free, dict)
-        # I provider free sono un sottoinsieme di tutti i provider
+        # I provr free sono un sottoinsieme di tutti i provr
         for name in free:
             assert name in all_available or True  # struttura può variare

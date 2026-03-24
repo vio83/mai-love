@@ -152,8 +152,8 @@ function resolveGenerationBudget(messageLength: number, deepMode: boolean): numb
     return 768;
   }
 
-  if (messageLength <= 120) return 128;
-  if (messageLength <= 400) return 224;
+  if (messageLength <= 120) return 160;
+  if (messageLength <= 400) return 288;
   return 448;
 }
 
@@ -634,6 +634,7 @@ export async function sendToOrchestra(
     crossCheckEnabled: boolean;
     ragEnabled: boolean;
     strictEvidenceMode: boolean;
+    protocollo100x: boolean;
     apiKeys: Record<string, string>;
     ollamaHost: string;
     ollamaModel?: string;
@@ -651,7 +652,7 @@ export async function sendToOrchestra(
     effectiveMode === 'cloud' ? (config.primaryProvider || 'claude') : 'ollama';
 
   if (effectiveMode === 'cloud') {
-    console.log(`[Orchestra] Cloud mode: provider=${effectiveProvider}`);
+    console.warn(`[Orchestra] Cloud mode: provider=${effectiveProvider}`);
   }
 
   const messageLength = (lastMessage.content || '').trim().length;
@@ -671,7 +672,7 @@ export async function sendToOrchestra(
     requestType = classifyRequest(lastMessage.content);
     activeOllamaModel = routeToLocalModel(requestType, activeOllamaModel);
   }
-  console.log(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
+  console.warn(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
 
   const cacheKey = buildResponseCacheKey({
     mode: effectiveMode,
@@ -692,7 +693,11 @@ export async function sendToOrchestra(
   // Prepara messaggi con system prompt SPECIALIZZATO per tipo di richiesta
   // Per modelli locali < 7B usa prompt compatto (~400 token vs ~4000)
   const isLocal = effectiveMode === 'local' || provider === 'ollama';
-  let systemPrompt = isLocal ? buildLocalSystemPrompt(requestType) : buildSystemPrompt(requestType);
+  // Protocollo 100x: enforce execution-grade, verifiable outputs when enabled.
+  const protocollo100x = config.protocollo100x ?? true;
+  let systemPrompt = isLocal
+    ? buildLocalSystemPrompt(requestType, protocollo100x)
+    : buildSystemPrompt(requestType, protocollo100x);
   const strictEvidenceMode = Boolean(config.strictEvidenceMode);
   let strictEvidenceDegraded = false;
   let strictEvidenceBanner = '';
@@ -846,7 +851,7 @@ export async function sendToOrchestra(
     // Ultimo tentativo: Ollama sempre (se non già provato)
     if (provider !== 'ollama') {
       try {
-        console.log('[Orchestra] Ultimo tentativo: Ollama locale');
+        console.warn('[Orchestra] Ultimo tentativo: Ollama locale');
         const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal, generationBudget);
         if (strictEvidenceDegraded && strictEvidenceBanner) {
           fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;

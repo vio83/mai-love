@@ -82,7 +82,7 @@ SHA HEAD: {git_hash}
 - Codice sorgente Python (backend FastAPI)
 - Codice TypeScript/React (frontend)
 - Codice Rust (Tauri)
-- Architettura e design dell'orchestratore multi-provider
+- Architettura e design dell'orchestratore multi-provr
 - Schema database e modelli Pydantic
 - Workflow di automazione n8n
 - Documentazione originale
@@ -93,7 +93,7 @@ SHA HEAD: {git_hash}
 
 ### Status
 ✅ **LICENSE-AGPL-3.0** presente nella root del progetto
-✅ **SPDX-License-Identifier: AGPL-3.0** nei file sorgente
+✅ **SPDX-License-ntifier: AGPL-3.0** nei file sorgente
 
 ### Cosa Garantisce AGPL-3.0
 - Chiunque usi il codice DEVE pubblicare le proprie modifiche
@@ -109,7 +109,7 @@ Chiunque voglia usare il codice senza AGPL deve ottenere licenza commerciale da 
 
 ## 3. PRIOR ART — PROVA INCONTESTABILE DI ANTERIORITÀ
 
-### Evidenza Timestamps Git (immutabile su GitHub)
+### Evnza Timestamps Git (immutabile su GitHub)
 ```
 Primo commit datato: {first_line}
 Repository pubblico dal: 2026-02-19
@@ -152,17 +152,17 @@ SHA commit corrente: {git_hash}
 
 ---
 
-## 5. PERCHÉ I VC NON RUBANO LE IDEE (REALTÀ BRUTALE)
+## 5. PERCHÉ I VC NON RUBANO LE E (REALTÀ BRUTALE)
 
 **Questo è il segreto che nessuno ti dice:**
 
 VC come Elad Gil, a16z, YC **NON firmano NDA** — mai, per politica.
 Perché? Vedono 500+ startup/anno. Un NDA li paralizzerebbe legalmente.
 
-**Ma non hanno bisogno di rubarti l'idea. Perché:**
-1. L'idea vale 0. L'esecuzione vale tutto.
-2. Hanno migliaia di idee già: hanno bisogno di FONDATORI che le eseguano.
-3. Rubare un'idea da un fondatore che già la sta eseguendo è inutile: perderebbero il team (tu).
+**Ma non hanno bisogno di rubarti l'a. Perché:**
+1. L'a vale 0. L'esecuzione vale tutto.
+2. Hanno migliaia di e già: hanno bisogno di FONDATORI che le eseguano.
+3. Rubare un'a da un fondatore che già la sta eseguendo è inutile: perderebbero il team (tu).
 4. La reputazione è tutto per un VC: un caso di furto distrugge il fondo.
 
 **La tua protezione reale è:**
@@ -187,7 +187,7 @@ Perché? Vedono 500+ startup/anno. Un NDA li paralizzerebbe legalmente.
 - **Applicazione**: https://www.ycombinator.com/apply/
 - **Prossima deadline**: Ottobre 2026 (batch Winter 2027)
 - **Tempo applicazione**: 2-3 ore
-- **Cosa chiedono**: idea, co-founder, MRR se hai, cosa hai costruito
+- **Cosa chiedono**: a, co-founder, MRR se hai, cosa hai costruito
 - **Forma legale richiesta**: Delaware C-Corp (USA) — costa ~$500 con Stripe Atlas: https://atlas.stripe.com/
 - **Tasso accettazione**: 1.5% — qualità del prodotto > tutto
 

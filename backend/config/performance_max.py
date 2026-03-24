@@ -7,7 +7,6 @@ Tutti i parametri sono ottimizzati per performance WORLD-CLASS
 """
 
 import json
-from pathlib import Path
 from enum import Enum
 
 # ═══════════════════════════════════════════════════════════
@@ -35,7 +34,7 @@ PERFORMANCE_CONFIG = {
         "enable_auto_fallback": True,
         "max_fallback_retries": 3,
         "fallback_backoff_ms": 500,
-        "enable_parallel_calls": True,  # Chiama più provider in parallelo e usa il più veloce
+        "enable_parallel_calls": True,  # Chiama più provr in parallelo e usa il più veloce
         "parallel_timeout_ms": 5000,
     },
 
@@ -48,7 +47,7 @@ PERFORMANCE_CONFIG = {
 
     "health_monitoring": {
         "check_interval_seconds": 300,  # Ogni 5 minuti
-        "provider_timeout_seconds": 10,
+        "provr_timeout_seconds": 10,
         "enable_auto_disable_unhealthy": True,
         "unhealthy_threshold": 3,  # 3 fallback consecutivi = disabilita
     },
@@ -100,10 +99,10 @@ PERFORMANCE_CONFIG = {
 
 
 # ═══════════════════════════════════════════════════════════
-# PROVIDER PREFERENCES
+# PROVR PREFERENCES
 # ═══════════════════════════════════════════════════════════
 
-PROVIDER_PREFERENCES = {
+PROVR_PREFERENCES = {
     "preferred_by_task": {
         "code": ["qwen2.5-coder:3b", "claude-sonnet", "deepseek-reasoner"],
         "legal": ["claude-opus", "mistral-large", "llama3"],
@@ -163,7 +162,7 @@ TASK_OPTIMIZATIONS = {
 AUTO_SCALING = {
     "enable": True,
 
-    "cpu_threshold_percent": 80,  # Se CPU > 80%, scalea a provider più leggero
+    "cpu_threshold_percent": 80,  # Se CPU > 80%, scalea a provr più leggero
     "memory_threshold_percent": 75,
     "latency_threshold_ms": 5000,
 
@@ -231,7 +230,7 @@ BATCH_PROCESSING = {
     "batch_timeout_seconds": 60,
 
     "smart_batching": {
-        "group_by_provider": True,
+        "group_by_provr": True,
         "group_by_task_type": True,
         "sort_by_cost": True,
     },
@@ -244,7 +243,7 @@ BATCH_PROCESSING = {
 
 MONITORING_ENDPOINTS = {
     "health": "/api/v2/health",
-    "providers": "/api/v2/providers",
+    "provrs": "/api/v2/provrs",
     "models": "/api/v2/models",
     "costs": "/api/v2/costs",
     "performance": "/api/v2/performance",
@@ -262,7 +261,7 @@ DEFAULT_PROFILE = {
     "mode": PerformanceMode.HYBRID_INTELLIGENT.value,
     "optimized_for": ["speed", "quality", "cost", "availability"],
     "config": PERFORMANCE_CONFIG,
-    "provider_preferences": PROVIDER_PREFERENCES,
+    "provr_preferences": PROVR_PREFERENCES,
     "fallback_chains": FALLBACK_CHAINS,
     "auto_scaling": AUTO_SCALING,
 }

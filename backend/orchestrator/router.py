@@ -5,13 +5,11 @@
 # ============================================================
 """
 VIO 83 AI ORCHESTRA - Backend Orchestrator con LiteLLM
-Gestisce il routing intelligente tra provider AI cloud e locale.
+Gestisce il routing intelligente tra provr AI cloud e locale.
 """
 
-import os
 import time
 import litellm
-from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +17,7 @@ load_dotenv()
 # Configurazione LiteLLM - silenzio log verbosi
 litellm.set_verbose = False
 
-# Mapping modelli per provider
+# Mapping modelli per provr
 CLOUD_MODELS = {
     "claude": "anthropic/claude-sonnet-4-20250514",
     "gpt4": "openai/gpt-4o",
@@ -42,7 +40,7 @@ KEYWORDS = {
                   "how does", "ragion", "logic", "matematica", "math"],
 }
 
-# Mapping tipo richiesta -> provider ottimale
+# Mapping tipo richiesta -> provr ottimale
 ROUTING_MAP = {
     "code": "claude",
     "creative": "gpt4",
@@ -62,8 +60,8 @@ def classify_request(message: str) -> str:
     return "conversation"
 
 
-def route_to_provider(request_type: str, mode: str = "cloud") -> str:
-    """Determina il provider ottimale basato sul tipo di richiesta."""
+def route_to_provr(request_type: str, mode: str = "cloud") -> str:
+    """Determina il provr ottimale basato sul tipo di richiesta."""
     if mode == "local":
         return "ollama"
     return ROUTING_MAP.get(request_type, "claude")
@@ -71,39 +69,39 @@ def route_to_provider(request_type: str, mode: str = "cloud") -> str:
 
 async def call_ai(
     messages: list[dict],
-    provider: str = "claude",
+    provr: str = "claude",
     mode: str = "cloud",
     ollama_model: str = "qwen2.5-coder:3b",
     ollama_host: str = "http://localhost:11434",
     auto_routing: bool = True,
-    fallback_providers: list[str] = None,
+    fallback_provrs: list[str] = None,
     cross_check: bool = False,
 ) -> dict:
     """
     Funzione principale: invia messaggio all'orchestra AI.
-    
+
     Returns:
-        dict con: content, provider, model, tokens_used, latency_ms, cross_check_result
+        dict con: content, provr, model, tokens_used, latency_ms, cross_check_result
     """
-    if fallback_providers is None:
-        fallback_providers = ["gpt4", "ollama"]
+    if fallback_provrs is None:
+        fallback_provrs = ["gpt4", "ollama"]
 
     # Routing intelligente
     if auto_routing and mode == "cloud":
         last_msg = messages[-1]["content"] if messages else ""
         request_type = classify_request(last_msg)
-        provider = route_to_provider(request_type, mode)
-        print(f"[Orchestra] Tipo: {request_type} → Provider: {provider}")
+        provr = route_to_provr(request_type, mode)
+        print(f"[Orchestra] Tipo: {request_type} → Provr: {provr}")
 
     # Determina il modello
-    if mode == "local" or provider == "ollama":
+    if mode == "local" or provr == "ollama":
         model = f"ollama/{ollama_model}"
         litellm.api_base = ollama_host
     else:
-        model = CLOUD_MODELS.get(provider, CLOUD_MODELS["claude"])
+        model = CLOUD_MODELS.get(provr, CLOUD_MODELS["claude"])
 
     start = time.time()
-    result = {"provider": provider, "model": model}
+    result = {"provr": provr, "model": model}
 
     try:
         # Chiamata principale via LiteLLM
@@ -118,23 +116,23 @@ async def call_ai(
         result["latency_ms"] = int((time.time() - start) * 1000)
 
         # Cross-check opzionale
-        if cross_check and mode == "cloud" and fallback_providers:
+        if cross_check and mode == "cloud" and fallback_provrs:
             result["cross_check_result"] = await _cross_check(
-                messages, result["content"], fallback_providers[0]
+                messages, result["content"], fallback_provrs[0]
             )
 
         return result
 
     except Exception as e:
-        print(f"[Orchestra] Provider {provider} fallito: {e}")
+        print(f"[Orchestra] Provr {provr} fallito: {e}")
 
         # Fallback
-        for fb_provider in fallback_providers:
+        for fb_provr in fallback_provrs:
             try:
-                if fb_provider == "ollama":
+                if fb_provr == "ollama":
                     fb_model = f"ollama/{ollama_model}"
                 else:
-                    fb_model = CLOUD_MODELS.get(fb_provider)
+                    fb_model = CLOUD_MODELS.get(fb_provr)
                     if not fb_model:
                         continue
 
@@ -146,28 +144,28 @@ async def call_ai(
 
                 return {
                     "content": response.choices[0].message.content,
-                    "provider": fb_provider,
+                    "provr": fb_provr,
                     "model": fb_model,
                     "tokens_used": response.usage.total_tokens if response.usage else 0,
                     "latency_ms": int((time.time() - start) * 1000),
                 }
             except Exception as fb_error:
-                print(f"[Orchestra] Fallback {fb_provider} fallito: {fb_error}")
+                print(f"[Orchestra] Fallback {fb_provr} fallito: {fb_error}")
                 continue
 
-        raise Exception(f"Tutti i provider hanno fallito. Ultimo errore: {e}")
+        raise Exception(f"Tutti i provr hanno fallito. Ultimo errore: {e}")
 
 
 async def _cross_check(
     original_messages: list[dict],
     first_response: str,
-    check_provider: str,
+    check_provr: str,
 ) -> dict:
-    """Verifica incrociata della risposta con un secondo provider."""
+    """Verifica incrociata della risposta con un secondo provr."""
     try:
-        check_model = CLOUD_MODELS.get(check_provider)
+        check_model = CLOUD_MODELS.get(check_provr)
         if not check_model:
-            return {"concordance": None, "error": "Provider non disponibile"}
+            return {"concordance": None, "error": "Provr non disponibile"}
 
         check_messages = original_messages + [
             {"role": "assistant", "content": first_response},
@@ -190,7 +188,7 @@ async def _cross_check(
         check_content = response.choices[0].message.content
         return {
             "concordance": "CONFERMATO" in check_content.upper(),
-            "second_provider": check_provider,
+            "second_provr": check_provr,
             "second_response": check_content,
         }
     except Exception as e:

@@ -32,8 +32,6 @@ from dataclasses import dataclass, field
 from backend.rag.preprocessing import (
     PreprocessingPipeline,
     ProcessedChunk,
-    TextCleaner,
-    MetadataExtractor,
 )
 
 

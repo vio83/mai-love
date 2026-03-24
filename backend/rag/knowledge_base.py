@@ -32,9 +32,8 @@ import time
 import sqlite3
 import hashlib
 from typing import Optional
-from dataclasses import dataclass, field, asdict
 
-from backend.rag.preprocessing import ProcessedChunk, PreprocessingPipeline
+from backend.rag.preprocessing import ProcessedChunk
 from backend.rag.ingestion import IngestionEngine, IngestedDocument
 
 # ChromaDB (opzionale — fallback a SQLite FTS)
@@ -95,12 +94,12 @@ DOMAIN_KEYWORDS = {
     "astronomia": [
         "stella", "pianeta", "galassia", "nebulosa", "supernova", "buco nero",
         "pulsar", "quasar", "redshift", "magnitudine", "parsec", "anno luce",
-        "cosmologia", "esopianeta", "asteroide", "cometa", "costellazione",
+        "cosmologia", "esopianeta", "astero", "cometa", "costellazione",
     ],
     # === SCIENZE MEDICHE E DELLA SALUTE ===
     "medicina": [
         "diagnosi", "terapia", "farmaco", "sintomo", "patologia", "chirurgia",
-        "anamnesi", "prognosi", "eziologia", "epidemiologia", "dosaggio",
+        "anamnesi", "prognosi", "eziologia", "epmiologia", "dosaggio",
         "controindicazione", "screening", "biopsia", "cardiologia", "oncologia",
     ],
     "farmacia_farmacologia": [
@@ -140,12 +139,12 @@ DOMAIN_KEYWORDS = {
     "sociologia_antropologia": [
         "societa", "comunita", "stratificazione", "disuguaglianza", "classe sociale",
         "etnia", "cultura", "norma sociale", "devianza", "socializzazione",
-        "etnografia", "antropologia", "parentela", "rituale", "identita",
+        "etnografia", "antropologia", "parentela", "rituale", "ntita",
     ],
     "scienze_politiche": [
         "politica", "stato", "governo", "democrazia", "partito", "elezione",
         "parlamento", "geopolitica", "relazioni internazionali", "diplomazia",
-        "sovranita", "governance", "ideologia", "populismo", "costituzione politica",
+        "sovranita", "governance", "ologia", "populismo", "costituzione politica",
     ],
     "diritto": [
         "articolo", "comma", "decreto", "legge", "codice", "giurisprudenza",
@@ -261,7 +260,7 @@ def classify_domain(text: str) -> list[tuple[str, float]]:
     Ritorna lista di (dominio, score) ordinata per rilevanza.
     """
     text_lower = text.lower()
-    words = set(text_lower.split())
+    set(text_lower.split())
     scores = {}
     for domain, keywords in DOMAIN_KEYWORDS.items():
         count = sum(1 for kw in keywords if kw.lower() in text_lower)
@@ -833,7 +832,7 @@ class KnowledgeBase:
     ) -> dict:
         """
         Costruisce il contesto RAG da iniettare nel system prompt.
-        Ritorna: {context_text, sources, domain, confidence}
+        Ritorna: {context_text, sources, domain, confnce}
         """
         results = self.query(question, n_results=n_results)
 
@@ -842,7 +841,7 @@ class KnowledgeBase:
                 "context_text": "",
                 "sources": [],
                 "domain": "generale",
-                "confidence": 0.0,
+                "confnce": 0.0,
                 "has_context": False,
             }
 
@@ -869,14 +868,14 @@ class KnowledgeBase:
             total_tokens += tokens_est
 
         context_text = "\n\n---\n\n".join(context_parts)
-        avg_confidence = sum(r.get("final_score", r.get("similarity", 0)) for r in results[:len(sources)]) / max(len(sources), 1)
+        avg_confnce = sum(r.get("final_score", r.get("similarity", 0)) for r in results[:len(sources)]) / max(len(sources), 1)
         primary_domain = results[0].get("domain", "generale") if results else "generale"
 
         return {
             "context_text": context_text,
             "sources": sources,
             "domain": primary_domain,
-            "confidence": round(avg_confidence, 3),
+            "confnce": round(avg_confnce, 3),
             "has_context": True,
         }
 

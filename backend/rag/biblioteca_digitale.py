@@ -83,11 +83,10 @@ STRUTTURA:
 import os
 import re
 import sqlite3
-import json
 import uuid
 import time
 from typing import Optional
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from contextlib import contextmanager
 
 
@@ -414,7 +413,7 @@ SOTTO_DISCIPLINE = {
     "fonti_online": [
         "enciclopedia_wiki", "repository_open_access", "blog_accademici",
         "portali_dati", "archivi_digitali", "database_scientifici",
-        "corsi_mooc", "podcast_educativi", "video_conferenze",
+        "corsi_mooc", "podcast_educativi", "vo_conferenze",
     ],
     "ricerche_universitarie": [
         "tesi_triennale", "tesi_magistrale", "tesi_dottorale", "post_doc",
@@ -427,7 +426,7 @@ SOTTO_DISCIPLINE = {
     "matematica": [
         "algebra_lineare", "algebra_astratta", "teoria_dei_gruppi", "teoria_degli_anelli",
         "analisi_reale", "analisi_complessa", "analisi_funzionale", "equazioni_differenziali",
-        "geometria_euclidea", "geometria_differenziale", "geometria_algebrica",
+        "geometria_eucla", "geometria_differenziale", "geometria_algebrica",
         "topologia_generale", "topologia_algebrica", "teoria_dei_nodi",
         "teoria_dei_numeri", "combinatoria", "teoria_dei_grafi",
         "logica_matematica", "teoria_degli_insiemi", "teoria_dei_modelli",
@@ -509,7 +508,7 @@ SOTTO_DISCIPLINE = {
         "oftalmologia", "otorinolaringoiatria", "odontoiatria",
         "urologia", "anestesiologia", "medicina_d_urgenza",
         "radiologia", "medicina_nucleare", "anatomia_patologica",
-        "epidemiologia", "medicina_preventiva", "igiene", "sanita_pubblica",
+        "epmiologia", "medicina_preventiva", "igiene", "sanita_pubblica",
         "medicina_legale", "medicina_del_lavoro", "medicina_tropicale",
         "medicina_palliativa", "rianimazione", "terapia_intensiva",
         "genetica_medica", "telemedicina", "medicina_personalizzata",
@@ -521,7 +520,7 @@ SOTTO_DISCIPLINE = {
         "tossicologia", "tossicologia_clinica", "tossicologia_ambientale",
         "tecnologia_farmaceutica", "galenica", "formulazione",
         "farmacia_ospedaliera", "farmacia_clinica", "farmacovigilanza",
-        "farmacoepidemiogia", "farmaco_economia",
+        "farmacoepmiogia", "farmaco_economia",
     ],
     "psicologia": [
         "psicologia_clinica", "psicologia_cognitiva", "psicologia_sociale",
@@ -551,7 +550,7 @@ SOTTO_DISCIPLINE = {
         "farmacologia_veterinaria", "radiologia_veterinaria",
         "zootecnia", "alimentazione_animale", "igiene_veterinaria",
         "malattie_infettive_animali", "parassitologia_veterinaria",
-        "epidemiologia_veterinaria", "medicina_legale_veterinaria",
+        "epmiologia_veterinaria", "medicina_legale_veterinaria",
         "fauna_selvatica", "animali_esotici", "acquacoltura",
         "etologia_veterinaria", "riproduzione_animale",
     ],
@@ -586,7 +585,7 @@ SOTTO_DISCIPLINE = {
         "ermeneutica", "fenomenologia", "esistenzialismo",
         "pragmatismo", "filosofia_analitica", "filosofia_continentale",
         "filosofia_antica", "filosofia_medievale", "scolastica",
-        "filosofia_moderna", "illuminismo", "idealismo", "empirismo",
+        "filosofia_moderna", "illuminismo", "alismo", "empirismo",
         "filosofia_contemporanea", "postmodernismo", "decostruzionismo",
         "filosofia_orientale", "filosofia_indiana", "filosofia_cinese",
         "filosofia_giapponese", "filosofia_africana",
@@ -780,7 +779,7 @@ SOTTO_DISCIPLINE = {
     # ═══════════════════════════════════════════════════════════
     "arti_visive_performative": [
         "pittura", "scultura", "disegno", "incisione", "stampa_d_arte",
-        "fotografia", "fotografia_digitale", "video_arte",
+        "fotografia", "fotografia_digitale", "vo_arte",
         "installazioni", "arte_concettuale", "arte_contemporanea",
         "street_art", "land_art", "arte_digitale", "NFT_art",
         "teatro", "regia_teatrale", "drammaturgia", "recitazione",

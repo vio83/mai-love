@@ -5,7 +5,7 @@ Versione: 4.0 (16 Marzo 2026)
 MOTORE UNIVERSALE DI AUTO-AGGIORNAMENTO PERMANENTE:
 ✅ TUTTE le AI (locali Ollama + cloud API) — da nano a mega globale
 ✅ Python AI packages → ultima versione
-✅ Provider cloud → nuovi modelli scoperti e aggiunti al routing
+✅ Provr cloud → nuovi modelli scoperti e aggiunti al routing
 ✅ Parità locale=cloud: stesse info, strumenti, funzionalità, potenza
 ✅ Certificazione SHA256 di ogni aggiornamento
 ✅ Audit trail permanente su SQLite
@@ -19,14 +19,13 @@ import sys
 import json
 import time
 import hashlib
-import asyncio
 import logging
 import sqlite3
 import subprocess
 import urllib.request
 import urllib.error
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from datetime import datetime
 
 # Aggiungi project root al path
@@ -115,7 +114,7 @@ class UniversalAIUpdater:
         self.registry = self._load_registry()
         self._init_db()
         self.results: List[UpdateResult] = []
-        self.session_id = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+        self.session_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:8]
 
     # ── Database ──────────────────────────────────────────
 
@@ -163,11 +162,11 @@ class UniversalAIUpdater:
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS known_models (
-                provider TEXT    NOT NULL,
+                provr TEXT    NOT NULL,
                 model_id TEXT    NOT NULL,
                 added_at REAL    NOT NULL,
                 status   TEXT    DEFAULT 'active',
-                PRIMARY KEY (provider, model_id)
+                PRIMARY KEY (provr, model_id)
             )
         """)
         conn.commit()
@@ -231,7 +230,7 @@ class UniversalAIUpdater:
                 url,
                 headers=dict({'User-Agent': 'VIO-AI-Orchestra/4.0'}, **(headers or {}))
             )
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 if resp.status == 200:
                     return resp.read()
         except Exception as e:
@@ -284,15 +283,15 @@ class UniversalAIUpdater:
         logger.info("FASE 2 │ DISCOVERY NUOVI MODELLI CLOUD")
         logger.info("═"*60)
 
-        r = UpdateResult("cloud_discovery", "cloud_providers")
+        r = UpdateResult("cloud_discovery", "cloud_provrs")
         new_models = {}
 
-        cloud = self.registry.get("cloud_providers", {})
+        cloud = self.registry.get("cloud_provrs", {})
 
-        for provider, config in cloud.items():
+        for provr, config in cloud.items():
             api_key = self._get_api_key(config.get("env_key", ""))
             if not api_key:
-                logger.info(f"   ⏭️  {provider}: nessuna API key")
+                logger.info(f"   ⏭️  {provr}: nessuna API key")
                 continue
 
             check_url = config.get("check_url", "")
@@ -301,15 +300,15 @@ class UniversalAIUpdater:
 
             headers = {"Authorization": f"Bearer {api_key}"}
             # Google usa query param
-            if provider == "google":
+            if provr == "google":
                 check_url = f"{check_url}?key={api_key}"
                 headers = {}
 
-            logger.info(f"   🔍 {provider}: checking {check_url}")
+            logger.info(f"   🔍 {provr}: checking {check_url}")
             data = self._http_get(check_url, headers=headers, timeout=10)
 
             if not data:
-                logger.warning(f"   ⚠️  {provider}: non raggiungibile")
+                logger.warning(f"   ⚠️  {provr}: non raggiungibile")
                 continue
 
             try:
@@ -321,7 +320,7 @@ class UniversalAIUpdater:
                 elif "models" in parsed:
                     models_list = [m.get("id") for m in parsed["models"] if m.get("id")]
                 else:
-                    logger.debug(f"   {provider}: struttura risposta non standard")
+                    logger.debug(f"   {provr}: struttura risposta non standard")
                     continue
 
                 # Confronta con modelli nel registry
@@ -329,14 +328,14 @@ class UniversalAIUpdater:
                 api_new = [m for m in models_list if m not in registry_models]
 
                 if api_new:
-                    new_models[provider] = api_new
-                    logger.info(f"   🆕 {provider}: {len(api_new)} nuovi modelli")
+                    new_models[provr] = api_new
+                    logger.info(f"   🆕 {provr}: {len(api_new)} nuovi modelli")
                     for m in api_new[:5]:
                         logger.info(f"      + {m}")
                     if len(api_new) > 5:
                         logger.info(f"      ... +{len(api_new)-5} altri")
                 else:
-                    logger.info(f"   ✅ {provider}: {len(models_list)} modelli — nessuna novità")
+                    logger.info(f"   ✅ {provr}: {len(models_list)} modelli — nessuna novità")
 
                 # Salva nel DB
                 conn = sqlite3.connect(DB_PATH)
@@ -344,21 +343,21 @@ class UniversalAIUpdater:
                 for m_id in models_list:
                     c.execute("""
                         INSERT OR IGNORE INTO known_models
-                            (provider, model_id, added_at)
+                            (provr, model_id, added_at)
                         VALUES (?, ?, ?)
-                    """, (provider, m_id, time.time()))
+                    """, (provr, m_id, time.time()))
                 conn.commit()
                 conn.close()
 
             except Exception as e:
-                logger.warning(f"   ⚠️  {provider}: parse failed — {e}")
+                logger.warning(f"   ⚠️  {provr}: parse failed — {e}")
 
         # Aggiorna registry con nuovi modelli trovati
         if new_models:
             self._update_registry_with_new_models(new_models)
 
         total_new = sum(len(v) for v in new_models.values())
-        r.mark_success({"new_models_found": total_new, "by_provider": {k: len(v) for k,v in new_models.items()}})
+        r.mark_success({"new_models_found": total_new, "by_provr": {k: len(v) for k,v in new_models.items()}})
         self._issue_certificate("cloud_discovery", "phase2_cloud",
                                 details={"new": total_new})
 
@@ -375,11 +374,11 @@ class UniversalAIUpdater:
             with open(REGISTRY_PATH) as f:
                 registry = json.load(f)
 
-            cloud = registry.setdefault("cloud_providers", {})
+            cloud = registry.setdefault("cloud_provrs", {})
             updated = False
 
-            for provider, models in new_models.items():
-                prov_config = cloud.get(provider, {})
+            for provr, models in new_models.items():
+                prov_config = cloud.get(provr, {})
                 existing_ids = {m["id"] for m in prov_config.get("models", [])}
                 added = 0
                 for m_id in models:
@@ -393,7 +392,7 @@ class UniversalAIUpdater:
                         added += 1
                         updated = True
                 if added:
-                    logger.info(f"   📝 Registry: +{added} modelli aggiunti per {provider}")
+                    logger.info(f"   📝 Registry: +{added} modelli aggiunti per {provr}")
 
             if updated:
                 registry["_meta"]["updated"] = time.strftime("%Y-%m-%d")
@@ -460,7 +459,7 @@ class UniversalAIUpdater:
                 failed.append(pkg)
                 logger.warning(f"   ⚠️  {pkg} — {e}")
 
-        checksum = hashlib.md5(json.dumps(sorted(updated)).encode()).hexdigest()
+        checksum = hashlib.sha256(json.dumps(sorted(updated)).encode()).hexdigest()
         r.mark_success({"updated": updated, "failed": failed}, checksum=checksum)
         self._issue_certificate("python_packages", "phase3_pip",
                                 details={"updated": len(updated), "failed": len(failed)},
@@ -472,53 +471,53 @@ class UniversalAIUpdater:
         return r
 
     # ════════════════════════════════════════════════════
-    # FASE 4 — SINCRONIZZAZIONE CONFIG PROVIDER
+    # FASE 4 — SINCRONIZZAZIONE CONFIG PROVR
     # ════════════════════════════════════════════════════
 
-    def phase_4_sync_provider_config(self) -> UpdateResult:
+    def phase_4_sync_provr_config(self) -> UpdateResult:
         logger.info("\n" + "═"*60)
-        logger.info("FASE 4 │ SINCRONIZZAZIONE CONFIG PROVIDER")
+        logger.info("FASE 4 │ SINCRONIZZAZIONE CONFIG PROVR")
         logger.info("═"*60)
 
-        r = UpdateResult("provider_config", "providers_py")
+        r = UpdateResult("provr_config", "provrs_py")
 
         try:
             # Leggi tutti i modelli noti dal DB
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute("SELECT provider, model_id FROM known_models WHERE status='active'")
+            c.execute("SELECT provr, model_id FROM known_models WHERE status='active'")
             known = {}
-            for provider, model_id in c.fetchall():
-                known.setdefault(provider, set()).add(model_id)
+            for provr, model_id in c.fetchall():
+                known.setdefault(provr, set()).add(model_id)
             conn.close()
 
-            # Salva snapshot provider config
+            # Salva snapshot provr config
             snapshot = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "session": self.session_id,
-                "providers": {}
+                "provrs": {}
             }
 
-            cloud = self.registry.get("cloud_providers", {})
-            for provider, config in cloud.items():
+            cloud = self.registry.get("cloud_provrs", {})
+            for provr, config in cloud.items():
                 api_key = self._get_api_key(config.get("env_key", ""))
-                snapshot["providers"][provider] = {
+                snapshot["provrs"][provr] = {
                     "has_key": bool(api_key),
                     "registry_models": len(config.get("models", [])),
-                    "discovered_models": len(known.get(provider, set()))
+                    "discovered_models": len(known.get(provr, set()))
                 }
                 status = "✅ ATTIVO" if api_key else "⚠️  NO KEY"
-                logger.info(f"   {status} {provider:15s}: "
+                logger.info(f"   {status} {provr:15s}: "
                             f"{len(config.get('models', []))} modelli registry, "
-                            f"{len(known.get(provider, set()))} scoperti")
+                            f"{len(known.get(provr, set()))} scoperti")
 
-            snapshot_path = DATA_DIR / "provider_snapshot_latest.json"
+            snapshot_path = DATA_DIR / "provr_snapshot_latest.json"
             with open(snapshot_path, "w") as f:
                 json.dump(snapshot, f, indent=2)
 
-            checksum = hashlib.md5(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+            checksum = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
             r.mark_success(snapshot, checksum=checksum)
-            self._issue_certificate("provider_config", "phase4_config",
+            self._issue_certificate("provr_config", "phase4_config",
                                     details=snapshot, checksum=checksum)
 
             logger.info(f"\n✅ Fase 4 OK — snapshot salvato in {snapshot_path}")
@@ -575,7 +574,7 @@ class UniversalAIUpdater:
                         "Deep reasoning specialist. "
                         "Think step-by-step, verify each logical step. "
                         "Show chain of thought. "
-                        "Identify errors before they propagate."
+                        "ntify errors before they propagate."
                     )
                 },
                 "research_specialist": {
@@ -647,7 +646,7 @@ class UniversalAIUpdater:
             with open(parity_dir / "performance_standards.json", "w") as f:
                 json.dump(perf_standards, f, indent=2)
 
-            checksum = hashlib.md5(
+            checksum = hashlib.sha256(
                 json.dumps(system_prompts, sort_keys=True).encode()
             ).hexdigest()
 
@@ -661,8 +660,8 @@ class UniversalAIUpdater:
 
             logger.info(f"   ✅ System prompts: {len(system_prompts)}")
             logger.info(f"   ✅ Tool definitions: {len(tools_universal['tools'])}")
-            logger.info(f"   ✅ Performance standards: aggiornati")
-            logger.info(f"\n✅ Fase 5 OK — parità locale/cloud garantita")
+            logger.info("   ✅ Performance standards: aggiornati")
+            logger.info("\n✅ Fase 5 OK — parità locale/cloud garantita")
 
         except Exception as e:
             r.mark_failure(str(e))
@@ -817,7 +816,7 @@ DETTAGLIO FASI:
         report += f"""
 SISTEMA AI ATTIVO:
   🖥️  Locale  (Ollama): modelli aggiornati e sincronizzati
-  ☁️  Cloud   (API):    {sum(1 for _,cfg in self.registry.get('cloud_providers',{}).items() if self._get_api_key(cfg.get('env_key','')))} provider con chiave attiva
+  ☁️  Cloud   (API):    {sum(1 for _, cfg in self.registry.get('cloud_provrs', {}).items() if self._get_api_key(cfg.get('env_key', '')))} provr con chiave attiva
 
 PROSSIMO AGGIORNAMENTO:
   ⏰ Automatico ogni giorno alle 03:00 UTC via LaunchAgent macOS
@@ -827,7 +826,7 @@ STATO PERMANENTE:
   ✅ Tutte le AI (locale + cloud) sincronizzate
   ✅ Certificato emesso: MASTER_CERT_{self.session_id[:8]}.json
 
-{'═'*60}
+{'═' * 60}
 """
 
         report_path = LOG_DIR / "universal_update_latest.log"
@@ -857,10 +856,10 @@ STATO PERMANENTE:
         ESECUZIONE COMPLETA — tutte le 8 fasi in sequenza.
         Permanently updates ALL AI (local + cloud) every day.
         """
-        logger.info("\n" + "╔" + "═"*68 + "╗")
-        logger.info("║" + " "*10 + "VIO 83 AI ORCHESTRA — UNIVERSAL AI UPDATER 4.0" + " "*10 + "║")
-        logger.info("║" + " "*5 + "AGGIORNAMENTO COMPLETO: DA NANO A MEGA — LOCALE E CLOUD" + " "*5 + "║")
-        logger.info("╚" + "═"*68 + "╝")
+        logger.info("\n" + "╔" + "═" * 68 + "╗")
+        logger.info("║" + " " * 10 + "VIO 83 AI ORCHESTRA — UNIVERSAL AI UPDATER 4.0" + " " * 10 + "║")
+        logger.info("║" + " " * 5 + "AGGIORNAMENTO COMPLETO: DA NANO A MEGA — LOCALE E CLOUD" + " " * 5 + "║")
+        logger.info("╚" + "═" * 68 + "╝")
         logger.info(f"  Timestamp: {datetime.utcnow().isoformat()}")
         logger.info(f"  Session:   {self.session_id}")
         logger.info(f"  Python:    {sys.version.split()[0]}")
@@ -869,11 +868,11 @@ STATO PERMANENTE:
         self.phase_1_ollama_update()
         self.phase_2_cloud_model_discovery()
         self.phase_3_python_packages_update()
-        self.phase_4_sync_provider_config()
+        self.phase_4_sync_provr_config()
         self.phase_5_local_cloud_parity()
         self.phase_6_knowledge_update()
         self.phase_7_global_certification()
-        report = self.phase_8_final_report()
+        self.phase_8_final_report()
 
         # Risultato finale
         ok = sum(1 for r in self.results if r.success)
@@ -912,7 +911,7 @@ def main():
         if state_path.exists():
             with open(state_path) as f:
                 state = json.load(f)
-            print(f"\n🔄 Universal AI Updater — Stato:")
+            print("\n🔄 Universal AI Updater — Stato:")
             print(f"   Ultimo run:  {state.get('last_run', 'mai')}")
             print(f"   Fasi OK:     {state.get('phases_ok', 0)}/{state.get('phases_total', 0)}")
             print(f"   Status:      {state.get('status', 'unknown')}")

@@ -50,7 +50,7 @@ import sqlite3
 import hashlib
 import zlib
 from typing import Optional
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from contextlib import contextmanager
 
 

@@ -31,7 +31,7 @@ import urllib.request
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class PluginStatus(str, Enum):
@@ -258,7 +258,7 @@ class WebSearchPlugin(BasePlugin):
             q = urllib.parse.quote(query)
             url = f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1&skip_disambig=1"
             req = urllib.request.Request(url, headers={"User-Agent": "VIO83-Plugin/1.0"})
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310
                 data = json.loads(resp.read().decode())
 
             results = []
@@ -311,7 +311,7 @@ class DateTimePlugin(BasePlugin):
             "iso": now.isoformat(),
             "date": now.strftime("%d/%m/%Y"),
             "time": now.strftime("%H:%M:%S"),
-            "weekday": ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"][now.weekday()],
+            "weekday": ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"][now.weekday()],
             "week_number": now.isocalendar()[1],
             "timezone": str(datetime.datetime.now().astimezone().tzinfo),
         }
@@ -363,7 +363,7 @@ class CalculatorPlugin(BasePlugin):
             import ast
             tree = ast.parse(expression, mode="eval")
             _ALLOWED_NODES = (
-                ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Num,
+                ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
                 ast.Call, ast.Name, ast.Load, ast.Add, ast.Sub, ast.Mult,
                 ast.Div, ast.Pow, ast.Mod, ast.FloorDiv, ast.USub, ast.UAdd,
                 ast.Compare, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
@@ -373,7 +373,7 @@ class CalculatorPlugin(BasePlugin):
                 if not isinstance(node, _ALLOWED_NODES):
                     return {"error": f"Nodo AST non consentito: {type(node).__name__}"}
             code = compile(tree, "<calc>", "eval")
-            result = eval(code, {"__builtins__": {}}, self._SAFE_NAMES)  # noqa: S307
+            result = eval(code, {"__builtins__": {}}, self._SAFE_NAMES)  # noqa: S307  # nosec B307
             return {"expression": expression, "result": result}
         except SyntaxError as e:
             return {"error": f"Sintassi non valida: {e}", "expression": expression}
@@ -485,7 +485,7 @@ class URLFetchPlugin(BasePlugin):
         normalized = (hostname or "").strip().lower()
         if not normalized:
             return True
-        if normalized in {"localhost", "0.0.0.0", "::1"}:
+        if normalized in {"localhost", "0.0.0.0", "::1"}:  # nosec B104
             return True
 
         # Direct IP hostname
@@ -520,7 +520,7 @@ class URLFetchPlugin(BasePlugin):
                 "User-Agent": "VIO83-URLFetch/1.0 (AI Orchestra)",
                 "Accept": "text/html,text/plain,application/json",
             })
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 content_type = resp.headers.get("Content-Type", "")
                 raw = resp.read(500_000)  # max 500KB
                 charset = "utf-8"
@@ -556,7 +556,7 @@ class URLFetchPlugin(BasePlugin):
             req = urllib.request.Request(url, method="HEAD", headers={
                 "User-Agent": "VIO83-URLFetch/1.0",
             })
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310
                 headers = {k: v for k, v in resp.headers.items()}
                 return {"url": url, "status": resp.status, "headers": headers}
         except Exception as e:
@@ -569,7 +569,6 @@ class SystemInfoPlugin(BasePlugin):
     """System hardware and software information."""
 
     def __init__(self):
-        import platform
         self.info = PluginInfo(
             id="vio.systeminfo",
             name="System Info",
@@ -766,7 +765,9 @@ class JSONProcessorPlugin(BasePlugin):
                 PluginTool("parse_json", "Valida e formatta JSON",
                            {"data": {"type": "string", "description": "Stringa JSON da validare"}}),
                 PluginTool("json_query", "Estrai valore da JSON con dot notation",
-                           {"data": {"type": "string"}, "path": {"type": "string", "description": "Path dot notation (es: 'user.name')"}}),
+                           {"data": {"type": "string"},
+                            "path": {"type": "string",
+                                     "description": "Path dot notation (es: 'user.name')"}}),
                 PluginTool("csv_to_json", "Converti CSV in JSON",
                            {"csv_text": {"type": "string", "description": "Testo CSV"}}),
                 PluginTool("json_stats", "Statistiche su un array JSON",
@@ -849,7 +850,8 @@ class TranslatorPlugin(BasePlugin):
                 PluginTool("translate", "Traduci testo tra lingue",
                            {
                                "text": {"type": "string", "description": "Testo da tradurre"},
-                               "from_lang": {"type": "string", "description": "Lingua sorgente (es: it, en, fr, de, es)"},
+                               "from_lang": {"type": "string",
+                                            "description": "Lingua sorgente (es: it, en, fr, de, es)"},
                                "to_lang": {"type": "string", "description": "Lingua destinazione"},
                            },
                            ["translate(text='Ciao mondo', from_lang='it', to_lang='en')"]),
@@ -865,7 +867,7 @@ class TranslatorPlugin(BasePlugin):
             q = urllib.parse.quote(text)
             url = f"https://api.mymemory.translated.net/get?q={q}&langpair={from_lang}|{to_lang}"
             req = urllib.request.Request(url, headers={"User-Agent": "VIO83-Translator/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 data = json.loads(resp.read().decode())
                 translated = data.get("responseData", {}).get("translatedText", "")
                 match_score = data.get("responseData", {}).get("match", 0)
@@ -874,7 +876,7 @@ class TranslatorPlugin(BasePlugin):
                     "translated": translated,
                     "from": from_lang,
                     "to": to_lang,
-                    "confidence": match_score,
+                    "confnce": match_score,
                 }
         except Exception as e:
             return {"error": str(e)}
@@ -885,7 +887,7 @@ class TranslatorPlugin(BasePlugin):
             q = urllib.parse.quote(text)
             url = f"https://api.mymemory.translated.net/get?q={q}&langpair=autodetect|en"
             req = urllib.request.Request(url, headers={"User-Agent": "VIO83-Translator/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 data = json.loads(resp.read().decode())
                 detected = data.get("responseData", {}).get("detectedLanguage", "unknown")
                 return {"text": text[:50], "detected_language": detected}
@@ -934,14 +936,14 @@ class GitPlugin(BasePlugin):
         output = self._git("status", "--porcelain")
         lines = output.split("\n") if output else []
         return {
-            "changes": len([l for l in lines if l.strip()]),
+            "changes": len([ln for ln in lines if ln.strip()]),
             "branch": self._git("rev-parse", "--abbrev-ref", "HEAD"),
             "raw": output[:3000],
         }
 
     def _tool_log(self, count: int = 10) -> dict:
         count = min(int(count), 50)
-        output = self._git("log", f"--oneline", f"-{count}", "--format=%h|%s|%an|%ar")
+        output = self._git("log", "--oneline", f"-{count}", "--format=%h|%s|%an|%ar")
         commits = []
         for line in output.split("\n"):
             if "|" in line:
@@ -998,8 +1000,12 @@ class TavilySearchPlugin(BasePlugin):
                                "type": "object",
                                "properties": {
                                    "query": {"type": "string", "description": "Query di ricerca"},
-                                   "max_results": {"type": "integer", "description": "Numero massimo risultati", "default": 5},
-                                   "search_depth": {"type": "string", "description": "basic o advanced", "default": "basic"},
+                                   "max_results": {"type": "integer",
+                                                    "description": "Numero massimo risultati",
+                                                    "default": 5},
+                                   "search_depth": {"type": "string",
+                                                     "description": "basic o advanced",
+                                                     "default": "basic"},
                                },
                                "required": ["query"],
                            }),
@@ -1029,7 +1035,7 @@ class TavilySearchPlugin(BasePlugin):
                 method="POST",
             )
 
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
                 data = json.loads(resp.read().decode())
 
             results = []

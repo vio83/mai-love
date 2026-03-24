@@ -8,11 +8,11 @@ JetEngine™ — Velocità aereo militare americano (Mach 1.6+)
 Modulo di ottimizzazione velocità per VIO 83 AI Orchestra.
 
 Architettura a 5 strati (dalla superfice al core):
-  L1  TurboCache        — hit semantico <2ms, evita chiamate provider
+  L1  TurboCache        — hit semantico <2ms, evita chiamate provr
   L2  ComplexityScorer  — classifica query in 0.05ms per routing ottimale
   L3  LocalFirstRouter  — Ollama locale sub-100ms per query semplici
   L4  StreamGateway     — primo token visibile <200ms sempre
-  L5  ParallelSprint    — gara multi-provider, primo valido vince
+  L5  ParallelSprint    — gara multi-provr, primo valido vince
 
 Benchmark target (Mach 1.6 equivalent):
   Cache hit        :  <2ms     ████████████████████ INSTANTANEO
@@ -142,7 +142,7 @@ class ComplexityProfile:
     intent:      str     # "simple"|"news"|"code"|"math"|"reasoning"|"creative"|"deep"
     local_ok:    bool    # True → Ollama locale sufficiente
     stream_prio: bool    # True → forza streaming immediato
-    race_prio:   bool    # True → lancia gara multi-provider
+    race_prio:   bool    # True → lancia gara multi-provr
     tokens_est:  int     # stima token risposta
 
 class ComplexityScorer:
@@ -230,25 +230,25 @@ class ComplexityScorer:
 
 @dataclass
 class RoutingDecision:
-    provider:     str      # "ollama"|"claude"|"openai"|"gemini"|"groq"|...
+    provr:     str      # "ollama"|"claude"|"openai"|"gemini"|"groq"|...
     model:        str      # nome modello specifico
     stream:       bool     # usa streaming SSE
-    race:         bool     # lancia gara multi-provider
-    race_targets: List[str] = field(default_factory=list)  # provider da correre
+    race:         bool     # lancia gara multi-provr
+    race_targets: List[str] = field(default_factory=list)  # provr da correre
     reason:       str = "" # debug: motivo decisione
 
 class LocalFirstRouter:
     """
-    Sceglie il provider più veloce per la query data.
+    Sceglie il provr più veloce per la query data.
 
     Priorità:
-      1. Cache hit            → provider="cache", latenza 0
+      1. Cache hit            → provr="cache", latenza 0
       2. Query semplice       → Ollama locale (<100ms, zero costi API)
       3. Query media          → cloud streaming (primo token <250ms)
-      4. Query complessa      → gara multi-provider (vince il primo)
+      4. Query complessa      → gara multi-provr (vince il primo)
 
     Rispetta:
-      - provider esplicito dell'utente (override totale)
+      - provr esplicito dell'utente (overr totale)
       - disponibilità Ollama (verifica at startup)
       - runtime_mode (local/cloud/hybrid)
     """
@@ -258,27 +258,27 @@ class LocalFirstRouter:
     _OLLAMA_MEDIUM = "qwen2.5:7b"        # <200ms — query medie
     _OLLAMA_SMART  = "deepseek-r1:8b"    # <400ms — reasoning leggero
 
-    # Cloud providers in ordine di velocità tipica
+    # Cloud provrs in ordine di velocità tipica
     _CLOUD_SPEED_ORDER = ["groq", "gemini", "claude", "openai", "openrouter"]
 
-    def decide(
+    def dec(
         self,
         profile:       ComplexityProfile,
         runtime_mode:  str,                # "local"|"cloud"|"hybrid"
-        explicit_provider: Optional[str],  # provider richiesto dall'utente
+        explicit_provr: Optional[str],  # provr richiesto dall'utente
         ollama_available:  bool = True,
         available_cloud:   Optional[List[str]] = None,
     ) -> RoutingDecision:
 
         ac = available_cloud or self._CLOUD_SPEED_ORDER
 
-        # Override esplicito: rispetta sempre la scelta dell'utente
-        if explicit_provider and explicit_provider != "auto":
-            model = self._default_model(explicit_provider)
+        # Overr esplicito: rispetta sempre la scelta dell'utente
+        if explicit_provr and explicit_provr != "auto":
+            model = self._default_model(explicit_provr)
             return RoutingDecision(
-                provider=explicit_provider, model=model,
+                provr=explicit_provr, model=model,
                 stream=profile.stream_prio, race=False,
-                reason=f"explicit_override:{explicit_provider}",
+                reason=f"explicit_overr:{explicit_provr}",
             )
 
         # Forza locale
@@ -286,7 +286,7 @@ class LocalFirstRouter:
             if ollama_available:
                 m = self._ollama_model(profile)
                 return RoutingDecision(
-                    provider="ollama", model=m, stream=True, race=False,
+                    provr="ollama", model=m, stream=True, race=False,
                     reason=f"local_mode,complexity={profile.score:.2f}",
                 )
 
@@ -299,20 +299,20 @@ class LocalFirstRouter:
         if profile.local_ok and ollama_available and profile.score < 0.5:
             m = self._ollama_model(profile)
             return RoutingDecision(
-                provider="ollama", model=m, stream=True, race=False,
+                provr="ollama", model=m, stream=True, race=False,
                 reason=f"hybrid_local,score={profile.score:.2f},intent={profile.intent}",
             )
 
-        # → Query complessa = gara multi-provider (cloud vince il primo)
+        # → Query complessa = gara multi-provr (cloud vince il primo)
         if profile.race_prio and len(ac) >= 2:
             targets = ac[:3]   # top-3 cloud più veloci
             return RoutingDecision(
-                provider=targets[0], model=self._default_model(targets[0]),
+                provr=targets[0], model=self._default_model(targets[0]),
                 stream=True, race=True, race_targets=targets,
                 reason=f"hybrid_race,score={profile.score:.2f},targets={targets}",
             )
 
-        # → Query media = cloud streaming, provider più veloce disponibile
+        # → Query media = cloud streaming, provr più veloce disponibile
         return self._cloud_decision(profile, ac)
 
     def _ollama_model(self, p: ComplexityProfile) -> str:
@@ -321,24 +321,24 @@ class LocalFirstRouter:
         return self._OLLAMA_SMART
 
     def _cloud_decision(self, p: ComplexityProfile, ac: List[str]) -> RoutingDecision:
-        provider = ac[0] if ac else "claude"
+        provr = ac[0] if ac else "claude"
         # Per reasoning/math preferisci claude (migliore qualità)
         if p.intent in ("reasoning", "math") and "claude" in ac:
-            provider = "claude"
+            provr = "claude"
         # Per code preferisci openai (codex)
         if p.intent == "code" and "openai" in ac:
-            provider = "openai"
+            provr = "openai"
         # Per news/realtime preferisci groq (più veloce)
         if p.intent == "news" and "groq" in ac:
-            provider = "groq"
+            provr = "groq"
         return RoutingDecision(
-            provider=provider, model=self._default_model(provider),
+            provr=provr, model=self._default_model(provr),
             stream=True, race=p.race_prio, race_targets=ac[:2] if p.race_prio else [],
-            reason=f"cloud_{p.intent},provider={provider}",
+            reason=f"cloud_{p.intent},provr={provr}",
         )
 
     @staticmethod
-    def _default_model(provider: str) -> str:
+    def _default_model(provr: str) -> str:
         return {
             "ollama":    "qwen2.5:7b",
             "claude":    "claude-3-5-haiku-20241022",
@@ -348,7 +348,7 @@ class LocalFirstRouter:
             "openrouter":"meta-llama/llama-3.1-8b-instruct:free",
             "mistral":   "mistral-small-latest",
             "deepseek":  "deepseek-chat",
-        }.get(provider, "qwen2.5:7b")
+        }.get(provr, "qwen2.5:7b")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -359,7 +359,7 @@ class LocalFirstRouter:
 class StreamToken:
     content:    str
     done:       bool
-    provider:   str
+    provr:   str
     model:      str
     latency_ms: float = 0.0
     error:      Optional[str] = None
@@ -368,8 +368,8 @@ class StreamGateway:
     """
     Gateway di streaming con queste garanzie:
       - Primo token visibile all'utente in <200ms
-      - Heartbeat ogni 100ms se il provider è lento (evita timeout UI)
-      - Fallback automatico a provider secondario se il primo non risponde in 3s
+      - Heartbeat ogni 100ms se il provr è lento (evita timeout UI)
+      - Fallback automatico a provr secondario se il primo non risponde in 3s
       - Stop-mid-stream: può essere interrotto in qualsiasi momento
 
     Supporta due modalità:
@@ -423,7 +423,7 @@ class StreamGateway:
                 now = time.monotonic()
                 if not first_token_seen:
                     first_token_seen = True
-                    logger.info("first_token provider=ollama model=%s latency=%.1fms",
+                    logger.info("first_token provr=ollama model=%s latency=%.1fms",
                                 model, (now-start)*1000)
 
                 # Heartbeat se la UI aspetta troppo
@@ -443,7 +443,7 @@ class StreamGateway:
     async def stream_cloud_sse(
         self,
         messages:    List[Dict],
-        provider:    str,
+        provr:    str,
         model:       str,
         temperature: float,
         max_tokens:  int,
@@ -458,13 +458,13 @@ class StreamGateway:
 
         start = time.monotonic()
         # Chiamata non-streaming con asyncio + yielding simulato per compatibilità
-        # (Il vero streaming cloud richiede integrazioni per-provider)
+        # (Il vero streaming cloud richiede integrazioni per-provr)
         try:
             result = await asyncio.wait_for(
                 orchestrate(
                     messages=messages,
                     mode="cloud",
-                    provider=provider,
+                    provr=provr,
                     model=model,
                     auto_routing=False,
                     temperature=temperature,
@@ -473,7 +473,7 @@ class StreamGateway:
                 timeout=60.0,
             )
             content = result.get("content", "")
-            # Simula streaming dividendo la risposta in chunks da ~4 parole
+            # Simula streaming divndo la risposta in chunks da ~4 parole
             words = content.split()
             chunk_size = 4
             for i in range(0, len(words), chunk_size):
@@ -482,40 +482,40 @@ class StreamGateway:
                 chunk = " ".join(words[i:i+chunk_size])
                 if i + chunk_size < len(words):
                     chunk += " "
-                yield StreamToken(chunk, False, provider, model)
+                yield StreamToken(chunk, False, provr, model)
                 await asyncio.sleep(0)  # yield al loop event
 
             latency = (time.monotonic() - start) * 1000
-            yield StreamToken("", True, provider, result.get("model", model), latency)
+            yield StreamToken("", True, provr, result.get("model", model), latency)
 
         except asyncio.TimeoutError:
-            yield StreamToken("", True, provider, model, 60_000.0, "timeout")
+            yield StreamToken("", True, provr, model, 60_000.0, "timeout")
         except Exception as exc:
             logger.exception("StreamGateway cloud error: %s", exc)
-            yield StreamToken("", True, provider, model, 0.0, str(exc))
+            yield StreamToken("", True, provr, model, 0.0, str(exc))
 
 
 # ─────────────────────────────────────────────────────────────
-# LAYER 5 — ParallelSprint  (gara multi-provider, vince il primo)
+# LAYER 5 — ParallelSprint  (gara multi-provr, vince il primo)
 # ─────────────────────────────────────────────────────────────
 
 @dataclass
 class SprintResult:
-    winner:     str     # provider vincitore
+    winner:     str     # provr vincitore
     content:    str     # risposta completa
     model:      str
     latency_ms: float
-    losers:     List[str] = field(default_factory=list)  # provider che hanno perso
+    losers:     List[str] = field(default_factory=list)  # provr che hanno perso
     error:      Optional[str] = None
 
 class ParallelSprint:
     """
-    Lancia chiamate in parallelo a N provider cloud.
+    Lancia chiamate in parallelo a N provr cloud.
     La prima risposta valida (non vuota, non errore) vince.
     Le altre vengono cancellate immediatamente.
 
     Vantaggi vs chiamata singola:
-      - P50 latenza = latenza del provider più veloce disponibile
+      - P50 latenza = latenza del provr più veloce disponibile
       - Resilienza automatica: se groq è lento, claude vince; e viceversa
       - Zero overhead extra per l'utente (paga solo il winner)
     """
@@ -525,68 +525,68 @@ class ParallelSprint:
     async def race(
         self,
         messages:    List[Dict],
-        providers:   List[str],
+        provrs:   List[str],
         temperature: float  = 0.7,
         max_tokens:  int    = 1024,
         timeout:     float  = 30.0,
     ) -> SprintResult:
-        """Gara: lancia tutti i provider, restituisce il primo risultato valido."""
+        """Gara: lancia tutti i provr, restituisce il primo risultato valido."""
         from backend.orchestrator.direct_router import orchestrate
 
-        if not providers:
-            return SprintResult("", "", "", 0.0, error="no_providers")
+        if not provrs:
+            return SprintResult("", "", "", 0.0, error="no_provrs")
 
         start = time.monotonic()
 
-        async def _call(provider: str) -> Tuple[str, Dict]:
+        async def _call(provr: str) -> Tuple[str, Dict]:
             try:
                 result = await asyncio.wait_for(
                     orchestrate(
                         messages=messages,
                         mode="cloud",
-                        provider=provider,
+                        provr=provr,
                         auto_routing=False,
                         temperature=temperature,
                         max_tokens=max_tokens,
                     ),
                     timeout=timeout,
                 )
-                return provider, result
+                return provr, result
             except Exception as exc:
-                logger.debug("Sprint provider=%s error=%s", provider, exc)
-                return provider, {"content": "", "error": str(exc)}
+                logger.debug("Sprint provr=%s error=%s", provr, exc)
+                return provr, {"content": "", "error": str(exc)}
 
-        tasks = [asyncio.create_task(_call(p)) for p in providers]
-        winner_provider = ""
+        tasks = [asyncio.create_task(_call(p)) for p in provrs]
+        winner_provr = ""
         winner_result: Dict = {}
         losers: List[str] = []
 
         try:
             for coro in asyncio.as_completed(tasks):
-                provider, result = await coro
+                provr, result = await coro
                 content = result.get("content", "")
                 if len(content) >= self.MIN_LENGTH and not result.get("error"):
-                    winner_provider = provider
+                    winner_provr = provr
                     winner_result = result
                     break
                 else:
-                    losers.append(provider)
+                    losers.append(provr)
         finally:
             # Cancella task rimanenti immediatamente
             for t in tasks:
                 if not t.done():
                     t.cancel()
 
-        if not winner_provider:
+        if not winner_provr:
             return SprintResult("", "", "", (time.monotonic()-start)*1000,
-                                error="all_providers_failed")
+                                error="all_provrs_failed")
 
         latency = (time.monotonic() - start) * 1000
         logger.info("Sprint winner=%s latency=%.1fms losers=%s",
-                    winner_provider, latency, losers)
+                    winner_provr, latency, losers)
 
         return SprintResult(
-            winner=winner_provider,
+            winner=winner_provr,
             content=winner_result.get("content", ""),
             model=winner_result.get("model", ""),
             latency_ms=latency,
@@ -614,7 +614,7 @@ class JetEngine:
         jet = get_jet_engine()
 
         # 1. Verifica cache
-        decision = jet.decide(message, model, runtime_mode, explicit_provider,
+        decision = jet.dec(message, model, runtime_mode, explicit_provr,
                               ollama_available, available_cloud, history_len)
         if decision.cache_hit:
             return ChatResponse(**decision.cached_resp)
@@ -642,12 +642,12 @@ class JetEngine:
         self._OLLAMA_CHECK_TTL = 30.0  # ri-verifica ogni 30s
 
     # ── Metodo principale ─────────────────────────────────────
-    def decide(
+    def dec(
         self,
         message:            str,
         model:              str             = "auto",
         runtime_mode:       str             = "hybrid",
-        explicit_provider:  Optional[str]   = None,
+        explicit_provr:  Optional[str]   = None,
         ollama_available:   Optional[bool]  = None,
         available_cloud:    Optional[List[str]] = None,
         history_len:        int             = 0,
@@ -670,18 +670,18 @@ class JetEngine:
 
         # 3 — Routing
         oa = ollama_available if ollama_available is not None else self._get_ollama_status()
-        routing = self.router.decide(
+        routing = self.router.dec(
             profile=profile,
             runtime_mode=runtime_mode,
-            explicit_provider=explicit_provider,
+            explicit_provr=explicit_provr,
             ollama_available=oa,
             available_cloud=available_cloud,
         )
 
         logger.debug(
-            "JetEngine decide: intent=%s score=%.2f → provider=%s stream=%s race=%s reason=%s",
+            "JetEngine dec: intent=%s score=%.2f → provr=%s stream=%s race=%s reason=%s",
             profile.intent, profile.score,
-            routing.provider, routing.stream, routing.race, routing.reason,
+            routing.provr, routing.stream, routing.race, routing.reason,
         )
 
         return JetDecision(False, None, profile, routing)
@@ -699,14 +699,14 @@ class JetEngine:
         mt = decision.profile.tokens_est
         temp = temperature
 
-        if r.provider == "ollama":
+        if r.provr == "ollama":
             async for tok in self.gateway.stream_ollama(
                 messages, r.model, temp, mt, session_id
             ):
                 yield tok
         else:
             async for tok in self.gateway.stream_cloud_sse(
-                messages, r.provider, r.model, temp, mt, session_id
+                messages, r.provr, r.model, temp, mt, session_id
             ):
                 yield tok
 

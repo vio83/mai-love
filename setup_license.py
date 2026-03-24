@@ -25,7 +25,7 @@ Version 3, 19 November 2007
 
 Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-ntifier: AGPL-3.0-or-later
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.

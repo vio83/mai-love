@@ -80,6 +80,7 @@ export interface OrchestratorConfig {
   ragEnabled: boolean;
   strictEvidenceMode: boolean;
   autoRouting: boolean; // Smart routing based on request type
+  protocollo100x: boolean; // Protocollo di Aderenza Totale 100x
 }
 
 export interface AppSettings {

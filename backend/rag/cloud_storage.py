@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import (
-    Any, BinaryIO, Dict, Generator, List, Optional, Tuple, Union
+    Any, BinaryIO, Dict, Generator, List, Optional, Union
 )
 
 logger = logging.getLogger("vio83.cloud_storage")

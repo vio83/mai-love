@@ -27,15 +27,13 @@ Performance target (Piuma™):
 from __future__ import annotations
 
 import hashlib
-import json
-import math
 import re
 import sqlite3
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger("reasoning_amplifier")
@@ -141,7 +139,7 @@ class IntentDecoder:
 
     def decode(self, user_input: str) -> IntentProfile:
         text = user_input.lower()
-        words = set(re.findall(r'\b\w+\b', text))
+        _words = set(re.findall(r'\b\w+\b', text))  # noqa: F841
 
         # ── complexity ──
         complex_kw = INTENT_DIMENSIONS["complexity"]
@@ -669,7 +667,10 @@ class ReasoningAmplifier:
 
         # Memorizza pattern vincente se qualità alta
         if record_pattern and report.overall >= 0.80:
-            pattern_id = hashlib.md5(f"{intent.domain}:{intent.format_pref}:{report.overall}".encode()).hexdigest()[:10]
+            pattern_id = hashlib.blake2s(
+                f"{intent.domain}:{intent.format_pref}:{report.overall}".encode(),
+                digest_size=5,
+            ).hexdigest()
             self._memory.store(WinningPattern(
                 pattern_id=pattern_id,
                 domain=intent.domain,
@@ -737,7 +738,6 @@ class ReasoningAmplifier:
         Returns:
             Dict con output finale, analisi, verifica, quality report
         """
-        import asyncio
         t0 = time.monotonic()
 
         intent = self.decode_intent(user_input)

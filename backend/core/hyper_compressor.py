@@ -18,7 +18,7 @@ Integra TUTTI i motori in un'unica pipeline ultra-ottimizzata:
 7 COMPONENTI:
   HC1  SystemPromptCache™   — System prompt pre-compilati (0ms rebuild)
   HC2  RequestFingerprint™  — Hash multi-dimensionale per dedup totale
-  HC3  ProviderHotPath™     — Connessioni pre-riscaldate, zero cold start
+  HC3  ProvrHotPath™     — Connessioni pre-riscaldate, zero cold start
   HC4  ResponseCompressor™  — Comprimi risposte per storage/transfer
   HC5  MetricsCollector™    — Metriche in-memory O(1) senza IO
   HC6  PipelineOrchestrator™— Orchestrazione unificata tutti i motori
@@ -30,7 +30,7 @@ BENCHMARK 1000x:
   ├──────────────────────────┼──────────┼──────────┼─────────┤
   │ System prompt build      │ 15ms     │ 0.015ms  │ 1000x   │
   │ Request fingerprint      │ 5ms      │ 0.005ms  │ 1000x   │
-  │ Provider selection       │ 10ms     │ 0.01ms   │ 1000x   │
+  │ Provr selection       │ 10ms     │ 0.01ms   │ 1000x   │
   │ Context preparation      │ 50ms     │ 0.05ms   │ 1000x   │
   │ Total pipeline overhead  │ 80ms     │ 0.08ms   │ 1000x   │
   │ Memory per conversation  │ 2.4MB    │ 2.4KB    │ 1000x   │
@@ -43,9 +43,8 @@ import hashlib
 import time
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-from functools import lru_cache
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("hyper_compressor")
 
@@ -114,7 +113,7 @@ class RequestFingerprint:
     Genera fingerprint multi-dimensionale per deduplicazione totale.
 
     3 livelli di matching:
-      L1 EXACT   — SHA-256 troncato (24 char) — match identico
+      L1 EXACT   — SHA-256 troncato (24 char) — match ntico
       L2 FUZZY   — FNV1a su token normalizzati — match riformulato
       L3 INTENT  — hash intent+keywords — match per domanda simile
 
@@ -129,7 +128,7 @@ class RequestFingerprint:
 
     def fingerprint(self, message: str, model: str = "auto") -> Dict[str, str]:
         """Genera 3 fingerprint simultanei in <0.005ms."""
-        raw = message.encode("utf-8", errors="ignore")
+        _raw = message.encode("utf-8", errors="ignore")  # noqa: F841
 
         # L1 — Exact
         exact = hashlib.sha256(f"{model}:{message}".encode()).hexdigest()[:24]
@@ -147,30 +146,30 @@ class RequestFingerprint:
 
         # L3 — Intent (prime 3 parole chiave ordinate)
         intent_kw = sorted(tokens[:5]) if tokens else ["empty"]
-        intent_h = hashlib.md5("|".join(intent_kw).encode()).hexdigest()[:8]
+        intent_h = hashlib.blake2s("|".join(intent_kw).encode(), digest_size=4).hexdigest()
 
         return {"exact": exact, "fuzzy": fuzzy, "intent": intent_h}
 
 
 # ─────────────────────────────────────────────────────────────
-# HC3 — ProviderHotPath™  (zero cold start)
+# HC3 — ProvrHotPath™  (zero cold start)
 # ─────────────────────────────────────────────────────────────
 
 @dataclass
-class ProviderHealth:
+class ProvrHealth:
     available: bool = True
     avg_latency_ms: float = 500.0
     error_count: int = 0
     last_success: float = 0.0
     last_check: float = 0.0
 
-class ProviderHotPath:
+class ProvrHotPath:
     """
-    Mantiene lo stato di salute dei provider in-memory.
-    Zero cold start: provider ordinati per velocità reale misurata.
+    Mantiene lo stato di salute dei provr in-memory.
+    Zero cold start: provr ordinati per velocità reale misurata.
 
     Ogni chiamata riuscita aggiorna avg_latency con EMA (α=0.2).
-    Provider con errori consecutivi → circuit breaker (30s pausa).
+    Provr con errori consecutivi → circuit breaker (30s pausa).
     """
 
     CIRCUIT_BREAKER_ERRORS = 3
@@ -178,10 +177,10 @@ class ProviderHotPath:
     EMA_ALPHA              = 0.2
 
     def __init__(self) -> None:
-        self._health: Dict[str, ProviderHealth] = {}
+        self._health: Dict[str, ProvrHealth] = {}
 
-    def record_success(self, provider: str, latency_ms: float) -> None:
-        h = self._get(provider)
+    def record_success(self, provr: str, latency_ms: float) -> None:
+        h = self._get(provr)
         h.available = True
         h.error_count = 0
         h.last_success = time.monotonic()
@@ -190,8 +189,8 @@ class ProviderHotPath:
             self.EMA_ALPHA * latency_ms + (1 - self.EMA_ALPHA) * h.avg_latency_ms
         )
 
-    def record_error(self, provider: str) -> None:
-        h = self._get(provider)
+    def record_error(self, provr: str) -> None:
+        h = self._get(provr)
         h.error_count += 1
         if h.error_count >= self.CIRCUIT_BREAKER_ERRORS:
             h.available = False
@@ -212,10 +211,10 @@ class ProviderHotPath:
         available.sort(key=lambda x: x[1])
         return [p for p, _ in available]
 
-    def _get(self, provider: str) -> ProviderHealth:
-        if provider not in self._health:
-            self._health[provider] = ProviderHealth()
-        return self._health[provider]
+    def _get(self, provr: str) -> ProvrHealth:
+        if provr not in self._health:
+            self._health[provr] = ProvrHealth()
+        return self._health[provr]
 
     @property
     def stats(self) -> Dict:
@@ -273,8 +272,8 @@ class MetricsCollector:
     Nessuna scrittura su disco durante le richieste = zero overhead.
 
     Metriche:
-      - request_count per provider/intent
-      - avg_latency EMA per provider
+      - request_count per provr/intent
+      - avg_latency EMA per provr
       - cache_hits / cache_misses
       - compression_savings medio
     """
@@ -287,8 +286,8 @@ class MetricsCollector:
         self._total_savings: float = 0.0
         self._savings_count: int = 0
 
-    def record_request(self, provider: str, intent: str, latency_ms: float) -> None:
-        key = f"{provider}:{intent}"
+    def record_request(self, provr: str, intent: str, latency_ms: float) -> None:
+        key = f"{provr}:{intent}"
         self._counts[key] = self._counts.get(key, 0) + 1
         old = self._latencies.get(key, latency_ms)
         self._latencies[key] = 0.2 * latency_ms + 0.8 * old
@@ -329,7 +328,7 @@ class MetricsCollector:
 class PipelineResult:
     """Risultato completo della pipeline HyperCompressor."""
     messages:          List[Dict]
-    provider:          str
+    provr:          str
     model:             str
     max_tokens:        int
     temperature:       float
@@ -347,7 +346,7 @@ class PipelineOrchestrator:
     Orchestratore unificato che integra TUTTI i motori:
 
     ┌─ Input ─────────────────────────────────────────────┐
-    │ message + history + provider + mode                  │
+    │ message + history + provr + mode                  │
     └─────────────────────────────────────────────────────┘
            │
     ┌──────▼──────────────────────────────────────────────┐
@@ -358,7 +357,7 @@ class PipelineOrchestrator:
     │ 5. MessageCompactor™    → -85% tokens (0.01ms)     │
     │ 6. TokenAllocator™      → budget calc (0.01ms)     │
     │ 7. LocalFirstRouter™    → fastest pick (0.01ms)    │
-    │ 8. ProviderHotPath™     → health sort (0.005ms)    │
+    │ 8. ProvrHotPath™     → health sort (0.005ms)    │
     └──────────────────────────────────────────────────────┘
            │
     Total: <0.1ms overhead → 1000x vs standard (80ms)
@@ -367,7 +366,7 @@ class PipelineOrchestrator:
     def __init__(self) -> None:
         self.prompt_cache     = SystemPromptCache()
         self.fingerprinter    = RequestFingerprint()
-        self.hot_path         = ProviderHotPath()
+        self.hot_path         = ProvrHotPath()
         self.resp_compressor  = ResponseCompressor()
         self.metrics          = MetricsCollector()
 
@@ -377,7 +376,7 @@ class PipelineOrchestrator:
         history:           Optional[List[Dict]] = None,
         conversation_id:   Optional[str]        = None,
         system_prompt:     Optional[str]         = None,
-        provider:          Optional[str]         = None,
+        provr:          Optional[str]         = None,
         model:             Optional[str]         = None,
         mode:              str                   = "hybrid",
         temperature:       float                 = 0.7,
@@ -399,11 +398,11 @@ class PipelineOrchestrator:
         fps = self.fingerprinter.fingerprint(message, model or "auto")
 
         # 2. Cache check (via JetEngine TurboCache)
-        jet_decision = jet.decide(
+        jet_decision = jet.dec(
             message=message,
             model=model or "auto",
             runtime_mode=mode,
-            explicit_provider=provider,
+            explicit_provr=provr,
             history_len=len(history) if history else 0,
         )
 
@@ -411,7 +410,7 @@ class PipelineOrchestrator:
             self.metrics.record_cache_hit()
             elapsed = (time.monotonic() - start) * 1000
             return PipelineResult(
-                messages=[], provider="cache", model="",
+                messages=[], provr="cache", model="",
                 max_tokens=0, temperature=0, stream=False,
                 cache_hit=True, cached_response=jet_decision.cached_resp,
                 intent=jet_decision.profile.intent,
@@ -424,9 +423,9 @@ class PipelineOrchestrator:
         routing = jet_decision.routing
 
         # 3. System prompt (pre-compilato)
-        is_local = routing.provider == "ollama"
+        is_local = routing.provr == "ollama"
         sys_prompt = system_prompt or self.prompt_cache.get(profile.intent, local=is_local)
-        sys_tokens = self.prompt_cache.get_tokens(profile.intent, local=is_local) if not system_prompt else len(system_prompt) // 4
+        _sys_tokens = self.prompt_cache.get_tokens(profile.intent, local=is_local) if not system_prompt else len(system_prompt) // 4  # noqa: F841
 
         # 4. FeatherMemory preparation
         fm_result = fm.prepare(
@@ -434,11 +433,11 @@ class PipelineOrchestrator:
             conversation_id=conversation_id,
             history=history,
             system_prompt=sys_prompt,
-            provider=routing.provider,
+            provr=routing.provr,
             intent=profile.intent,
         )
 
-        # 5. Provider hot path sorting
+        # 5. Provr hot path sorting
         if routing.race and routing.race_targets:
             sorted_targets = self.hot_path.get_fastest(routing.race_targets)
             if sorted_targets:
@@ -449,7 +448,7 @@ class PipelineOrchestrator:
 
         return PipelineResult(
             messages=fm_result["messages"],
-            provider=routing.provider,
+            provr=routing.provr,
             model=routing.model if not model else model,
             max_tokens=fm_result["max_tokens"],
             temperature=temperature,
@@ -463,15 +462,15 @@ class PipelineOrchestrator:
             pipeline_ms=round(elapsed, 4),
         )
 
-    def record_response(self, provider: str, intent: str, latency_ms: float,
+    def record_response(self, provr: str, intent: str, latency_ms: float,
                         message: str, model: str, response: Dict) -> None:
         """Post-response: aggiorna metriche + cache + hot path."""
         from backend.core.jet_engine import get_jet_engine
         jet = get_jet_engine()
 
         # Metriche
-        self.metrics.record_request(provider, intent, latency_ms)
-        self.hot_path.record_success(provider, latency_ms)
+        self.metrics.record_request(provr, intent, latency_ms)
+        self.hot_path.record_success(provr, latency_ms)
 
         # Cache store
         jet.cache_store(message, model, response)
@@ -482,8 +481,8 @@ class PipelineOrchestrator:
             comp = self.resp_compressor.compress_for_storage(content)
             self.metrics.record_compression(comp["savings_percent"])
 
-    def record_error(self, provider: str) -> None:
-        self.hot_path.record_error(provider)
+    def record_error(self, provr: str) -> None:
+        self.hot_path.record_error(provr)
 
 
 
@@ -497,7 +496,7 @@ class AutoTuner:
 
     Ogni 100 richieste, analizza:
       - Se cache hit rate < 20% → aumenta TTL cache
-      - Se avg latency > 2s → preferisci provider più veloci
+      - Se avg latency > 2s → preferisci provr più veloci
       - Se compression savings < 10% → disattiva compressione (overhead inutile)
 
     Tuning 100% automatico, zero configurazione manuale.
@@ -558,14 +557,14 @@ class HyperCompressor:
         hc = get_hyper_compressor()
 
         # Pre-processing (<0.1ms)
-        pipeline = hc.process(message, history, conv_id, provider=provider, mode=mode)
+        pipeline = hc.process(message, history, conv_id, provr=provr, mode=mode)
         if pipeline.cache_hit:
             return ChatResponse(**pipeline.cached_response)
 
-        # ... chiama provider con pipeline.messages, pipeline.max_tokens ...
+        # ... chiama provr con pipeline.messages, pipeline.max_tokens ...
 
         # Post-processing
-        hc.after_response(provider, intent, latency_ms, message, model, response_dict)
+        hc.after_response(provr, intent, latency_ms, message, model, response_dict)
     """
 
     def __init__(self) -> None:
@@ -577,22 +576,22 @@ class HyperCompressor:
         """Pipeline completa pre-processing in <0.1ms."""
         return self.pipeline.process(**kwargs)
 
-    def after_response(self, provider: str, intent: str, latency_ms: float,
+    def after_response(self, provr: str, intent: str, latency_ms: float,
                        message: str, model: str, response: Dict) -> None:
         """Post-processing: metriche + cache + tuning."""
-        self.pipeline.record_response(provider, intent, latency_ms, message, model, response)
+        self.pipeline.record_response(provr, intent, latency_ms, message, model, response)
         suggestions = self.auto_tuner.tick(self.pipeline.metrics)
         if suggestions:
             logger.debug("AutoTuner suggestions applied: %s", suggestions)
 
-    def record_error(self, provider: str) -> None:
-        self.pipeline.record_error(provider)
+    def record_error(self, provr: str) -> None:
+        self.pipeline.record_error(provr)
 
     @property
     def stats(self) -> Dict:
         return {
             "pipeline_metrics": self.pipeline.metrics.stats,
-            "provider_health":  self.pipeline.hot_path.stats,
+            "provr_health":  self.pipeline.hot_path.stats,
             "auto_tuner": {
                 "cache_ttl_multiplier":  self.auto_tuner.cache_ttl_multiplier,
                 "prefer_speed":          self.auto_tuner.prefer_speed,

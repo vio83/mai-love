@@ -204,6 +204,52 @@ Nel dialogo generale:
 
 
 // ============================================================
+// PROTOCOLLO DI ADERENZA TOTALE 100x
+// Framework operativo per output gemello al 100% dell'obiettivo
+// Attivabile come overlay su qualsiasi prompt specializzato
+// ============================================================
+
+export const PROTOCOLLO_100X = `
+=== PROTOCOLLO DI ADERENZA TOTALE 100x — ATTIVO ===
+
+MANDATO OPERATIVO:
+Produci un risultato gemello al 100% dell'obiettivo dichiarato.
+Reale, verificabile, eseguibile. Zero scarto.
+
+Se mancano dati: fermati, elenca le lacune minime,
+chiedi SOLO ciò che serve per chiudere il gap a zero scarto.
+
+CRITERI DI ACCETTAZIONE:
+1. Copertura 100% dei requisiti dichiarati — nessun punto ignorato o rimandato
+2. KPI con soglie misurabili — ogni affermazione è quantificabile o falsificabile
+3. Ogni passo ha responsabile + deadline (se applicabile al contesto)
+4. Fonti tracciate, assunzioni marcate esplicitamente con [ASSUNZIONE]
+5. Linguaggio professionale — zero superlativi vuoti, zero fluff
+6. Formato di output: concreto, verificabile, pronto all'esecuzione
+
+POLITICA DI VERITÀ:
+• Se non disponi di un dato → dichiara: "[DATO MANCANTE: ...]"
+• Se un requisito è ambiguo → elenca le interpretazioni e chiedi disambiguazione
+• Se esistono alternative equivalenti → presenta A/B con raccomandazione motivata
+• Mai inventare dati, fonti, citazioni, metriche
+• Mai produrre output parziale senza dichiarare esplicitamente cosa manca
+
+FORMATO OUTPUT:
+• Struttura gerarchica: obiettivo → analisi → deliverable → verifica
+• Ogni sezione con status: [COMPLETO] | [PARZIALE: motivo] | [BLOCCATO: lacuna]
+• Checklist finale di accettazione con pass/fail per ogni criterio
+
+=== FINE PROTOCOLLO 100x ===`;
+
+export const PROTOCOLLO_100X_LOCAL = `
+=== PROTOCOLLO 100x ATTIVO ===
+Mandato: output gemello al 100% dell'obiettivo. Reale, verificabile, eseguibile.
+Se mancano dati: fermati e chiedi. Mai inventare.
+Criteri: copertura 100%, KPI misurabili, fonti tracciate, zero fluff.
+Formato: obiettivo → analisi → deliverable → verifica.
+=== FINE PROTOCOLLO 100x ===`;
+
+// ============================================================
 // PROMPT COMPATTO per modelli locali (< 7B params)
 // Riduce i token di sistema da ~4000 a ~400 per velocità massima
 // ============================================================
@@ -233,16 +279,24 @@ const LOCAL_SPECIALIZED: Record<string, string> = {
   conversation: 'Massima specializzazione anche per domande semplici. Mai risposte superficiali.',
 };
 
-export function buildLocalSystemPrompt(requestType: string): string {
+export function buildLocalSystemPrompt(requestType: string, protocollo100x: boolean = false): string {
   const specialized = LOCAL_SPECIALIZED[requestType] || LOCAL_SPECIALIZED.conversation;
-  return `${LOCAL_PROMPT}\n\n${specialized}`;
+  const base = `${LOCAL_PROMPT}\n\n${specialized}`;
+  if (protocollo100x) {
+    return `${base}\n\n${PROTOCOLLO_100X_LOCAL}`;
+  }
+  return base;
 }
 
 // ============================================================
 // FUNZIONE: componi il system prompt completo per una richiesta
 // ============================================================
 
-export function buildSystemPrompt(requestType: string): string {
+export function buildSystemPrompt(requestType: string, protocollo100x: boolean = false): string {
   const specialized = SPECIALIZED_PROMPTS[requestType] || SPECIALIZED_PROMPTS.conversation;
-  return `${VIO83_MASTER_PROMPT}\n\n${specialized}`;
+  const base = `${VIO83_MASTER_PROMPT}\n\n${specialized}`;
+  if (protocollo100x) {
+    return `${base}\n\n${PROTOCOLLO_100X}`;
+  }
+  return base;
 }

@@ -43,6 +43,7 @@ function Bar({ value, maxValue, color, label }: { value: number; maxValue: numbe
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
+  const [backendMetrics, setBackendMetrics] = useState<Record<string, unknown> | null>(null);
   const { t, lang } = useI18n();
   const categoryCatalog = getCategoryCatalog(lang);
 
@@ -50,6 +51,15 @@ export default function AnalyticsPage() {
     const interval = setInterval(() => setMetrics(getMetricsSnapshot()), 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch backend metrics per il time range selezionato
+  useEffect(() => {
+    const days = timeRange === '7d' ? 7 : timeRange === '90d' ? 90 : 30;
+    fetch(`http://localhost:4000/metrics?days=${days}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setBackendMetrics(data as Record<string, unknown>); })
+      .catch(() => { /* backend non disponibile, usa solo metriche locali */ });
+  }, [timeRange]);
 
   // Model stats con dati reali da metriche + capability statiche
   const modelStats = MODEL_CAPABILITIES.map(m => {
@@ -61,9 +71,9 @@ export default function AnalyticsPage() {
     };
   });
 
-  const totalRequests = metrics.totalRequests;
-  const totalTokens = metrics.totalTokens;
-  const totalCost = metrics.totalCostUsd;
+  const totalRequests = metrics.totalRequests + (typeof backendMetrics?.total_requests === 'number' ? backendMetrics.total_requests : 0);
+  const totalTokens = metrics.totalTokens + (typeof backendMetrics?.total_tokens === 'number' ? backendMetrics.total_tokens : 0);
+  const totalCost = metrics.totalCostUsd + (typeof backendMetrics?.total_cost_usd === 'number' ? backendMetrics.total_cost_usd : 0);
 
   // Categorie reali dalle 24 macro-categorie
   const categoryStats = categoryCatalog.map((category) => {

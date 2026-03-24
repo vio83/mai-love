@@ -1,5 +1,5 @@
 """
-VIO 83 AI ORCHESTRA — Advanced Provider Orchestration Engine
+VIO 83 AI ORCHESTRA — Advanced Provr Orchestration Engine
 Versione: 2.1 (16 Marzo 2026)
 Massima Potenza Mondiale — Intelligenza Distribuita Completa
 
@@ -14,13 +14,11 @@ Caratteristiche:
 """
 
 import os
-import json
 import time
 import asyncio
 import logging
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, Any, Tuple
 from pathlib import Path
-from datetime import datetime
 from enum import Enum
 import sqlite3
 
@@ -45,8 +43,8 @@ class TaskType(Enum):
     MATH = "math"
 
 
-class ProviderTier(Enum):
-    """Tier di provider"""
+class ProvrTier(Enum):
+    """Tier di provr"""
     LOCAL = "local"  # Ollama
     FREE_CLOUD = "free_cloud"  # Groq, Together, OpenRouter
     CHEAP_CLOUD = "cheap_cloud"  # DeepSeek, Mistral
@@ -54,13 +52,13 @@ class ProviderTier(Enum):
 
 
 # ═══════════════════════════════════════════════════════════
-# CONFIGURAZIONE PROVIDER OTTIMIZZATA
+# CONFIGURAZIONE PROVR OTTIMIZZATA
 # ═══════════════════════════════════════════════════════════
 
-PROVIDER_REGISTRY = {
-    # LOCAL PROVIDERS (Sempre disponibili, gratis)
+PROVR_REGISTRY = {
+    # LOCAL PROVRS (Sempre disponibili, gratis)
     "ollama": {
-        "tier": ProviderTier.LOCAL,
+        "tier": ProvrTier.LOCAL,
         "priority": 1,
         "cost_per_1m_tokens": 0.0,
         "health_endpoint": "http://localhost:11434/api/tags",
@@ -73,9 +71,9 @@ PROVIDER_REGISTRY = {
             "gemma2:2b": {"context": 8192, "speed": 98, "reasoning": 70, "code": 70},
         },
     },
-    # FREE CLOUD PROVIDERS (Gratis con API key)
+    # FREE CLOUD PROVRS (Gratis con API key)
     "groq": {
-        "tier": ProviderTier.FREE_CLOUD,
+        "tier": ProvrTier.FREE_CLOUD,
         "priority": 2,
         "cost_per_1m_tokens": 0.0,
         "health_endpoint": "https://api.groq.com/health",
@@ -87,7 +85,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "together": {
-        "tier": ProviderTier.FREE_CLOUD,
+        "tier": ProvrTier.FREE_CLOUD,
         "priority": 2,
         "cost_per_1m_tokens": 0.88,  # Free credits first
         "health_endpoint": "https://api.together.xyz/health",
@@ -98,7 +96,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "openrouter": {
-        "tier": ProviderTier.FREE_CLOUD,
+        "tier": ProvrTier.FREE_CLOUD,
         "priority": 2,
         "cost_per_1m_tokens": 0.0,  # Free models available
         "health_endpoint": "https://openrouter.ai/health",
@@ -108,9 +106,9 @@ PROVIDER_REGISTRY = {
             "deepseek/deepseek-r1:free": {"context": 64000, "speed": 60, "reasoning": 99, "code": 95},
         },
     },
-    # CHEAP CLOUD PROVIDERS
+    # CHEAP CLOUD PROVRS
     "deepseek": {
-        "tier": ProviderTier.CHEAP_CLOUD,
+        "tier": ProvrTier.CHEAP_CLOUD,
         "priority": 3,
         "cost_per_1m_tokens": 0.27,  # Input tokens
         "health_endpoint": "https://api.deepseek.com/health",
@@ -121,7 +119,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "mistral": {
-        "tier": ProviderTier.CHEAP_CLOUD,
+        "tier": ProvrTier.CHEAP_CLOUD,
         "priority": 3,
         "cost_per_1m_tokens": 0.20,  # Input tokens
         "health_endpoint": "https://api.mistral.ai/health",
@@ -131,9 +129,9 @@ PROVIDER_REGISTRY = {
             "mistral-large-latest": {"context": 128000, "speed": 85, "reasoning": 90, "code": 88},
         },
     },
-    # PREMIUM CLOUD PROVIDERS
+    # PREMIUM CLOUD PROVRS
     "anthropic": {
-        "tier": ProviderTier.PREMIUM_CLOUD,
+        "tier": ProvrTier.PREMIUM_CLOUD,
         "priority": 4,
         "cost_per_1m_tokens": 3.0,  # Input tokens
         "health_endpoint": "https://api.anthropic.com/health",
@@ -145,7 +143,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "openai": {
-        "tier": ProviderTier.PREMIUM_CLOUD,
+        "tier": ProvrTier.PREMIUM_CLOUD,
         "priority": 4,
         "cost_per_1m_tokens": 2.50,  # Input tokens (GPT-5.4)
         "health_endpoint": "https://api.openai.com/health",
@@ -156,7 +154,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "google": {
-        "tier": ProviderTier.PREMIUM_CLOUD,
+        "tier": ProvrTier.PREMIUM_CLOUD,
         "priority": 4,
         "cost_per_1m_tokens": 1.25,  # Input tokens
         "health_endpoint": "https://ai.google.dev/health",
@@ -167,7 +165,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "xai": {
-        "tier": ProviderTier.PREMIUM_CLOUD,
+        "tier": ProvrTier.PREMIUM_CLOUD,
         "priority": 4,
         "cost_per_1m_tokens": 2.0,  # Input tokens
         "health_endpoint": "https://api.x.ai/health",
@@ -177,7 +175,7 @@ PROVIDER_REGISTRY = {
         },
     },
     "perplexity": {
-        "tier": ProviderTier.PREMIUM_CLOUD,
+        "tier": ProvrTier.PREMIUM_CLOUD,
         "priority": 4,
         "cost_per_1m_tokens": 0.0,  # Billed per request in Pro Search
         "health_endpoint": "https://api.perplexity.ai/health",
@@ -264,7 +262,7 @@ class AdvancedOrchestrator:
         self.db_path = Path(__file__).parent.parent.parent / "data" / "orchestrator.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
-        self.provider_registry = PROVIDER_REGISTRY
+        self.provr_registry = PROVR_REGISTRY
         self.task_routing = TASK_ROUTING
 
     def _init_db(self):
@@ -272,8 +270,8 @@ class AdvancedOrchestrator:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute("""
-            CREATE TABLE IF NOT EXISTS provider_health (
-                provider TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS provr_health (
+                provr TEXT PRIMARY KEY,
                 last_check REAL,
                 status TEXT,
                 latency_ms REAL
@@ -283,7 +281,7 @@ class AdvancedOrchestrator:
             CREATE TABLE IF NOT EXISTS cost_tracking (
                 id INTEGER PRIMARY KEY,
                 timestamp REAL,
-                provider TEXT,
+                provr TEXT,
                 model TEXT,
                 input_tokens INTEGER,
                 output_tokens INTEGER,
@@ -293,21 +291,21 @@ class AdvancedOrchestrator:
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS performance_metrics (
-                provider TEXT,
+                provr TEXT,
                 model TEXT,
                 metric_name TEXT,
                 value REAL,
                 timestamp REAL,
-                PRIMARY KEY (provider, model, metric_name)
+                PRIMARY KEY (provr, model, metric_name)
             )
         """)
         conn.commit()
         conn.close()
 
-    def get_available_providers(self) -> Dict[str, Dict]:
-        """Ritorna solo i provider con API key configurata"""
+    def get_available_provrs(self) -> Dict[str, Dict]:
+        """Ritorna solo i provr con API key configurata"""
         available = {}
-        for name, config in self.provider_registry.items():
+        for name, config in self.provr_registry.items():
             if name == "ollama":  # Always available
                 available[name] = config
             elif env_key := config.get("env_key"):
@@ -315,20 +313,20 @@ class AdvancedOrchestrator:
                     available[name] = config
         return available
 
-    async def select_best_provider(
+    async def select_best_provr(
         self,
         task_type: TaskType,
         prefer_local: bool = False,
         max_budget_usd: Optional[float] = None,
     ) -> Tuple[str, str]:
         """
-        Seleziona il miglior provider + modello per il task.
+        Seleziona il miglior provr + modello per il task.
 
-        Returns: (provider, model)
+        Returns: (provr, model)
         """
-        available = self.get_available_providers()
+        available = self.get_available_provrs()
         if not available:
-            raise ValueError("❌ Nessun provider disponibile!")
+            raise ValueError("❌ Nessun provr disponibile!")
 
         preferred_models = self.task_routing[task_type]["preferred"]
         weights = self.task_routing[task_type]["performance_weights"]
@@ -336,11 +334,11 @@ class AdvancedOrchestrator:
         # Score ordinato da migliore a peggiore
         candidates = []
 
-        for provider_name in preferred_models:
+        for provr_name in preferred_models:
             for prov_id, prov_config in available.items():
-                if provider_name in prov_config.get("models", {}):
+                if provr_name in prov_config.get("models", {}):
                     # Calcola score
-                    model_metrics = prov_config["models"][provider_name]
+                    model_metrics = prov_config["models"][provr_name]
                     score = sum(
                         model_metrics.get(metric, 50) * weight
                         for metric, weight in weights.items()
@@ -352,27 +350,27 @@ class AdvancedOrchestrator:
                             continue
 
                     # Preferenza locale
-                    if prefer_local and prov_config["tier"] != ProviderTier.LOCAL:
+                    if prefer_local and prov_config["tier"] != ProvrTier.LOCAL:
                         score *= 0.7
 
                     candidates.append({
-                        "provider": prov_id,
-                        "model": provider_name,
+                        "provr": prov_id,
+                        "model": provr_name,
                         "score": score,
                         "tier": prov_config["tier"].value,
                     })
 
         if not candidates:
-            raise ValueError(f"❌ Nessun provider adatto per {task_type.value}")
+            raise ValueError(f"❌ Nessun provr adatto per {task_type.value}")
 
         # Ordina per score decrescente
         candidates.sort(key=lambda x: x["score"], reverse=True)
         logger.info(f"✅ Top 3 candidati per {task_type.value}:")
         for i, c in enumerate(candidates[:3], 1):
-            logger.info(f"  {i}. {c['provider']}/{c['model']} (score: {c['score']:.1f})")
+            logger.info(f"  {i}. {c['provr']}/{c['model']} (score: {c['score']:.1f})")
 
         best = candidates[0]
-        return best["provider"], best["model"]
+        return best["provr"], best["model"]
 
     async def call_with_fallback(
         self,
@@ -385,15 +383,15 @@ class AdvancedOrchestrator:
         """
         for attempt in range(max_retries):
             try:
-                provider, model = await self.select_best_provider(task_type)
-                logger.info(f"🚀 [Attempt {attempt + 1}] {provider}/{model}")
+                provr, model = await self.select_best_provr(task_type)
+                logger.info(f"🚀 [Attempt {attempt + 1}] {provr}/{model}")
 
-                # TODO: Implementa la chiamata reale al provider
-                # result = await call_provider(provider, model, prompt)
+                # TODO: Implementa la chiamata reale al provr
+                # result = await call_provr(provr, model, prompt)
 
                 # Simulazione per ora
                 return {
-                    "provider": provider,
+                    "provr": provr,
                     "model": model,
                     "response": "✅ Response simulato",
                     "cost_usd": 0.01,
@@ -406,22 +404,22 @@ class AdvancedOrchestrator:
 
     def track_cost(
         self,
-        provider: str,
+        provr: str,
         model: str,
         input_tokens: int,
         output_tokens: int,
         task_type: TaskType,
     ) -> float:
         """Traccia il costo e ritorna il totale in USD"""
-        cost_per_1m = self.provider_registry.get(provider, {}).get("cost_per_1m_tokens", 0)
+        cost_per_1m = self.provr_registry.get(provr, {}).get("cost_per_1m_tokens", 0)
         total_tokens = input_tokens + output_tokens
         cost_usd = (total_tokens / 1_000_000) * cost_per_1m
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute(
-            "INSERT INTO cost_tracking (timestamp, provider, model, input_tokens, output_tokens, cost_usd, task_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (time.time(), provider, model, input_tokens, output_tokens, cost_usd, task_type.value),
+            "INSERT INTO cost_tracking (timestamp, provr, model, input_tokens, output_tokens, cost_usd, task_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (time.time(), provr, model, input_tokens, output_tokens, cost_usd, task_type.value),
         )
         conn.commit()
         conn.close()
@@ -435,10 +433,10 @@ class AdvancedOrchestrator:
         c = conn.cursor()
 
         c.execute(
-            "SELECT provider, SUM(cost_usd) as total FROM cost_tracking WHERE timestamp > ? GROUP BY provider",
+            "SELECT provr, SUM(cost_usd) as total FROM cost_tracking WHERE timestamp > ? GROUP BY provr",
             (cutoff_time,),
         )
-        by_provider = {row[0]: row[1] for row in c.fetchall()}
+        by_provr = {row[0]: row[1] for row in c.fetchall()}
 
         c.execute(
             "SELECT SUM(cost_usd) FROM cost_tracking WHERE timestamp > ?",
@@ -449,7 +447,7 @@ class AdvancedOrchestrator:
         conn.close()
         return {
             "total_usd": total,
-            "by_provider": by_provider,
+            "by_provr": by_provr,
             "hours": hours,
         }
 
@@ -468,11 +466,11 @@ if __name__ == "__main__":
         print("\n🔥 VIO AI Orchestra — Advanced Orchestrator Test\n")
 
         # Test selezione
-        provider, model = await orchestrator.select_best_provider(TaskType.CODE)
-        print(f"✅ Scelto per CODE: {provider}/{model}")
+        provr, model = await orchestrator.select_best_provr(TaskType.CODE)
+        print(f"✅ Scelto per CODE: {provr}/{model}")
 
-        provider, model = await orchestrator.select_best_provider(TaskType.REASONING)
-        print(f"✅ Scelto per REASONING: {provider}/{model}")
+        provr, model = await orchestrator.select_best_provr(TaskType.REASONING)
+        print(f"✅ Scelto per REASONING: {provr}/{model}")
 
         # Test cost tracking
         orchestrator.track_cost("groq", "llama-3.3-70b-versatile", 2000, 500, TaskType.CODE)

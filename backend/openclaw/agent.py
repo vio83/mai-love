@@ -401,7 +401,7 @@ async def run_agent_native(
                         tool_uses.append(block)
 
                 response_text = "".join(text_parts).strip()
-                stop_reason = data.get("stop_reason", "")
+                data.get("stop_reason", "")
 
             else:
                 # OpenAI-compatible format
@@ -433,7 +433,7 @@ async def run_agent_native(
                         "name": name,
                         "input": args,
                     })
-                stop_reason = choice.get("finish_reason", "")
+                choice.get("finish_reason", "")
 
         except Exception as e:
             result.steps.append(AgentStep(

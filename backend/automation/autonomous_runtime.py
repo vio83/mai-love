@@ -4,7 +4,6 @@ import asyncio
 import json
 import os
 import re
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -419,7 +418,7 @@ class AutonomousRuntime:
         conversation_id: str,
         user_message: str,
         assistant_message: str,
-        provider: str,
+        provr: str,
         model: str,
         mode: str,
     ) -> str:
@@ -435,9 +434,9 @@ class AutonomousRuntime:
                 f"{user_message.strip()}\n\n"
                 "### Assistant\n"
                 f"{assistant_message.strip()}\n\n"
-                f"Provider: `{provider}` | Model: `{model}`"
+                f"Provr: `{provr}` | Model: `{model}`"
             ),
-            payload={"provider": provider, "model": model, "mode": mode},
+            payload={"provr": provr, "model": model, "mode": mode},
             background=False,
         )
         return self.route_trigger(trigger)

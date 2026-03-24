@@ -333,13 +333,13 @@ class TestFeatherMemory:
         assert f1 is f2
 
     def test_prepare_returns_dict(self):
-        result = self.fm.prepare("ciao", provider="ollama")
+        result = self.fm.prepare("ciao", provr="ollama")
         assert "messages" in result
         assert "max_tokens" in result
         assert "compression" in result
 
     def test_prepare_under_3ms(self):
-        result = self.fm.prepare("ciao come stai oggi?", provider="ollama")
+        result = self.fm.prepare("ciao come stai oggi?", provr="ollama")
         assert result["compression"]["prepare_ms"] < 3.0  # target <2.5ms
 
     def test_prepare_with_history(self):
@@ -347,7 +347,7 @@ class TestFeatherMemory:
             {"role": "user", "content": "domanda precedente"},
             {"role": "assistant", "content": "risposta precedente"},
         ]
-        result = self.fm.prepare("nuova domanda", history=history, provider="claude")
+        result = self.fm.prepare("nuova domanda", history=history, provr="claude")
         assert len(result["messages"]) >= 2
 
     def test_compact_message_works(self):

@@ -19,11 +19,9 @@ import time
 import shutil
 import sqlite3
 import logging
-import hashlib
-import asyncio
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -380,7 +378,7 @@ Specializzazione: RAGIONAMENTO PROFONDO
 - Pensa step-by-step prima di rispondere
 - Mostra il processo di ragionamento
 - Verifica ogni passo logico
-- Identifica e correggi errori di ragionamento
+- ntifica e correggi errori di ragionamento
 """
             else:
                 specialization = """
@@ -541,4 +539,4 @@ if __name__ == "__main__":
         sync.run_full_sync()
 
     else:
-        print(f"Usage: python -m backend.orchestrator.ollama_model_sync [list|update|new|prompts|full]")
+        print("Usage: python -m backend.orchestrator.ollama_model_sync [list|update|new|prompts|full]")

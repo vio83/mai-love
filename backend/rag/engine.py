@@ -16,13 +16,11 @@ from dataclasses import dataclass, field
 
 try:
     import chromadb
-    from chromadb.config import Settings as ChromaSettings
     CHROMADB_AVAILABLE = True
 except ImportError:
     CHROMADB_AVAILABLE = False
 
 try:
-    from sentence_transformers import SentenceTransformer
     EMBEDDINGS_AVAILABLE = True
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
@@ -46,14 +44,14 @@ class RAGResult:
     query: str
     matches: list = field(default_factory=list)
     verified: bool = False
-    confidence: float = 0.0
+    confnce: float = 0.0
     sources_used: int = 0
 
 
 class RAGEngine:
     """
     Motore RAG per verifica risposte AI con fonti certificate.
-    
+
     Flusso:
     1. L'utente fa una domanda
     2. L'AI genera una risposta
@@ -138,7 +136,7 @@ class RAGEngine:
                 for i, doc in enumerate(results["documents"][0]):
                     distance = results["distances"][0][i] if results["distances"] else 1.0
                     similarity = max(0, 1.0 - distance)
-                    
+
                     if similarity >= min_score:
                         meta = results["metadatas"][0][i] if results["metadatas"] else {}
                         matches.append({
@@ -150,13 +148,13 @@ class RAGEngine:
                         })
 
             verified = len(matches) > 0 and matches[0]["similarity"] > 0.8
-            confidence = matches[0]["similarity"] if matches else 0.0
+            confnce = matches[0]["similarity"] if matches else 0.0
 
             return RAGResult(
                 query=query,
                 matches=matches,
                 verified=verified,
-                confidence=round(confidence, 3),
+                confnce=round(confnce, 3),
                 sources_used=len(matches)
             )
         except Exception as e:
@@ -175,26 +173,26 @@ class RAGEngine:
                 "badge": "unverified",
                 "icon": "⚪",
                 "label": "Non Verificato",
-                "confidence": 0.0,
+                "confnce": 0.0,
                 "sources": [],
                 "note": "Nessuna fonte certificata trovata per questa query"
             }
 
-        if search_result.verified and search_result.confidence > 0.85:
+        if search_result.verified and search_result.confnce > 0.85:
             return {
                 "badge": "gold",
                 "icon": "🥇",
                 "label": "Verificato — Alta Affidabilità",
-                "confidence": search_result.confidence,
+                "confnce": search_result.confnce,
                 "sources": [m["title"] for m in search_result.matches[:3]],
                 "note": f"Confermato da {search_result.sources_used} fonti certificate"
             }
-        elif search_result.confidence > 0.7:
+        elif search_result.confnce > 0.7:
             return {
                 "badge": "silver",
                 "icon": "🥈",
                 "label": "Parzialmente Verificato",
-                "confidence": search_result.confidence,
+                "confnce": search_result.confnce,
                 "sources": [m["title"] for m in search_result.matches[:2]],
                 "note": "Trovate fonti correlate ma non perfettamente corrispondenti"
             }
@@ -203,7 +201,7 @@ class RAGEngine:
                 "badge": "bronze",
                 "icon": "🥉",
                 "label": "Bassa Corrispondenza",
-                "confidence": search_result.confidence,
+                "confnce": search_result.confnce,
                 "sources": [m["title"] for m in search_result.matches[:1]],
                 "note": "Le fonti trovate hanno bassa correlazione"
             }
@@ -212,7 +210,7 @@ class RAGEngine:
         """Statistiche del database RAG."""
         if not self._initialized:
             self.initialize()
-        
+
         count = self.collection.count() if self.collection else 0
         return {
             "total_documents": count,

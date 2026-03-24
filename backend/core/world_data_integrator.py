@@ -26,9 +26,7 @@ Performance target (Piuma™):
 from __future__ import annotations
 
 import asyncio
-import gzip
 import hashlib
-import json
 import logging
 import re
 import sqlite3
@@ -37,8 +35,7 @@ import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -212,7 +209,6 @@ class WorldFetcher:
         try:
             # Parse XML con ElementTree (stdlib)
             root = ET.fromstring(content)
-            ns = ""
             # Trova tutti gli item
             items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
             for item in items[:20]:  # max 20 per sorgente per ciclo
@@ -227,7 +223,7 @@ class WorldFetcher:
                 if not title or len(title) < 10:
                     continue
 
-                uid = hashlib.md5(f"{name}:{title}".encode()).hexdigest()[:12]
+                uid = hashlib.blake2s(f"{name}:{title}".encode(), digest_size=6).hexdigest()
                 articles.append(WorldArticle(
                     uid=uid,
                     source=name,
@@ -250,7 +246,7 @@ class WorldFetcher:
                 summary = self._clean_text(descs[i + 1] if i + 1 < len(descs) else "")[:400]
                 if not title or len(title) < 10:
                     continue
-                uid = hashlib.md5(f"{name}:{title}".encode()).hexdigest()[:12]
+                uid = hashlib.blake2s(f"{name}:{title}".encode(), digest_size=6).hexdigest()
                 articles.append(WorldArticle(
                     uid=uid, source=name, domain=domain,
                     title=title, summary=summary, url=link,
@@ -443,7 +439,7 @@ class UpdateScheduler:
                     if v.get("interval_hours", 24) <= 6
                 }
                 await self._integrator.run_update_cycle(
-                    mode="fast", sources_override=fast_sources
+                    mode="fast", sources_overr=fast_sources
                 )
                 self._last_fast = time.time()
             # Full cycle: tutte le sorgenti ogni 24h
@@ -508,7 +504,7 @@ class WorldDataIntegrator:
     async def run_update_cycle(
         self,
         mode: str = "full",
-        sources_override: Optional[Dict] = None,
+        sources_overr: Optional[Dict] = None,
     ) -> Dict:
         """
         Esegui ciclo di aggiornamento.
@@ -516,7 +512,7 @@ class WorldDataIntegrator:
         Returns: statistiche del ciclo
         """
         t0 = time.time()
-        sources = sources_override or WORLD_SOURCES
+        sources = sources_overr or WORLD_SOURCES
 
         logger.info(f"[WorldDataIntegrator™] Ciclo {mode.upper()} — {len(sources)} sorgenti")
 

@@ -16,16 +16,16 @@ class TestAPIKeyVault(unittest.TestCase):
     def test_vault_initializes_without_crash(self):
         self.assertIsInstance(self.vault, APIKeyVault)
 
-    def test_key_patterns_defined_for_all_providers(self):
+    def test_key_patterns_defined_for_all_provrs(self):
         expected = {"GROQ_API_KEY", "TOGETHER_API_KEY", "OPENROUTER_API_KEY",
                     "DEEPSEEK_API_KEY", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY",
                     "OPENAI_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY"}
         self.assertEqual(set(self.vault.KEY_PATTERNS.keys()), expected)
 
-    def test_provider_map_matches_key_patterns(self):
+    def test_provr_map_matches_key_patterns(self):
         for key in self.vault.KEY_PATTERNS:
-            self.assertIn(key, self.vault.PROVIDER_MAP,
-                          f"{key} in KEY_PATTERNS but not in PROVIDER_MAP")
+            self.assertIn(key, self.vault.PROVR_MAP,
+                          f"{key} in KEY_PATTERNS but not in PROVR_MAP")
 
     def test_groq_key_pattern_validates_correct_format(self):
         import re
@@ -51,9 +51,9 @@ class TestAPIKeyVault(unittest.TestCase):
         self.assertIn("valid_keys", stats)
         self.assertIn("total_keys", stats)
 
-    def test_available_providers_returns_list(self):
-        providers = self.vault.available_providers
-        self.assertIsInstance(providers, list)
+    def test_available_provrs_returns_list(self):
+        provrs = self.vault.available_provrs
+        self.assertIsInstance(provrs, list)
 
     def test_empty_env_yields_zero_valid_keys(self):
         # With no real API keys set, should have 0 valid
@@ -64,11 +64,11 @@ class TestAPIKeyInfo(unittest.TestCase):
 
     def test_dataclass_fields(self):
         info = APIKeyInfo(
-            provider="test", env_var="TEST_KEY",
+            provr="test", env_var="TEST_KEY",
             masked_key="sk-...xxxx", is_valid=True,
             key_length=40, prefix="sk-"
         )
-        self.assertEqual(info.provider, "test")
+        self.assertEqual(info.provr, "test")
         self.assertTrue(info.is_valid)
         self.assertEqual(info.use_count, 0)
         self.assertIsNone(info.last_error)

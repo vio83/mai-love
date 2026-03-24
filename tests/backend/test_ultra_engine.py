@@ -8,7 +8,7 @@ Test Suite — Ultra Engine Piuma™
 Copertura completa di tutti e 5 i moduli ultra-compatti:
   1. SemanticCompactCache   (18 test)
   2. ConversationCompressor (12 test)
-  3. AdaptiveProviderMemory (14 test)
+  3. AdaptiveProvrMemory (14 test)
   4. UltraTokenBudget       (10 test)
   5. FeatherRouter           (10 test)
   6. UltraEngine singleton   ( 4 test)
@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, patch
 from backend.core.ultra_engine import (
     SemanticCompactCache,
     ConversationCompressor,
-    AdaptiveProviderMemory,
+    AdaptiveProvrMemory,
     UltraTokenBudget,
     FeatherRouter,
     UltraEngine,
@@ -32,7 +32,7 @@ from backend.core.ultra_engine import (
 )
 from backend.orchestrator.parallel_race import (
     ParallelRaceOrchestrator,
-    ProviderCall,
+    ProvrCall,
     RaceMode,
     RaceResult,
     get_race_orchestrator,
@@ -226,51 +226,51 @@ class TestConversationCompressor:
 
 
 # ──────────────────────────────────────────────────────────────
-# 3. AdaptiveProviderMemory
+# 3. AdaptiveProvrMemory
 # ──────────────────────────────────────────────────────────────
 
-class TestAdaptiveProviderMemory:
+class TestAdaptiveProvrMemory:
 
     def setup_method(self):
-        self.mem = AdaptiveProviderMemory()
+        self.mem = AdaptiveProvrMemory()
 
     def test_record_success_updates_latency(self):
         self.mem.record_success("claude", 500.0, 0.9)
         stats = self.mem.stats
-        assert "claude" in stats["providers"]
-        assert stats["providers"]["claude"]["avg_latency_ms"] == pytest.approx(500.0, abs=1)
+        assert "claude" in stats["provrs"]
+        assert stats["provrs"]["claude"]["avg_latency_ms"] == pytest.approx(500.0, abs=1)
 
     def test_record_multiple_successes_averages(self):
         self.mem.record_success("gpt", 200.0, 0.8)
         self.mem.record_success("gpt", 400.0, 0.8)
         stats = self.mem.stats
-        avg = stats["providers"]["gpt"]["avg_latency_ms"]
+        avg = stats["provrs"]["gpt"]["avg_latency_ms"]
         assert 200 <= avg <= 400
 
     def test_record_error_increments_errors(self):
         self.mem.record_error("ollama")
         stats = self.mem.stats
-        assert stats["providers"]["ollama"]["errors"] == 1
+        assert stats["provrs"]["ollama"]["errors"] == 1
 
-    def test_get_best_provider_prefers_fast(self):
+    def test_get_best_provr_prefers_fast(self):
         self.mem.record_success("fast", 100.0, 0.8)
         self.mem.record_success("slow", 2000.0, 0.8)
-        best = self.mem.get_best_provider(["fast", "slow"], prefer_speed=True)
+        best = self.mem.get_best_provr(["fast", "slow"], prefer_speed=True)
         assert best == "fast"
 
-    def test_get_best_provider_skips_circuit_open(self):
+    def test_get_best_provr_skips_circuit_open(self):
         self.mem._get_or_create("broken").circuit_open = True
         self.mem._get_or_create("broken").circuit_open_until = time.time() + 1000
         self.mem.record_success("working", 300.0, 0.8)
-        best = self.mem.get_best_provider(["broken", "working"])
+        best = self.mem.get_best_provr(["broken", "working"])
         assert best == "working"
 
-    def test_get_best_provider_returns_something(self):
-        best = self.mem.get_best_provider(["claude", "gpt"])
+    def test_get_best_provr_returns_something(self):
+        best = self.mem.get_best_provr(["claude", "gpt"])
         assert best in ["claude", "gpt"]
 
     def test_empty_candidates_returns_none(self):
-        best = self.mem.get_best_provider([])
+        best = self.mem.get_best_provr([])
         assert best is None
 
     def test_circuit_breaker_resets_after_time(self):
@@ -293,7 +293,7 @@ class TestAdaptiveProviderMemory:
 
     def test_stats_structure(self):
         stats = self.mem.stats
-        assert "providers_tracked" in stats
+        assert "provrs_tracked" in stats
         assert "intents_learned" in stats
 
     def test_composite_score_between_zero_one(self):
@@ -343,14 +343,14 @@ class TestUltraTokenBudget:
             "claude", "You are helpful.", [{"role": "user", "content": "Hi"}], 2048
         )
         assert "available_for_response" in budget
-        assert budget["provider_limit"] == 200_000
+        assert budget["provr_limit"] == 200_000
         assert budget["is_safe"]
 
-    def test_calculate_budget_small_provider(self):
+    def test_calculate_budget_small_provr(self):
         budget = UltraTokenBudget.calculate_budget(
             "groq", "System prompt.", [{"role": "user", "content": "Hi"}], 2048
         )
-        assert budget["provider_limit"] == 8_192
+        assert budget["provr_limit"] == 8_192
 
     def test_truncation_needed_flag(self):
         long_msgs = [{"role": "user", "content": "x" * 20000}]
@@ -452,7 +452,7 @@ class TestUltraEngineSingleton:
         engine = get_ultra_engine()
         assert hasattr(engine, "cache")
         assert hasattr(engine, "compressor")
-        assert hasattr(engine, "provider_memory")
+        assert hasattr(engine, "provr_memory")
         assert hasattr(engine, "token_budget")
         assert hasattr(engine, "router")
 
@@ -474,55 +474,55 @@ class TestParallelRaceOrchestrator:
     def setup_method(self):
         self.orch = ParallelRaceOrchestrator()
 
-    async def _make_provider(self, pid: str, response: str, delay: float = 0.01):
-        """Helper: crea ProviderCall con risposta simulata."""
+    async def _make_provr(self, pid: str, response: str, delay: float = 0.01):
+        """Helper: crea ProvrCall con risposta simulata."""
         async def _fn():
             await asyncio.sleep(delay)
             if response == "ERROR":
-                raise Exception("Provider error")
+                raise Exception("Provr error")
             return response
-        return ProviderCall(pid, _fn())
+        return ProvrCall(pid, _fn())
 
     async def test_race_first_returns_fastest(self):
-        p1 = await self._make_provider("slow_p", "A" * 50, delay=0.1)
-        p2 = await self._make_provider("fast_p", "B" * 50, delay=0.01)
+        p1 = await self._make_provr("slow_p", "A" * 50, delay=0.1)
+        p2 = await self._make_provr("fast_p", "B" * 50, delay=0.01)
         result = await self.orch.run([p1, p2], mode=RaceMode.FIRST)
         assert result.winner == "fast_p"
         assert result.response == "B" * 50
 
     async def test_race_best_picks_quality(self):
-        p1 = await self._make_provider("ok_p", "Short.", delay=0.01)
-        p2 = await self._make_provider("good_p", "This is a much better and longer response with details " * 3, delay=0.02)
+        p1 = await self._make_provr("ok_p", "Short.", delay=0.01)
+        p2 = await self._make_provr("good_p", "This is a much better and longer response with details " * 3, delay=0.02)
         result = await self.orch.run([p1, p2], mode=RaceMode.BEST, min_responses_for_best=2)
-        # Il provider con risposta più lunga/strutturata dovrebbe vincere
+        # Il provr con risposta più lunga/strutturata dovrebbe vincere
         assert result.winner in ["ok_p", "good_p"]
         assert result.response != ""
 
     async def test_race_cross_returns_result(self):
-        p1 = await self._make_provider("p1", "Il cielo è blu e molto bello oggi.", delay=0.01)
-        p2 = await self._make_provider("p2", "Il cielo è blu e molto bello.", delay=0.02)
+        p1 = await self._make_provr("p1", "Il cielo è blu e molto bello oggi.", delay=0.01)
+        p2 = await self._make_provr("p2", "Il cielo è blu e molto bello.", delay=0.02)
         result = await self.orch.run([p1, p2], mode=RaceMode.CROSS)
         assert result.response != ""
         assert result.winner in ["p1", "p2"]
 
-    async def test_empty_providers_returns_error(self):
+    async def test_empty_provrs_returns_error(self):
         result = await self.orch.run([], mode=RaceMode.FIRST)
         assert result.error is not None
         assert result.response == ""
 
-    async def test_all_providers_fail_returns_error(self):
-        p1 = await self._make_provider("p1", "ERROR")
-        p2 = await self._make_provider("p2", "ERROR")
+    async def test_all_provrs_fail_returns_error(self):
+        p1 = await self._make_provr("p1", "ERROR")
+        p2 = await self._make_provr("p2", "ERROR")
         result = await self.orch.run([p1, p2], mode=RaceMode.FIRST)
         assert result.winner == "none"
 
     async def test_result_has_latency(self):
-        p = await self._make_provider("p", "Response text is here.", delay=0.01)
+        p = await self._make_provr("p", "Response text is here.", delay=0.01)
         result = await self.orch.run([p], mode=RaceMode.FIRST)
         assert result.latency_ms > 0
 
     async def test_result_has_quality_score(self):
-        p = await self._make_provider("p", "Questa è una risposta di buona qualità con molte parole.", delay=0.01)
+        p = await self._make_provr("p", "Questa è una risposta di buona qualità con molte parole.", delay=0.01)
         result = await self.orch.run([p], mode=RaceMode.FIRST)
         assert 0 <= result.quality_score <= 1
 
@@ -541,7 +541,7 @@ class TestParallelRaceOrchestrator:
         )
         assert score < 0.5
 
-    async def test_similarity_identical_texts(self):
+    async def test_similarity_ntical_texts(self):
         sim = ParallelRaceOrchestrator._compute_similarity("hello world foo bar", "hello world foo bar")
         assert sim == pytest.approx(1.0)
 
@@ -551,7 +551,7 @@ class TestParallelRaceOrchestrator:
 
     async def test_stats_increments(self):
         before = self.orch._races_run
-        p = await self._make_provider("p", "Valid response text here " * 3)
+        p = await self._make_provr("p", "Valid response text here " * 3)
         await self.orch.run([p], mode=RaceMode.FIRST)
         assert self.orch._races_run == before + 1
 

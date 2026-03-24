@@ -43,17 +43,21 @@ jobs:
           curl -sf --connect-timeout 10 "https://www.bing.com/ping?sitemap=https://vio83.github.io/vio83-ai-orchestra/sitemap.xml" || echo "Bing ping skipped"
 
           echo "--- Pinging IndexNow ---"
-          curl -sf --connect-timeout 10 -X POST "https://api.indexnow.org/indexnow" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "host": "vio83.github.io",
-              "key": "3e6f9ffe76d0f756d7492ec16fd4d501",
-              "keyLocation": "https://vio83.github.io/vio83-ai-orchestra/3e6f9ffe76d0f756d7492ec16fd4d501.txt",
-              "urlList": [
-                "https://vio83.github.io/vio83-ai-orchestra/",
-                "https://vio83.github.io/vio83-ai-orchestra/sitemap.xml"
-              ]
-            }' || echo "IndexNow ping skipped"
+          if [ -n "${{ secrets.SEO_INDEXNOW_KEY }}" ]; then
+            curl -sf --connect-timeout 10 -X POST "https://api.indexnow.org/indexnow" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"host\": \"vio83.github.io\",
+                \"key\": \"${{ secrets.SEO_INDEXNOW_KEY }}\",
+                \"keyLocation\": \"https://vio83.github.io/vio83-ai-orchestra/${{ secrets.SEO_INDEXNOW_KEY }}.txt\",
+                \"urlList\": [
+                  \"https://vio83.github.io/vio83-ai-orchestra/\",
+                  \"https://vio83.github.io/vio83-ai-orchestra/sitemap.xml\"
+                ]
+              }" || echo "IndexNow ping skipped"
+          else
+            echo "::warning::SEO_INDEXNOW_KEY secret not set — IndexNow ping skipped"
+          fi
 
           echo "All pings completed"
 

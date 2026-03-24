@@ -183,7 +183,7 @@ class OllamaEmbedder:
             for n in range(1, 4):  # uni, bi, tri-grams
                 if i + n <= len(words):
                     gram = " ".join(words[i:i+n])
-                    h = hashlib.md5(gram.encode()).digest()
+                    h = hashlib.blake2s(gram.encode(), digest_size=16).digest()
                     for j in range(min(dim, len(h))):
                         vec[j % dim] += (h[j] - 128) / 128.0
         # Normalizza L2

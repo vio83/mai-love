@@ -6,16 +6,16 @@
 NativeToolCaller™ v1.0 — Tool Calling Nativo per Claude/OpenAI/Ollama
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Sostituisce il parsing XML regex-based di OpenClaw con chiamate
-NATIVE ai formati di tool calling di ogni provider.
+NATIVE ai formati di tool calling di ogni provr.
 
-Strategia per provider:
+Strategia per provr:
   Claude API  → content block "tool_use" (nativo, 99.9% affidabile)
   OpenAI API  → function_call / tool_calls (nativo, 99.9% affidabile)
   Ollama      → XML fallback (locale, nessun formato nativo)
   Gemini      → functionCall (nativo)
 
 Questo modulo:
-1. Converte tool definitions in formato nativo per ogni provider
+1. Converte tool definitions in formato nativo per ogni provr
 2. Parsa le risposte tool_use native (non regex su testo libero)
 3. Gestisce loop tool call → tool result → risposta finale
 4. Fallback XML solo per Ollama (unico caso necessario)
@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("native_tool_caller")
@@ -36,7 +36,7 @@ logger = logging.getLogger("native_tool_caller")
 
 @dataclass
 class ToolDefinition:
-    """Definizione universale di un tool (provider-agnostic)."""
+    """Definizione universale di un tool (provr-agnostic)."""
     name: str
     description: str
     parameters: Dict[str, Any]  # JSON Schema
@@ -96,7 +96,7 @@ class ToolResult:
     is_error: bool = False
 
 
-# ─── Provider-Specific Parsers ────────────────────────────────────────
+# ─── Provr-Specific Parsers ────────────────────────────────────────
 
 class ClaudeToolParser:
     """Parser per risposte Claude API con tool_use nativo."""
@@ -237,7 +237,7 @@ class OllamaToolParser:
 
 class NativeToolCaller:
     """
-    NativeToolCaller™ — Tool calling con formato nativo per ogni provider.
+    NativeToolCaller™ — Tool calling con formato nativo per ogni provr.
 
     Usage:
         ntc = NativeToolCaller()
@@ -250,14 +250,14 @@ class NativeToolCaller:
         ))
 
         # Per Claude API
-        tools_claude = ntc.get_tools_for_provider("claude")
+        tools_claude = ntc.get_tools_for_provr("claude")
         # Passa tools_claude nella chiamata API Anthropic come parametro "tools"
 
         # Parsa risposta
-        tool_calls = ntc.parse_response(response, provider="claude")
+        tool_calls = ntc.parse_response(response, provr="claude")
         for tc in tool_calls:
             result = execute_tool(tc.tool_name, tc.tool_input)
-            formatted = ntc.format_result(ToolResult(...), provider="claude")
+            formatted = ntc.format_result(ToolResult(...), provr="claude")
     """
 
     VERSION = "1.0.0"
@@ -277,12 +277,12 @@ class NativeToolCaller:
         for t in tools:
             self._tools[t.name] = t
 
-    def get_tools_for_provider(self, provider: str) -> Any:
+    def get_tools_for_provr(self, provr: str) -> Any:
         """
-        Ritorna le definizioni tool nel formato nativo del provider.
+        Ritorna le definizioni tool nel formato nativo del provr.
 
         Args:
-            provider: "claude" | "openai" | "gemini" | "ollama"
+            provr: "claude" | "openai" | "gemini" | "ollama"
 
         Returns:
             - Claude: List[Dict] per parametro "tools"
@@ -292,37 +292,37 @@ class NativeToolCaller:
         """
         tools_list = list(self._tools.values())
 
-        if provider in ("claude", "anthropic"):
+        if provr in ("claude", "anthropic"):
             return [t.to_claude_format() for t in tools_list]
 
-        elif provider in ("openai", "gpt"):
+        elif provr in ("openai", "gpt"):
             return [t.to_openai_format() for t in tools_list]
 
-        elif provider in ("gemini", "google"):
+        elif provr in ("gemini", "google"):
             return {
                 "function_declarations": [t.to_gemini_format() for t in tools_list]
             }
 
-        elif provider in ("ollama", "local"):
+        elif provr in ("ollama", "local"):
             return OllamaToolParser.build_tool_prompt(tools_list)
 
         else:
             # Default: OpenAI format (più diffuso)
             return [t.to_openai_format() for t in tools_list]
 
-    def parse_response(self, response: Any, provider: str) -> List[ToolCall]:
+    def parse_response(self, response: Any, provr: str) -> List[ToolCall]:
         """
         Parsa la risposta AI ed estrae tool calls nel formato nativo.
 
         Args:
-            response: risposta dal provider (Dict per Claude/OpenAI, str per Ollama)
-            provider: "claude" | "openai" | "ollama"
+            response: risposta dal provr (Dict per Claude/OpenAI, str per Ollama)
+            provr: "claude" | "openai" | "ollama"
         """
-        if provider in ("claude", "anthropic"):
+        if provr in ("claude", "anthropic"):
             return self._claude_parser.extract_tool_calls(response)
-        elif provider in ("openai", "gpt"):
+        elif provr in ("openai", "gpt"):
             return self._openai_parser.extract_tool_calls(response)
-        elif provider in ("ollama", "local"):
+        elif provr in ("ollama", "local"):
             text = response if isinstance(response, str) else str(response)
             return self._ollama_parser.extract_tool_calls(text)
         else:
@@ -338,13 +338,13 @@ class NativeToolCaller:
                 return self._ollama_parser.extract_tool_calls(response)
             return []
 
-    def format_result(self, result: ToolResult, provider: str) -> Any:
+    def format_result(self, result: ToolResult, provr: str) -> Any:
         """
-        Formatta il risultato tool nel formato nativo del provider.
+        Formatta il risultato tool nel formato nativo del provr.
         """
-        if provider in ("claude", "anthropic"):
+        if provr in ("claude", "anthropic"):
             return self._claude_parser.format_tool_result(result)
-        elif provider in ("openai", "gpt"):
+        elif provr in ("openai", "gpt"):
             return self._openai_parser.format_tool_result(result)
         else:
             # Per Ollama/altri: testo semplice

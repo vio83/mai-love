@@ -8,7 +8,7 @@ Test suite per HyperCompressor™ — 44 test
 Coverage:
   TestSystemPromptCache    (8 test)
   TestRequestFingerprint   (8 test)
-  TestProviderHotPath      (8 test)
+  TestProvrHotPath      (8 test)
   TestResponseCompressor   (4 test)
   TestMetricsCollector     (6 test)
   TestAutoTuner            (4 test)
@@ -20,7 +20,7 @@ import pytest
 from backend.core.hyper_compressor import (
     SystemPromptCache,
     RequestFingerprint,
-    ProviderHotPath, ProviderHealth,
+    ProvrHotPath, ProvrHealth,
     ResponseCompressor,
     MetricsCollector,
     AutoTuner,
@@ -115,10 +115,10 @@ class TestRequestFingerprint:
         assert fp1["exact"] != fp2["exact"]
 
 
-class TestProviderHotPath:
+class TestProvrHotPath:
 
     def setup_method(self):
-        self.hp = ProviderHotPath()
+        self.hp = ProvrHotPath()
 
     def test_record_success_updates_latency(self):
         self.hp.record_success("groq", 100.0)
@@ -127,13 +127,13 @@ class TestProviderHotPath:
         assert h.avg_latency_ms < 500.0  # default was 500
 
     def test_record_error_increments(self):
-        self.hp.record_error("failing_provider")
-        assert self.hp._health["failing_provider"].error_count == 1
+        self.hp.record_error("failing_provr")
+        assert self.hp._health["failing_provr"].error_count == 1
 
     def test_circuit_breaker_triggers(self):
         for _ in range(3):
-            self.hp.record_error("bad_provider")
-        assert self.hp._health["bad_provider"].available is False
+            self.hp.record_error("bad_provr")
+        assert self.hp._health["bad_provr"].available is False
 
     def test_get_fastest_excludes_broken(self):
         self.hp.record_success("groq", 50.0)
@@ -152,7 +152,7 @@ class TestProviderHotPath:
         assert result[0] == "fast"
 
     def test_circuit_breaker_recovers(self):
-        hp = ProviderHotPath()
+        hp = ProvrHotPath()
         hp.CIRCUIT_BREAKER_SEC = 0.01  # 10ms for test
         for _ in range(3):
             hp.record_error("test_p")
@@ -219,7 +219,7 @@ class TestMetricsCollector:
         self.mc.record_compression(50.0)
         assert abs(self.mc.stats["avg_compression_savings"] - 40.0) < 0.1
 
-    def test_multiple_providers(self):
+    def test_multiple_provrs(self):
         self.mc.record_request("groq", "code", 50.0)
         self.mc.record_request("claude", "reasoning", 300.0)
         assert self.mc.stats["total_requests"] == 2
@@ -291,6 +291,6 @@ class TestHyperCompressorFacade:
         assert "HyperCompressor" in stats["version"]
 
     def test_record_error_no_crash(self):
-        self.hc.record_error("test_provider")
+        self.hc.record_error("test_provr")
         # Should not crash
         assert True

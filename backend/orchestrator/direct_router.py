@@ -5,7 +5,7 @@
 # ============================================================
 """
 VIO 83 AI ORCHESTRA - Direct Orchestrator (senza LiteLLM)
-Gestisce chiamate dirette a Ollama e provider cloud via HTTP.
+Gestisce chiamate dirette a Ollama e provr cloud via HTTP.
 Non dipende da LiteLLM — funziona con Python 3.14.
 """
 
@@ -17,11 +17,10 @@ import asyncio
 import logging
 from typing import Optional, AsyncGenerator
 from urllib.request import Request, urlopen
-from urllib.error import URLError
 
-from backend.config.providers import (
-    CLOUD_PROVIDERS,
-    FREE_CLOUD_PROVIDERS,
+from backend.config.provrs import (
+    CLOUD_PROVRS,
+    FREE_CLOUD_PROVRS,
     REQUEST_TYPE_ROUTING,
 )
 
@@ -47,7 +46,6 @@ except ImportError:
 
 from backend.orchestrator.system_prompt import (
     VIO83_MASTER_PROMPT,
-    SPECIALIZED_PROMPTS,
     build_system_prompt,
     build_local_system_prompt,
 )
@@ -72,7 +70,7 @@ KEYWORDS = {
     "legal": ["legge", "norma", "contratto", "compliance", "gdpr", "privacy",
               "tribunale", "sentenza", "clausola", "regolamento", "licenza", "diritto"],
     "medical": ["medicina", "clinico", "diagnosi", "terapia", "farmaco", "sintomo",
-                "linea guida", "paziente", "epidemiologia", "oncologia", "cardiologia", "pubmed"],
+                "linea guida", "paziente", "epmiologia", "oncologia", "cardiologia", "pubmed"],
     "writing": ["linkedin", "headline", "about", "copy", "newsletter", "ghostwrite",
                 "articolo", "post", "caption", "seo", "landing page", "scrittura"],
     "research": ["ricerca", "paper", "citazioni", "fonti", "survey", "benchmark",
@@ -235,7 +233,7 @@ def classify_request_embedding(message: str) -> tuple[str, float]:
     Classifica una richiesta usando cosine similarity con embedding Ollama.
 
     Returns:
-        (request_type, confidence) — tipo e confidenza [0, 1]
+        (request_type, confnce) — tipo e confnza [0, 1]
     """
     if not _ensure_ref_embeddings():
         # Fallback a keyword
@@ -256,8 +254,8 @@ def classify_request_embedding(message: str) -> tuple[str, float]:
             best_score = avg_sim
             best_type = cat
 
-    confidence = max(0.0, min(1.0, best_score))
-    return best_type, confidence
+    confnce = max(0.0, min(1.0, best_score))
+    return best_type, confnce
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -374,9 +372,9 @@ def _effective_generation_params(
     temp = min(requested_temperature, 0.25)
     return temp, capped, False
 
-ALL_CLOUD_ROUTER_PROVIDERS = {
-    **FREE_CLOUD_PROVIDERS,
-    **CLOUD_PROVIDERS,
+ALL_CLOUD_ROUTER_PROVRS = {
+    **FREE_CLOUD_PROVRS,
+    **CLOUD_PROVRS,
 }
 
 PERPLEXITY_PRESETS = {"pro-search", "deep-research"}
@@ -400,29 +398,29 @@ def classify_request(message: str) -> str:
     return best_type
 
 
-def route_to_provider(request_type: str, mode: str = "cloud") -> str:
-    """Determina il provider ottimale basato sul tipo di richiesta."""
+def route_to_provr(request_type: str, mode: str = "cloud") -> str:
+    """Determina il provr ottimale basato sul tipo di richiesta."""
     if mode == "local":
         return "ollama"
     return ROUTING_MAP.get(request_type, "claude")
 
 
-def _resolve_cloud_provider_entry(provider: str) -> dict:
-    entry = ALL_CLOUD_ROUTER_PROVIDERS.get(provider)
+def _resolve_cloud_provr_entry(provr: str) -> dict:
+    entry = ALL_CLOUD_ROUTER_PROVRS.get(provr)
     if not entry:
-        raise Exception(f"Provider cloud non supportato nel backend: {provider}")
+        raise Exception(f"Provr cloud non supportato nel backend: {provr}")
     return entry
 
 
-def _resolve_cloud_model(provider: str, requested_model: Optional[str] = None) -> str:
-    entry = _resolve_cloud_provider_entry(provider)
+def _resolve_cloud_model(provr: str, requested_model: Optional[str] = None) -> str:
+    entry = _resolve_cloud_provr_entry(provr)
     models = entry.get("models", {})
     default_model = entry.get("default_model")
 
     if requested_model:
         if requested_model in models:
             return requested_model
-        # Accetta override esplicito anche se non in registry (compatibilità avanzata)
+        # Accetta overr esplicito anche se non in registry (compatibilità avanzata)
         return requested_model
 
     if default_model:
@@ -431,24 +429,24 @@ def _resolve_cloud_model(provider: str, requested_model: Optional[str] = None) -
     if models:
         return next(iter(models.keys()))
 
-    raise Exception(f"Nessun modello disponibile per provider {provider}")
+    raise Exception(f"Nessun modello disponibile per provr {provr}")
 
 
-def _resolve_cloud_api_key(provider: str) -> str:
-    entry = _resolve_cloud_provider_entry(provider)
+def _resolve_cloud_api_key(provr: str) -> str:
+    entry = _resolve_cloud_provr_entry(provr)
     env_key = entry.get("env_key")
     if not env_key:
-        raise Exception(f"env_key mancante per provider {provider}")
+        raise Exception(f"env_key mancante per provr {provr}")
 
     api_key = os.environ.get(env_key, "").strip()
     if not api_key:
         raise Exception(
-            f"API key mancante per provider '{provider}'. Imposta {env_key} nel file .env"
+            f"API key mancante per provr '{provr}'. Imposta {env_key} nel file .env"
         )
     return api_key
 
 
-def _cloud_base_url(provider: str) -> str:
+def _cloud_base_url(provr: str) -> str:
     base_urls = {
         "claude": "https://api.anthropic.com/v1",
         "gpt4": "https://api.openai.com/v1",
@@ -461,22 +459,22 @@ def _cloud_base_url(provider: str) -> str:
         "together": "https://api.together.xyz/v1",
         "perplexity": "https://api.perplexity.ai/v1",
     }
-    if provider not in base_urls:
-        raise Exception(f"Base URL non configurata per provider {provider}")
-    return base_urls[provider]
+    if provr not in base_urls:
+        raise Exception(f"Base URL non configurata per provr {provr}")
+    return base_urls[provr]
 
 
-def _build_cloud_headers(provider: str, api_key: str) -> dict[str, str]:
+def _build_cloud_headers(provr: str, api_key: str) -> dict[str, str]:
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
     }
 
-    if provider == "claude":
+    if provr == "claude":
         headers["x-api-key"] = api_key
         headers["anthropic-version"] = "2023-06-01"
 
-    if provider == "openrouter":
+    if provr == "openrouter":
         headers["HTTP-Referer"] = "https://github.com/vio83/vio83-ai-orchestra"
         headers["X-Title"] = "VIO 83 AI ORCHESTRA"
 
@@ -588,16 +586,16 @@ async def _http_post_json(url: str, headers: dict, payload: dict, timeout_s: flo
 
 
 async def _call_cloud_compatible_chat(
-    provider: str,
+    provr: str,
     model: str,
     messages: list[dict],
     temperature: float,
     max_tokens: int,
 ) -> dict:
     start = time.time()
-    api_key = _resolve_cloud_api_key(provider)
-    base_url = _cloud_base_url(provider)
-    headers = _build_cloud_headers(provider, api_key)
+    api_key = _resolve_cloud_api_key(provr)
+    base_url = _cloud_base_url(provr)
+    headers = _build_cloud_headers(provr, api_key)
 
     payload = {
         "model": model,
@@ -618,7 +616,7 @@ async def _call_cloud_compatible_chat(
 
     return {
         "content": content,
-        "provider": provider,
+        "provr": provr,
         "model": model,
         "tokens_used": tokens_used,
         "latency_ms": int((time.time() - start) * 1000),
@@ -632,10 +630,10 @@ async def _call_cloud_claude(
     max_tokens: int,
 ) -> dict:
     start = time.time()
-    provider = "claude"
-    api_key = _resolve_cloud_api_key(provider)
-    base_url = _cloud_base_url(provider)
-    headers = _build_cloud_headers(provider, api_key)
+    provr = "claude"
+    api_key = _resolve_cloud_api_key(provr)
+    base_url = _cloud_base_url(provr)
+    headers = _build_cloud_headers(provr, api_key)
 
     system_text, anthropic_messages = _normalize_messages_for_claude(messages)
     payload = {
@@ -667,7 +665,7 @@ async def _call_cloud_claude(
 
     return {
         "content": "".join(text_parts).strip(),
-        "provider": provider,
+        "provr": provr,
         "model": model,
         "tokens_used": tokens_used,
         "latency_ms": int((time.time() - start) * 1000),
@@ -679,10 +677,10 @@ async def _call_cloud_perplexity(
     messages: list[dict],
 ) -> dict:
     start = time.time()
-    provider = "perplexity"
-    api_key = _resolve_cloud_api_key(provider)
-    base_url = _cloud_base_url(provider)
-    headers = _build_cloud_headers(provider, api_key)
+    provr = "perplexity"
+    api_key = _resolve_cloud_api_key(provr)
+    base_url = _cloud_base_url(provr)
+    headers = _build_cloud_headers(provr, api_key)
 
     preset = model if model in PERPLEXITY_PRESETS else "pro-search"
     input_text = "\n\n".join(
@@ -706,7 +704,7 @@ async def _call_cloud_perplexity(
 
     return {
         "content": content,
-        "provider": provider,
+        "provr": provr,
         "model": data.get("model", preset),
         "tokens_used": tokens_used or 0,
         "latency_ms": int((time.time() - start) * 1000),
@@ -715,18 +713,18 @@ async def _call_cloud_perplexity(
 
 async def call_cloud(
     messages: list[dict],
-    provider: str,
+    provr: str,
     model: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: int = 4096,
 ) -> dict:
     """
-    Chiamata cloud reale backend-side.
-    Supporta provider OpenAI-compatible + endpoint specifici Anthropic/Perplexity.
+    Chiamata cloud reale backend-s.
+    Supporta provr OpenAI-compatible + endpoint specifici Anthropic/Perplexity.
     """
-    resolved_model = _resolve_cloud_model(provider, model)
+    resolved_model = _resolve_cloud_model(provr, model)
 
-    if provider == "claude":
+    if provr == "claude":
         return await _call_cloud_claude(
             model=resolved_model,
             messages=messages,
@@ -734,14 +732,14 @@ async def call_cloud(
             max_tokens=max_tokens,
         )
 
-    if provider == "perplexity":
+    if provr == "perplexity":
         return await _call_cloud_perplexity(
             model=resolved_model,
             messages=messages,
         )
 
     return await _call_cloud_compatible_chat(
-        provider=provider,
+        provr=provr,
         model=resolved_model,
         messages=messages,
         temperature=temperature,
@@ -761,7 +759,7 @@ async def call_ollama(
 ) -> dict:
     """
     Chiama Ollama direttamente via HTTP.
-    Restituisce dict con: content, provider, model, tokens_used, latency_ms
+    Restituisce dict con: content, provr, model, tokens_used, latency_ms
     """
     start = time.time()
     url = f"{host}/api/chat"
@@ -788,7 +786,7 @@ async def call_ollama(
                 resp.raise_for_status()
                 data = await resp.json()
     else:
-        # Fallback sincrono (non ideale ma funziona)
+        # Fallback sincrono (non ale ma funziona)
         import urllib.request
         req = urllib.request.Request(
             url,
@@ -803,7 +801,7 @@ async def call_ollama(
 
     return {
         "content": content,
-        "provider": "ollama",
+        "provr": "ollama",
         "model": model,
         "tokens_used": tokens,
         "latency_ms": int((time.time() - start) * 1000),
@@ -933,7 +931,7 @@ def _post_call_learn(messages: list[dict], result: dict, request_type: str) -> N
         # 3. Self-Optimizer: registra metriche reali
         optimizer = get_self_optimizer()
         optimizer.record_result(
-            provider=result.get("provider", "ollama"),
+            provr=result.get("provr", "ollama"),
             model=result.get("model", ""),
             request_type=request_type,
             latency_ms=result.get("latency_ms", 0),
@@ -956,7 +954,7 @@ def _post_call_learn(messages: list[dict], result: dict, request_type: str) -> N
 async def orchestrate(
     messages: list[dict],
     mode: str = "local",
-    provider: str = "ollama",
+    provr: str = "ollama",
     model: Optional[str] = None,
     auto_routing: bool = True,
     ollama_host: str = "http://localhost:11434",
@@ -964,10 +962,11 @@ async def orchestrate(
     temperature: float = 0.7,
     max_tokens: int = 512,
     cross_check: bool = False,
+    protocollo_100x: bool = True,
 ) -> dict:
     """
     Funzione orchestratore principale.
-    Supporta sia locale (Ollama) sia cloud provider reali backend-side.
+    Supporta sia locale (Ollama) sia cloud provr reali backend-s.
     """
     last_msg = messages[-1]["content"] if messages else ""
 
@@ -982,18 +981,18 @@ async def orchestrate(
 
     force_local = _force_local_orchestration(mode)
     if force_local:
-        effective_provider = "ollama"
+        effective_provr = "ollama"
     else:
-        effective_provider = route_to_provider(request_type, mode) if auto_routing else provider
+        effective_provr = route_to_provr(request_type, mode) if auto_routing else provr
 
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     has_system = any(m.get("role") == "system" for m in messages)
     if not has_system:
         # Turbo locale: prompt compatto per ridurre token overhead e first-token latency.
         if force_local or _speed_mode_enabled():
-            system_prompt = build_local_system_prompt(request_type)
+            system_prompt = build_local_system_prompt(request_type, protocollo_100x=protocollo_100x)
         else:
-            system_prompt = build_system_prompt(request_type)
+            system_prompt = build_system_prompt(request_type, protocollo_100x=protocollo_100x)
 
         # === AUTO-LEARNING: arricchisci prompt con conoscenza appresa ===
         try:
@@ -1025,15 +1024,15 @@ async def orchestrate(
     # === SELF-OPTIMIZER: parametri auto-tuned ===
     try:
         optimizer = get_self_optimizer()
-        opt_params = optimizer.get_optimal_params(effective_provider, model or "", request_type)
-        if opt_params.get("provider_quality", 0) > 0.3:
+        opt_params = optimizer.get_optimal_params(effective_provr, model or "", request_type)
+        if opt_params.get("provr_quality", 0) > 0.3:
             effective_temperature = opt_params.get("temperature", effective_temperature)
             effective_max_tokens = max(effective_max_tokens, opt_params.get("max_tokens", effective_max_tokens))
     except Exception:
         pass
 
     # In modalità locale, usa sempre Ollama
-    if mode == "local" or effective_provider == "ollama" or force_local:
+    if mode == "local" or effective_provr == "ollama" or force_local:
         candidate_models = _local_model_candidates(
             request_type=request_type,
             explicit_model=model,
@@ -1078,13 +1077,13 @@ async def orchestrate(
             "Verifica che Ollama sia attivo con: ollama serve"
         )
 
-    # Cloud mode reale backend-side
-    print(f"[Orchestra] Tipo: {request_type} | Cloud provider: {effective_provider}")
+    # Cloud mode reale backend-s
+    print(f"[Orchestra] Tipo: {request_type} | Cloud provr: {effective_provr}")
 
     try:
         result = await call_cloud(
             messages=messages,
-            provider=effective_provider,
+            provr=effective_provr,
             model=model,
             temperature=effective_temperature,
             max_tokens=effective_max_tokens,
@@ -1099,29 +1098,29 @@ async def orchestrate(
         return result
     except Exception as e:
         routing_cfg = REQUEST_TYPE_ROUTING.get(request_type, {})
-        fallback_provider = routing_cfg.get("cloud_fallback")
+        fallback_provr = routing_cfg.get("cloud_fallback")
 
-        if fallback_provider and fallback_provider != effective_provider:
+        if fallback_provr and fallback_provr != effective_provr:
             try:
-                print(f"[Orchestra] Cloud fallback: {effective_provider} -> {fallback_provider}")
+                print(f"[Orchestra] Cloud fallback: {effective_provr} -> {fallback_provr}")
                 result = await call_cloud(
                     messages=messages,
-                    provider=fallback_provider,
+                    provr=fallback_provr,
                     model=None,
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
                 )
                 result["request_type"] = request_type
-                result["fallback_from"] = effective_provider
+                result["fallback_from"] = effective_provr
                 result["execution_profile"] = _execution_profile()
                 result["forced_local"] = force_local
                 return result
             except Exception as fallback_error:
                 raise Exception(
-                    f"Cloud provider primario '{effective_provider}' fallito: {e}. "
-                    f"Fallback '{fallback_provider}' fallito: {fallback_error}"
+                    f"Cloud provr primario '{effective_provr}' fallito: {e}. "
+                    f"Fallback '{fallback_provr}' fallito: {fallback_error}"
                 )
 
         raise Exception(
-            f"Cloud provider '{effective_provider}' fallito: {e}"
+            f"Cloud provr '{effective_provr}' fallito: {e}"
         )

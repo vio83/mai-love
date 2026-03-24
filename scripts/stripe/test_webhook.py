@@ -61,7 +61,7 @@ def create_test_event():
         },
         "livemode": False,
         "pending_webhooks": 1,
-        "request": {"id": None, "idempotency_key": None},
+        "request": {"id": None, "mpotency_key": None},
         "type": "checkout.session.completed",
     }
     return event
@@ -72,8 +72,8 @@ def compute_signature(payload: str, secret: str) -> str:
     timestamp = str(int(time.time()))
     signed_content = f"{timestamp}.{payload}"
     signature = hmac.new(
-        secret.encode("utf-8"), 
-        signed_content.encode("utf-8"), 
+        secret.encode("utf-8"),
+        signed_content.encode("utf-8"),
         hashlib.sha256
     ).hexdigest()
     return f"t={timestamp},v1={signature}"
@@ -82,16 +82,16 @@ def send_webhook(event: dict):
     """Invia il webhook al backend"""
     payload = json.dumps(event)
     signature = compute_signature(payload, SECRET)
-    
+
     headers = {
         "Content-Type": "application/json",
         "Stripe-Signature": signature,
     }
-    
+
     print(f"📤 Invio webhook a: {WEBHOOK_URL}")
     print(f"📝 Payload: {json.dumps(event, indent=2)[:200]}...")
     print(f"🔐 Signature: {signature[:50]}...")
-    
+
     try:
         resp = requests.post(WEBHOOK_URL, json=event, headers=headers, timeout=5)
         print(f"\n✅ Risposta: {resp.status_code}")
@@ -111,11 +111,11 @@ if __name__ == "__main__":
     print(f"Secret: {SECRET[:20]}...")
     print(f"URL: {WEBHOOK_URL}")
     print("=" * 60)
-    
+
     # Crea evento di test
     event = create_test_event()
-    
+
     # Invia
     success = send_webhook(event)
-    
+
     exit(0 if success else 1)

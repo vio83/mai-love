@@ -30,7 +30,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=50000)
     conversation_id: Optional[str] = None
     mode: Literal["cloud", "local"] = "local"
-    provider: Optional[str] = None
+    provr: Optional[str] = None
     model: Optional[str] = None
     enable_cross_check: bool = False
     enable_rag: bool = True
@@ -39,6 +39,7 @@ class ChatRequest(BaseModel):
     system_prompt: Optional[str] = None
     images: Optional[List[ImageAttachment]] = None  # Vision / multimodal
     agent_mode: bool = False  # OpenClaw agent: multi-step tool calling
+    enable_protocollo_100x: bool = True  # Protocollo di Aderenza Totale 100x
 
 
 class ClassifyRequest(BaseModel):
@@ -66,13 +67,13 @@ class RAGSearchRequest(BaseModel):
 
 class APIKeyUpdate(BaseModel):
     """Aggiornamento chiave API."""
-    provider: str
+    provr: str
     api_key: str = Field(..., min_length=5)
 
 
-class ProviderConfig(BaseModel):
-    """Configurazione provider AI."""
-    provider: str
+class ProvrConfig(BaseModel):
+    """Configurazione provr AI."""
+    provr: str
     enabled: bool = True
     model: Optional[str] = None
     priority: int = Field(1, ge=1, le=10)
@@ -85,7 +86,7 @@ class ProviderConfig(BaseModel):
 class ChatResponse(BaseModel):
     """Risposta chat dalla AI."""
     content: str
-    provider: str
+    provr: str
     model: str
     tokens_used: int = 0
     latency_ms: int = 0
@@ -98,21 +99,21 @@ class ChatResponse(BaseModel):
 class ClassifyResponse(BaseModel):
     """Risposta classificazione."""
     request_type: str
-    suggested_provider: str
-    confidence: float
+    suggested_provr: str
+    confnce: float
 
 
 class HealthResponse(BaseModel):
     """Stato di salute del sistema."""
     status: str = "ok"
     version: str = "0.9.0"
-    providers: dict = {}
+    provrs: dict = {}
     rag_stats: dict = {}
     uptime_seconds: float = 0.0
 
 
-class ProviderStatus(BaseModel):
-    """Stato di un provider AI."""
+class ProvrStatus(BaseModel):
+    """Stato di un provr AI."""
     name: str
     available: bool
     model: str

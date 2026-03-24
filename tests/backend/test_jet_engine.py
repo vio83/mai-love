@@ -238,71 +238,71 @@ class TestLocalFirstRouter:
     def _complex_profile(self) -> ComplexityProfile:
         return self.scorer.score("analizza e dimostra " * 30, history_len=10)
 
-    def test_explicit_provider_overrides_all(self):
+    def test_explicit_provr_overrs_all(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "local", explicit_provider="claude", ollama_available=True)
-        assert d.provider == "claude"
-        assert "explicit_override" in d.reason
+        d = self.router.dec(p, "local", explicit_provr="claude", ollama_available=True)
+        assert d.provr == "claude"
+        assert "explicit_overr" in d.reason
 
     def test_local_mode_uses_ollama(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "local", None, ollama_available=True)
-        assert d.provider == "ollama"
+        d = self.router.dec(p, "local", None, ollama_available=True)
+        assert d.provr == "ollama"
 
     def test_local_mode_no_ollama_still_routes(self):
         p = self._simple_profile()
         # Con Ollama non disponibile in local mode, non deve crashare
-        d = self.router.decide(p, "local", None, ollama_available=False)
-        assert d.provider != ""  # deve restituire qualcosa
+        d = self.router.dec(p, "local", None, ollama_available=False)
+        assert d.provr != ""  # deve restituire qualcosa
 
-    def test_cloud_mode_returns_cloud_provider(self):
+    def test_cloud_mode_returns_cloud_provr(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "cloud", None, ollama_available=True)
-        assert d.provider not in ("ollama", "cache")
+        d = self.router.dec(p, "cloud", None, ollama_available=True)
+        assert d.provr not in ("ollama", "cache")
 
     def test_hybrid_simple_uses_ollama(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "hybrid", None, ollama_available=True)
-        assert d.provider == "ollama"
+        d = self.router.dec(p, "hybrid", None, ollama_available=True)
+        assert d.provr == "ollama"
 
     def test_hybrid_complex_uses_race(self):
         p = self._complex_profile()
-        d = self.router.decide(p, "hybrid", None, ollama_available=True,
+        d = self.router.dec(p, "hybrid", None, ollama_available=True,
                                available_cloud=["groq","claude","gemini"])
         assert d.race is True
         assert len(d.race_targets) >= 2
 
     def test_news_routes_to_groq(self):
         p = self.scorer.score("ultime notizie oggi nel mondo")
-        d = self.router.decide(p, "cloud", None, ollama_available=False,
+        d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["groq","claude","gemini"])
-        assert d.provider == "groq"
+        assert d.provr == "groq"
 
     def test_code_routes_to_openai(self):
         p = self.scorer.score("def function(): import os class Foo")
-        d = self.router.decide(p, "cloud", None, ollama_available=False,
+        d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["openai","claude","groq"])
-        assert d.provider == "openai"
+        assert d.provr == "openai"
 
     def test_reasoning_routes_to_claude(self):
         p = self.scorer.score("ragiona e deduci la causa")
-        d = self.router.decide(p, "cloud", None, ollama_available=False,
+        d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["claude","groq","gemini"])
-        assert d.provider == "claude"
+        assert d.provr == "claude"
 
     def test_stream_enabled_for_cloud(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "cloud", None)
+        d = self.router.dec(p, "cloud", None)
         assert d.stream is True
 
     def test_routing_decision_has_reason(self):
         p = self._simple_profile()
-        d = self.router.decide(p, "hybrid", None)
+        d = self.router.dec(p, "hybrid", None)
         assert len(d.reason) > 0
 
-    def test_default_model_for_known_providers(self):
-        for provider in ["ollama","claude","openai","gemini","groq"]:
-            model = LocalFirstRouter._default_model(provider)
+    def test_default_model_for_known_provrs(self):
+        for provr in ["ollama","claude","openai","gemini","groq"]:
+            model = LocalFirstRouter._default_model(provr)
             assert isinstance(model, str) and len(model) > 2
 
 
@@ -316,22 +316,22 @@ class TestParallelSprint:
         self.sprint = ParallelSprint()
 
     @pytest.mark.asyncio
-    async def test_empty_providers_returns_error(self):
+    async def test_empty_provrs_returns_error(self):
         result = await self.sprint.race(
             messages=[{"role":"user","content":"test"}],
-            providers=[],
+            provrs=[],
         )
         assert result.error is not None
 
     @pytest.mark.asyncio
     async def test_race_returns_sprint_result(self):
         async def mock_orchestrate(**kwargs):
-            return {"content": "risposta valida e completa", "model": "test-model", "provider": kwargs.get("provider", "test")}
+            return {"content": "risposta valida e completa", "model": "test-model", "provr": kwargs.get("provr", "test")}
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"ciao"}],
-                providers=["groq","claude"],
+                provrs=["groq","claude"],
             )
         assert isinstance(result, SprintResult)
         assert result.content != "" or result.error is not None
@@ -340,27 +340,27 @@ class TestParallelSprint:
     async def test_race_uses_first_valid_response(self):
         call_order = []
         async def mock_orchestrate(**kwargs):
-            call_order.append(kwargs.get("provider","?"))
+            call_order.append(kwargs.get("provr","?"))
             await asyncio.sleep(0.01)
-            return {"content": "risposta valida dal provider", "model": "m"}
+            return {"content": "risposta valida dal provr", "model": "m"}
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                providers=["groq"],
+                provrs=["groq"],
                 timeout=5.0,
             )
         assert len(call_order) == 1
 
     @pytest.mark.asyncio
-    async def test_race_handles_provider_error(self):
+    async def test_race_handles_provr_error(self):
         async def mock_orchestrate_fail(**kwargs):
-            raise RuntimeError("provider error")
+            raise RuntimeError("provr error")
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate_fail):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                providers=["failing_provider"],
+                provrs=["failing_provr"],
             )
         assert result.error is not None
 
@@ -372,7 +372,7 @@ class TestParallelSprint:
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_short):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                providers=["p1"],
+                provrs=["p1"],
             )
         # Risposta troppo corta → deve risultare in errore o winner vuoto
         assert result.error is not None or len(result.content) < ParallelSprint.MIN_LENGTH
@@ -386,7 +386,7 @@ class TestParallelSprint:
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_ok):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                providers=["p1"],
+                provrs=["p1"],
             )
         if not result.error:
             assert result.latency_ms >= 10.0
@@ -406,20 +406,20 @@ class TestJetEngineFacade:
         j2 = get_jet_engine()
         assert j1 is j2
 
-    def test_decide_returns_jet_decision(self):
+    def test_dec_returns_jet_decision(self):
         from backend.core.jet_engine import JetDecision
-        d = self.jet.decide("ciao come stai")
+        d = self.jet.dec("ciao come stai")
         assert isinstance(d, JetDecision)
 
-    def test_decide_cache_miss_first_time(self):
-        d = self.jet.decide("domanda completamente nuova 12345xyz")
+    def test_dec_cache_miss_first_time(self):
+        d = self.jet.dec("domanda completamente nuova 12345xyz")
         assert d.cache_hit is False
 
-    def test_decide_cache_hit_second_time(self):
+    def test_dec_cache_hit_second_time(self):
         msg = "domanda da cachare per test"
-        self.jet.cache_store(msg, "auto", {"content": "cached", "provider": "test",
+        self.jet.cache_store(msg, "auto", {"content": "cached", "provr": "test",
                                             "model":"m","tokens_used":0,"latency_ms":1})
-        d = self.jet.decide(msg, model="auto")
+        d = self.jet.dec(msg, model="auto")
         assert d.cache_hit is True
 
     def test_cache_store_then_retrieve(self):
@@ -428,12 +428,12 @@ class TestJetEngineFacade:
         assert result == {"content": "result"}
 
     def test_profile_attached_to_decision(self):
-        d = self.jet.decide("def foo(): return 42")
+        d = self.jet.dec("def foo(): return 42")
         assert d.profile.intent == "code"
 
     def test_routing_attached_to_decision(self):
-        d = self.jet.decide("ciao", runtime_mode="local")
-        assert d.routing.provider != ""
+        d = self.jet.dec("ciao", runtime_mode="local")
+        assert d.routing.provr != ""
 
     def test_stats_returns_dict(self):
         stats = self.jet.stats()
@@ -482,7 +482,7 @@ class TestKnowledgeTaxonomy:
     def test_get_optimal_config_returns_dict(self):
         from backend.core.knowledge_taxonomy import get_optimal_config
         config = get_optimal_config("calcola l'integrale di x^2")
-        assert "provider" in config or "node_id" in config or isinstance(config, dict)
+        assert "provr" in config or "node_id" in config or isinstance(config, dict)
 
     def test_taxonomy_stats_structure(self):
         from backend.core.knowledge_taxonomy import taxonomy_stats

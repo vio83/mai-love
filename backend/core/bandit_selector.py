@@ -3,19 +3,19 @@
 # Copyright © 2026 Viorica Porcu (vio83) — All rights reserved
 # ============================================================
 """
-BanditSelector™ v1.0 — Multi-Armed Bandit per Provider Selection
+BanditSelector™ v1.0 — Multi-Armed Bandit per Provr Selection
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 QUESTO È MACHINE LEARNING REALE — non keyword matching.
 
 Implementa:
-  UCB1 (Upper Confidence Bound)  → esplorazione vs sfruttamento
+  UCB1 (Upper Confnce Bound)  → esplorazione vs sfruttamento
   Thompson Sampling (Beta)       → bayesiano, gestisce incertezza
-  Contextual Bandit              → considera dominio come contesto
+  Contextual Bandit              → consra dominio come contesto
 
-Ogni provider AI è un "braccio" della slot machine.
-L'algoritmo impara quale provider produce la migliore qualità
-per ogni tipo di task, bilanciando esplorazione di provider nuovi
-con sfruttamento di provider noti come buoni.
+Ogni provr AI è un "braccio" della slot machine.
+L'algoritmo impara quale provr produce la migliore qualità
+per ogni tipo di task, bilanciando esplorazione di provr nuovi
+con sfruttamento di provr noti come buoni.
 
 Matematica:
   UCB1:  score(a) = x̄(a) + c * √(ln(N) / n(a))
@@ -29,14 +29,13 @@ Matematica:
 
 from __future__ import annotations
 
-import json
 import math
 import random
 import sqlite3
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import logging
 
 logger = logging.getLogger("bandit_selector")
@@ -46,7 +45,7 @@ logger = logging.getLogger("bandit_selector")
 
 @dataclass
 class ArmStats:
-    """Statistiche di un braccio (provider) della slot machine."""
+    """Statistiche di un braccio (provr) della slot machine."""
     arm_id: str          # es. "claude/claude-sonnet-4-6"
     total_pulls: int = 0
     total_reward: float = 0.0
@@ -101,7 +100,7 @@ class ContextualArm:
 
 class UCB1:
     """
-    Upper Confidence Bound 1 — Algoritmo classico di banditi.
+    Upper Confnce Bound 1 — Algoritmo classico di banditi.
 
     Bilancia esplorazione/sfruttamento in modo ottimale (regret O(√T ln T)).
     Nessuna distribuzione assunta sui reward — funziona per qualsiasi distribuzione.
@@ -161,7 +160,7 @@ class ThompsonSampling:
     Vantaggi rispetto a UCB1:
     - Gestisce naturalmente l'incertezza
     - Converge più velocemente in pratica
-    - Funziona bene con reward non stazionari (i provider cambiano nel tempo)
+    - Funziona bene con reward non stazionari (i provr cambiano nel tempo)
     """
 
     def select(self, arms: Dict[str, ArmStats]) -> str:
@@ -188,10 +187,10 @@ class ThompsonSampling:
 
 class ContextualBandit:
     """
-    Bandit contestuale: considera il dominio del task come contesto.
+    Bandit contestuale: consra il dominio del task come contesto.
 
-    Mantiene statistiche separate per ogni combinazione (provider, dominio).
-    Un provider potrebbe essere ottimo per "code" ma pessimo per "creative".
+    Mantiene statistiche separate per ogni combinazione (provr, dominio).
+    Un provr potrebbe essere ottimo per "code" ma pessimo per "creative".
 
     Strategia: Thompson Sampling per-contesto con fallback globale.
     """
@@ -207,7 +206,7 @@ class ContextualBandit:
         global_stats: Dict[str, ArmStats],
     ) -> str:
         """
-        Seleziona provider ottimale dato il contesto (dominio).
+        Seleziona provr ottimale dato il contesto (dominio).
 
         Args:
             available_arms: lista di arm_id disponibili
@@ -218,7 +217,7 @@ class ContextualBandit:
         Returns: arm_id selezionato
         """
         if not available_arms:
-            raise ValueError("Nessun provider disponibile")
+            raise ValueError("Nessun provr disponibile")
 
         # Se abbiamo stats contestuali per questo dominio, usiamo quelle
         domain_stats = contextual_stats.get(domain, {})
@@ -240,7 +239,7 @@ class ContextualBandit:
                 # Fallback a stats globali
                 arms_for_thompson[arm_id] = global_stats[arm_id]
             else:
-                # Provider mai provato → esplorazione forzata (prior uniforme)
+                # Provr mai provato → esplorazione forzata (prior uniforme)
                 arms_for_thompson[arm_id] = ArmStats(arm_id=arm_id)
 
         return self._thompson.select(arms_for_thompson)
@@ -250,7 +249,7 @@ class ContextualBandit:
 
 class BanditSelector:
     """
-    BanditSelector™ — Machine Learning reale per provider selection.
+    BanditSelector™ — Machine Learning reale per provr selection.
 
     Sostituisce il keyword matching hardcoded con algoritmi di banditi
     che imparano dal feedback reale degli utenti.
@@ -258,8 +257,8 @@ class BanditSelector:
     Usage:
         bs = BanditSelector(data_dir=Path("data"))
 
-        # Seleziona provider migliore per un task
-        provider = bs.select_provider(
+        # Seleziona provr migliore per un task
+        provr = bs.select_provr(
             available=["claude/sonnet", "openai/gpt-4o", "ollama/llama3"],
             domain="code",
             strategy="thompson"  # o "ucb1" o "contextual"
@@ -295,7 +294,7 @@ class BanditSelector:
         self._init_db()
         self._load_stats()
 
-        logger.info(f"[BanditSelector™ v{self.VERSION}] Caricati {len(self._global_stats)} provider, {self._total_pulls} pull totali")
+        logger.info(f"[BanditSelector™ v{self.VERSION}] Caricati {len(self._global_stats)} provr, {self._total_pulls} pull totali")
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -356,29 +355,29 @@ class BanditSelector:
 
     # ── Public API ─────────────────────────────────────────────────
 
-    def select_provider(
+    def select_provr(
         self,
         available: List[str],
         domain: str = "general",
         strategy: str = "contextual",
     ) -> str:
         """
-        Seleziona il provider migliore usando ML reale.
+        Seleziona il provr migliore usando ML reale.
 
         Args:
-            available: lista di provider disponibili (es. ["claude/sonnet", "openai/gpt-4o"])
+            available: lista di provr disponibili (es. ["claude/sonnet", "openai/gpt-4o"])
             domain: tipo di task (es. "code", "creative", "medical")
             strategy: "ucb1" | "thompson" | "contextual" (default)
 
-        Returns: arm_id del provider selezionato
+        Returns: arm_id del provr selezionato
         """
         if not available:
-            raise ValueError("Nessun provider disponibile")
+            raise ValueError("Nessun provr disponibile")
 
         if len(available) == 1:
             return available[0]
 
-        # Assicura che tutti i provider siano nelle stats
+        # Assicura che tutti i provr siano nelle stats
         for arm_id in available:
             if arm_id not in self._global_stats:
                 self._global_stats[arm_id] = ArmStats(arm_id=arm_id)
@@ -413,7 +412,7 @@ class BanditSelector:
         Aggiorna statistiche dopo aver osservato il reward.
 
         Args:
-            arm_id: provider usato (es. "claude/sonnet")
+            arm_id: provr usato (es. "claude/sonnet")
             domain: dominio del task
             reward: 0.0-1.0 basato su quality reale (da user feedback o quality verifier)
         """
@@ -498,7 +497,7 @@ class BanditSelector:
 
     def get_rankings(self, domain: Optional[str] = None) -> List[Dict]:
         """
-        Ritorna ranking dei provider per reward medio.
+        Ritorna ranking dei provr per reward medio.
         Se domain specificato, usa stats contestuali.
         """
         if domain and domain in self._contextual_stats:
@@ -510,7 +509,7 @@ class BanditSelector:
             )
             return [
                 {
-                    "provider": a.arm_id,
+                    "provr": a.arm_id,
                     "domain": a.domain,
                     "pulls": a.total_pulls,
                     "mean_reward": round(a.mean_reward, 4),
@@ -526,7 +525,7 @@ class BanditSelector:
             )
             return [
                 {
-                    "provider": a.arm_id,
+                    "provr": a.arm_id,
                     "pulls": a.total_pulls,
                     "mean_reward": round(a.mean_reward, 4),
                     "success_rate": round(a.successes / max(1, a.total_pulls), 4),
@@ -540,7 +539,7 @@ class BanditSelector:
             "version": self.VERSION,
             "algorithm": "UCB1 + Thompson Sampling + Contextual Bandit",
             "total_pulls": self._total_pulls,
-            "providers_tracked": len(self._global_stats),
+            "provrs_tracked": len(self._global_stats),
             "domains_tracked": len(self._contextual_stats),
             "global_rankings": self.get_rankings()[:10],
             "domain_best": {

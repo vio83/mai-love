@@ -11,10 +11,9 @@ Sponsor lifecycle and funnel tracking:
 """
 
 import json
-import hashlib
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 # Paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data"

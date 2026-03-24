@@ -35,13 +35,11 @@ STRATEGIA DI DOWNLOAD:
 RATE LIMITING: rispetta i limiti di ogni API
 """
 
-import os
 import re
 import json
 import time
 import hashlib
-from typing import Optional, Generator
-from dataclasses import dataclass
+from typing import Optional
 
 # httpx per HTTP async-friendly
 try:
@@ -56,7 +54,6 @@ import urllib.parse
 
 from backend.rag.knowledge_distiller import (
     Level1_Metadata,
-    DistilledKnowledgeDB,
     get_distilled_db,
 )
 
@@ -428,7 +425,7 @@ class WikipediaConnector:
         results = []
         for item in data["query"].get("search", []):
             title = item.get("title", "")
-            snippet = re.sub(r'<[^>]+>', '', item.get("snippet", ""))
+            re.sub(r'<[^>]+>', '', item.get("snippet", ""))
 
             meta = Level1_Metadata(
                 doc_id=hashlib.md5(f"wiki:{self.lang}:{title}".encode()).hexdigest()[:16],

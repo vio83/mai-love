@@ -26,12 +26,10 @@ Quando usare MultiStep vs SingleStep:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger("multistep_reasoning")
 
@@ -43,7 +41,7 @@ class ReasoningStep:
     """Risultato di un singolo step di ragionamento."""
     step_name: str          # "analyze" | "solve" | "verify" | "refine"
     step_number: int
-    provider: str
+    provr: str
     model: str
     input_prompt: str
     output: str
@@ -73,9 +71,9 @@ AICallFn = Callable  # async (messages, system_prompt, max_tokens, temperature) 
 
 ANALYZE_SYSTEM = """Sei un analista esperto. Il tuo compito è SOLO analizzare la domanda dell'utente.
 NON rispondere alla domanda. Invece:
-1. Identifica il dominio esatto della domanda
-2. Identifica le sotto-domande implicite
-3. Identifica possibili ambiguità o trappole
+1. ntifica il dominio esatto della domanda
+2. ntifica le sotto-domande implicite
+3. ntifica possibili ambiguità o trappole
 4. Elenca i prerequisiti concettuali necessari per rispondere
 5. Suggerisci la struttura ottimale della risposta
 Rispondi in formato strutturato e conciso."""
@@ -86,7 +84,7 @@ CONTESTO DALL'ANALISI PRECEDENTE:
 {analysis}
 
 Usa questa analisi per guidare la tua risposta. Assicurati di:
-- Rispondere a TUTTE le sotto-domande identificate
+- Rispondere a TUTTE le sotto-domande ntificate
 - Evitare le ambiguità segnalate
 - Seguire la struttura suggerita
 - Essere preciso e verificabile"""
@@ -118,7 +116,7 @@ DOMANDA ORIGINALE:
 RISPOSTA ORIGINALE:
 {answer}
 
-PROBLEMI IDENTIFICATI:
+PROBLEMI NTIFICATI:
 {issues}
 
 SUGGERIMENTI:
@@ -138,7 +136,7 @@ class MultiStepReasoner:
 
         # Definisci la funzione di chiamata AI (dal tuo orchestratore)
         async def call_ai(messages, system_prompt, max_tokens, temperature):
-            # ... chiama il provider AI ...
+            # ... chiama il provr AI ...
             return {"content": "...", "tokens": 500, "latency_ms": 1200}
 
         # Esegui reasoning multi-step
@@ -156,7 +154,7 @@ class MultiStepReasoner:
 
     VERSION = "1.0.0"
 
-    # Soglie per decidere quanti step
+    # Soglie per decre quanti step
     MULTISTEP_THRESHOLD = 0.6    # Complexity > questa → multi-step
     VERIFICATION_THRESHOLD = 0.7  # Complexity > questa → verifica obbligatoria
     CRITICAL_DOMAINS = {"medical", "legal", "science", "math"}  # Sempre verifica
@@ -181,7 +179,7 @@ class MultiStepReasoner:
         temperature: float = 0.7,
     ) -> ReasoningResult:
         """
-        Esegui reasoning. Decide automaticamente se usare multi-step.
+        Esegui reasoning. Dec automaticamente se usare multi-step.
 
         Args:
             user_input: domanda dell'utente
@@ -195,7 +193,7 @@ class MultiStepReasoner:
         self._stats["total_calls"] += 1
         t0 = time.monotonic()
 
-        # Decide se multi-step è necessario
+        # Dec se multi-step è necessario
         needs_multistep = (
             force_multistep
             or complexity > self.MULTISTEP_THRESHOLD
@@ -357,13 +355,13 @@ class MultiStepReasoner:
             )
             output = result.get("content", "")
             tokens = result.get("tokens", 0)
-            provider = result.get("provider", "unknown")
+            provr = result.get("provr", "unknown")
             model = result.get("model", "unknown")
         except Exception as e:
             logger.error(f"[MultiStep.{step_name}] Errore: {e}")
             output = f"[Errore nello step {step_name}: {e}]"
             tokens = 0
-            provider = "error"
+            provr = "error"
             model = "error"
 
         latency = round((time.monotonic() - t0) * 1000, 1)
@@ -374,7 +372,7 @@ class MultiStepReasoner:
         return ReasoningStep(
             step_name=step_name,
             step_number=step_number,
-            provider=provider,
+            provr=provr,
             model=model,
             input_prompt=user_input[:200],
             output=output,

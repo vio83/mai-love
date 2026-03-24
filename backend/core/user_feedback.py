@@ -5,7 +5,7 @@
 """
 UserFeedback™ v1.0 — Sistema di Feedback REALE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Sostituisce la confidence hardcoded (0.8, 0.7, ecc.) con feedback
+Sostituisce la confnce hardcoded (0.8, 0.7, ecc.) con feedback
 REALE dall'utente che aggiorna i quality score di tutto il sistema.
 
 Flusso:
@@ -26,12 +26,11 @@ Metriche raccolte:
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import logging
 
 logger = logging.getLogger("user_feedback")
@@ -43,7 +42,7 @@ class FeedbackEntry:
     feedback_id: str          # UUID
     conversation_id: str
     message_id: str           # ID del messaggio valutato
-    provider: str
+    provr: str
     model: str
     domain: str
     satisfaction: float       # 0.0-1.0 (thumbs down=0.2, thumbs up=0.9)
@@ -65,7 +64,7 @@ class FeedbackSummary:
     useful_rate: float
     accurate_rate: float
     complete_rate: float
-    provider_scores: Dict[str, float]
+    provr_scores: Dict[str, float]
     domain_scores: Dict[str, float]
     trend_7d: float  # variazione ultimi 7 giorni
     corrections_count: int
@@ -77,7 +76,7 @@ class UserFeedbackManager:
 
     Questo modulo è il CUORE dell'auto-miglioramento.
     Senza feedback reale, tutti gli "optimizer" sono solo euristiche.
-    Con feedback reale, il BanditSelector impara quale provider è migliore.
+    Con feedback reale, il BanditSelector impara quale provr è migliore.
 
     Usage:
         ufm = UserFeedbackManager(data_dir=Path("data"))
@@ -86,7 +85,7 @@ class UserFeedbackManager:
         ufm.record_thumbs_up(
             conversation_id="conv_123",
             message_id="msg_456",
-            provider="claude/sonnet",
+            provr="claude/sonnet",
             model="claude-sonnet-4-6",
             domain="code",
             latency_ms=1200,
@@ -97,7 +96,7 @@ class UserFeedbackManager:
         ufm.record_thumbs_down(
             conversation_id="conv_123",
             message_id="msg_789",
-            provider="openai/gpt-4o",
+            provr="openai/gpt-4o",
             model="gpt-4o",
             domain="creative",
             correction="La risposta era factualmente errata su X",
@@ -130,7 +129,7 @@ class UserFeedbackManager:
                     feedback_id TEXT PRIMARY KEY,
                     conversation_id TEXT NOT NULL,
                     message_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
+                    provr TEXT NOT NULL,
                     model TEXT,
                     domain TEXT DEFAULT 'general',
                     satisfaction REAL NOT NULL,
@@ -142,13 +141,13 @@ class UserFeedbackManager:
                     tokens_used INTEGER DEFAULT 0,
                     timestamp REAL NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_fb_provider ON feedbacks(provider);
+                CREATE INDEX IF NOT EXISTS idx_fb_provr ON feedbacks(provr);
                 CREATE INDEX IF NOT EXISTS idx_fb_domain ON feedbacks(domain);
                 CREATE INDEX IF NOT EXISTS idx_fb_ts ON feedbacks(timestamp DESC);
                 CREATE INDEX IF NOT EXISTS idx_fb_conv ON feedbacks(conversation_id);
 
-                CREATE TABLE IF NOT EXISTS provider_aggregates (
-                    provider TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS provr_aggregates (
+                    provr TEXT NOT NULL,
                     domain TEXT NOT NULL,
                     total_feedbacks INTEGER DEFAULT 0,
                     satisfaction_sum REAL DEFAULT 0.0,
@@ -156,7 +155,7 @@ class UserFeedbackManager:
                     accurate_count INTEGER DEFAULT 0,
                     complete_count INTEGER DEFAULT 0,
                     last_updated REAL,
-                    PRIMARY KEY (provider, domain)
+                    PRIMARY KEY (provr, domain)
                 );
             """)
 
@@ -166,7 +165,7 @@ class UserFeedbackManager:
         self,
         conversation_id: str,
         message_id: str,
-        provider: str,
+        provr: str,
         model: str = "",
         domain: str = "general",
         latency_ms: float = 0.0,
@@ -181,7 +180,7 @@ class UserFeedbackManager:
             feedback_id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             message_id=message_id,
-            provider=provider,
+            provr=provr,
             model=model,
             domain=domain,
             satisfaction=self.THUMBS_UP_SCORE,
@@ -200,7 +199,7 @@ class UserFeedbackManager:
         self,
         conversation_id: str,
         message_id: str,
-        provider: str,
+        provr: str,
         model: str = "",
         domain: str = "general",
         correction: str = "",
@@ -218,7 +217,7 @@ class UserFeedbackManager:
             feedback_id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             message_id=message_id,
-            provider=provider,
+            provr=provr,
             model=model,
             domain=domain,
             satisfaction=self.THUMBS_DOWN_SCORE,
@@ -237,7 +236,7 @@ class UserFeedbackManager:
         self,
         conversation_id: str,
         message_id: str,
-        provider: str,
+        provr: str,
         model: str = "",
         domain: str = "general",
         satisfaction: float = 0.5,
@@ -254,7 +253,7 @@ class UserFeedbackManager:
             feedback_id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             message_id=message_id,
-            provider=provider,
+            provr=provr,
             model=model,
             domain=domain,
             satisfaction=max(0.0, min(1.0, satisfaction)),
@@ -274,30 +273,30 @@ class UserFeedbackManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO feedbacks
-                   (feedback_id, conversation_id, message_id, provider, model,
+                   (feedback_id, conversation_id, message_id, provr, model,
                     domain, satisfaction, was_useful, was_accurate, was_complete,
                     correction_text, latency_ms, tokens_used, timestamp)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (entry.feedback_id, entry.conversation_id, entry.message_id,
-                 entry.provider, entry.model, entry.domain, entry.satisfaction,
+                 entry.provr, entry.model, entry.domain, entry.satisfaction,
                  int(entry.was_useful), int(entry.was_accurate), int(entry.was_complete),
                  entry.correction_text, entry.latency_ms, entry.tokens_used, entry.timestamp),
             )
 
             # Aggiorna aggregati
             conn.execute(
-                """INSERT INTO provider_aggregates
-                   (provider, domain, total_feedbacks, satisfaction_sum,
+                """INSERT INTO provr_aggregates
+                   (provr, domain, total_feedbacks, satisfaction_sum,
                     useful_count, accurate_count, complete_count, last_updated)
                    VALUES (?,?,1,?,?,?,?,?)
-                   ON CONFLICT(provider, domain) DO UPDATE SET
+                   ON CONFLICT(provr, domain) DO UPDATE SET
                        total_feedbacks = total_feedbacks + 1,
                        satisfaction_sum = satisfaction_sum + ?,
                        useful_count = useful_count + ?,
                        accurate_count = accurate_count + ?,
                        complete_count = complete_count + ?,
                        last_updated = ?""",
-                (entry.provider, entry.domain, entry.satisfaction,
+                (entry.provr, entry.domain, entry.satisfaction,
                  int(entry.was_useful), int(entry.was_accurate), int(entry.was_complete),
                  entry.timestamp,
                  entry.satisfaction,
@@ -308,7 +307,7 @@ class UserFeedbackManager:
 
     # ── Query API ──────────────────────────────────────────────────
 
-    def get_reward_for_bandit(self, provider: str, domain: str = "general") -> float:
+    def get_reward_for_bandit(self, provr: str, domain: str = "general") -> float:
         """
         Calcola reward REALE per il BanditSelector.
         Basato su feedback utente aggregati, NON hardcoded.
@@ -318,34 +317,34 @@ class UserFeedbackManager:
         """
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
-                "SELECT total_feedbacks, satisfaction_sum FROM provider_aggregates WHERE provider=? AND domain=?",
-                (provider, domain),
+                "SELECT total_feedbacks, satisfaction_sum FROM provr_aggregates WHERE provr=? AND domain=?",
+                (provr, domain),
             ).fetchone()
             if row and row[0] > 0:
                 return round(row[1] / row[0], 4)
 
-            # Fallback: stats globali del provider (qualsiasi dominio)
+            # Fallback: stats globali del provr (qualsiasi dominio)
             row = conn.execute(
-                "SELECT SUM(total_feedbacks), SUM(satisfaction_sum) FROM provider_aggregates WHERE provider=?",
-                (provider,),
+                "SELECT SUM(total_feedbacks), SUM(satisfaction_sum) FROM provr_aggregates WHERE provr=?",
+                (provr,),
             ).fetchone()
             if row and row[0] and row[0] > 0:
                 return round(row[1] / row[0], 4)
 
         return 0.5  # Nessun dato → neutro
 
-    def get_provider_satisfaction(self, provider: str) -> Dict:
-        """Satisfaction media per un provider across all domains."""
+    def get_provr_satisfaction(self, provr: str) -> Dict:
+        """Satisfaction media per un provr across all domains."""
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
                 """SELECT domain, total_feedbacks, satisfaction_sum, useful_count,
                           accurate_count, complete_count
-                   FROM provider_aggregates WHERE provider=?""",
-                (provider,),
+                   FROM provr_aggregates WHERE provr=?""",
+                (provr,),
             ).fetchall()
 
         if not rows:
-            return {"provider": provider, "domains": {}, "overall": 0.5}
+            return {"provr": provr, "domains": {}, "overall": 0.5}
 
         total_fb = sum(r[1] for r in rows)
         total_sat = sum(r[2] for r in rows)
@@ -361,7 +360,7 @@ class UserFeedbackManager:
                 }
 
         return {
-            "provider": provider,
+            "provr": provr,
             "domains": domains,
             "overall": round(total_sat / max(1, total_fb), 3),
             "total_feedbacks": total_fb,
@@ -380,19 +379,19 @@ class UserFeedbackManager:
                    FROM feedbacks"""
             ).fetchone()
 
-            # Provider scores
+            # Provr scores
             prov_rows = conn.execute(
-                """SELECT provider, SUM(satisfaction_sum)/SUM(total_feedbacks)
-                   FROM provider_aggregates
-                   GROUP BY provider
+                """SELECT provr, SUM(satisfaction_sum)/SUM(total_feedbacks)
+                   FROM provr_aggregates
+                   GROUP BY provr
                    HAVING SUM(total_feedbacks) > 0"""
             ).fetchall()
-            provider_scores = {r[0]: round(r[1], 3) for r in prov_rows}
+            provr_scores = {r[0]: round(r[1], 3) for r in prov_rows}
 
             # Domain scores
             dom_rows = conn.execute(
                 """SELECT domain, SUM(satisfaction_sum)/SUM(total_feedbacks)
-                   FROM provider_aggregates
+                   FROM provr_aggregates
                    GROUP BY domain
                    HAVING SUM(total_feedbacks) > 0"""
             ).fetchall()
@@ -418,7 +417,7 @@ class UserFeedbackManager:
                 useful_rate=round(stats[1] or 0.5, 3),
                 accurate_rate=round(stats[2] or 0.5, 3),
                 complete_rate=round(stats[3] or 0.5, 3),
-                provider_scores=provider_scores,
+                provr_scores=provr_scores,
                 domain_scores=domain_scores,
                 trend_7d=trend,
                 corrections_count=int(stats[4] or 0),
@@ -428,14 +427,14 @@ class UserFeedbackManager:
         """Ritorna le correzioni utente (per auto-learning)."""
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
-                """SELECT provider, domain, correction_text, satisfaction, timestamp
+                """SELECT provr, domain, correction_text, satisfaction, timestamp
                    FROM feedbacks
                    WHERE correction_text != ''
                    ORDER BY timestamp DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
         return [
-            {"provider": r[0], "domain": r[1], "correction": r[2],
+            {"provr": r[0], "domain": r[1], "correction": r[2],
              "satisfaction": r[3], "timestamp": r[4]}
             for r in rows
         ]

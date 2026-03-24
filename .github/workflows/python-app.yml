@@ -30,8 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 bandit pytest pytest-cov
           pip install sentry-sdk loguru
-          pip install -r requirements.txt || true
-          pip install -r requirements-rag.txt 2>/dev/null || true
+          pip install -r requirements.txt
+          if [ -f requirements-rag.txt ]; then
+            pip install -r requirements-rag.txt || echo "⚠️ RAG deps skipped (optional)"
+          fi
 
       - name: Flake8 — critical errors only
         run: |
@@ -63,7 +65,7 @@ jobs:
 
       - name: Bandit SAST — security scan (GAP-03)
         run: |
-          bandit -r backend/ -ll -x backend/rag/,backend/__pycache__/ --quiet
+          bandit -r backend/ -lll -x backend/rag/,backend/__pycache__/ --quiet
         continue-on-error: false
 
       - name: Pytest with coverage (GAP-02)

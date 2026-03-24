@@ -28,14 +28,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import multiprocessing
 import os
 import queue
-import signal
 import sys
 import threading
 import time
-import traceback
 from concurrent.futures import (
     ProcessPoolExecutor,
     ThreadPoolExecutor,
@@ -45,8 +42,8 @@ from concurrent.futures import (
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    Any, Callable, Dict, Generator, Generic, List, Optional, Sequence,
-    Tuple, TypeVar, Union,
+    Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar,
+    Union,
 )
 
 logger = logging.getLogger("vio83.distributed")
@@ -86,7 +83,7 @@ def detect_resources() -> SystemResources:
     except ImportError:
         # Fallback senza psutil
         try:
-            import resource
+            pass
             # Su macOS/Linux
             mem_total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024**3)
             mem_avail = mem_total * 0.6  # stima
@@ -494,7 +491,6 @@ class DaskCluster:
         memory_limit: str = "auto",
     ):
         try:
-            import dask
             from dask.distributed import Client, LocalCluster
         except ImportError:
             raise ImportError(
@@ -526,7 +522,6 @@ class DaskCluster:
         progress_callback: Optional[Callable[[BatchProgress], None]] = None,
     ) -> List[R]:
         """Map distribuito su cluster Dask."""
-        from dask.distributed import progress as dask_progress
 
         futures = self._client.map(fn, items)
 
@@ -619,7 +614,7 @@ class SparkCluster:
         df = self._spark.createDataFrame(rows)
 
         # UDF per trasformazione
-        transform_udf = udf(fn, StringType())
+        udf(fn, StringType())
         # Nota: per casi reali, serve schema output più specifico
 
         return [row.asDict() for row in df.collect()]
@@ -868,13 +863,11 @@ _HAS_DASK = False
 _HAS_SPARK = False
 
 try:
-    import dask
     _HAS_DASK = True
 except ImportError:
     pass
 
 try:
-    import pyspark
     _HAS_SPARK = True
 except ImportError:
     pass

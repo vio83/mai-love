@@ -11,7 +11,7 @@ sessione AI a qualità mondiale automaticamente, senza intervento umano.
 Integra:
   → WorldDataIntegrator™  (dati mondiali freschi nel contesto)
   → ReasoningAmplifier™   (intent decode + CoT + quality verify)
-  → AdvancedOrchestrator  (selezione provider ottimale)
+  → AdvancedOrchestrator  (selezione provr ottimale)
   → UltraEngine™          (cache semantica Piuma™)
   → AutoOptimizer™        (auto-calibrazione sistema)
 
@@ -19,7 +19,7 @@ Pipeline completa per ogni request:
   1. DECODE    — IntentDecoder (0.5ms)
   2. ENRICH    — WorldDataIntegrator context injection (<50ms)
   3. ENHANCE   — System prompt enhancement con CoT (<0.5ms)
-  4. ROUTE     — Provider selection ottimale (<1ms)
+  4. ROUTE     — Provr selection ottimale (<1ms)
   5. EXECUTE   — AI call con fallback chain
   6. VERIFY    — QualityVerifier certificazione (<2ms)
   7. AMPLIFY   — OutputAmplifier post-processing (<10ms)
@@ -36,13 +36,11 @@ Performance target:
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import AsyncIterator, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("omega_orchestrator")
 
@@ -52,19 +50,19 @@ class OmegaRequest:
     """Request per OmegaOrchestrator™."""
     user_input: str
     conversation_id: str = ""
-    provider_hint: Optional[str] = None          # suggerimento provider
+    provr_hint: Optional[str] = None          # suggerimento provr
     use_world_context: bool = True               # inietta dati mondiali
     stream: bool = False                         # streaming response
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
-    system_prompt_override: Optional[str] = None
+    system_prompt_overr: Optional[str] = None
 
 
 @dataclass
 class OmegaResponse:
     """Response completa con metriche Omega."""
     content: str
-    provider_used: str
+    provr_used: str
     model_used: str
     quality_score: float
     intent_domain: str
@@ -191,14 +189,14 @@ class OmegaOrchestrator:
                 logger.debug(f"[Omega.ENRICH] {e}")
 
         # ── STEP 3: ENHANCE system prompt ─────────────────────────
-        system_prompt = request.system_prompt_override or self.BASE_SYSTEM_PROMPT
+        system_prompt = request.system_prompt_overr or self.BASE_SYSTEM_PROMPT
         if self._reasoning_amplifier and intent:
             system_prompt = self._reasoning_amplifier.enhance_system_prompt(system_prompt, intent)
         if world_context:
             system_prompt += f"\n\n[CONTESTO MONDIALE AGGIORNATO]\n{world_context}"
 
         # ── STEP 4-5: ROUTE + EXECUTE ──────────────────────────────
-        # Costruisci messages per provider
+        # Costruisci messages per provr
         messages = [{"role": "user", "content": request.user_input}]
 
         # Determina max_tokens
@@ -208,17 +206,17 @@ class OmegaOrchestrator:
 
         # Esegui via advanced_orchestrator se disponibile
         raw_output = ""
-        provider_used = "unknown"
+        provr_used = "unknown"
         model_used = "unknown"
         cache_hit = False
 
         try:
-            raw_output, provider_used, model_used, cache_hit = await self._execute_ai_call(
+            raw_output, provr_used, model_used, cache_hit = await self._execute_ai_call(
                 messages=messages,
                 system_prompt=system_prompt,
                 max_tokens=max_tokens,
                 temperature=request.temperature,
-                provider_hint=request.provider_hint,
+                provr_hint=request.provr_hint,
                 intent=intent,
             )
         except Exception as e:
@@ -255,13 +253,13 @@ class OmegaOrchestrator:
         asyncio.create_task(self._async_learn(
             intent=intent,
             quality_score=quality_score,
-            provider_used=provider_used,
+            provr_used=provr_used,
         ))
 
         # ── STEP 9: RESPOND ───────────────────────────────────────
         total_ms = round((time.monotonic() - t0) * 1000, 1)
         logger.info(
-            f"[OmegaOrchestrator™] ✓ provider={provider_used} "
+            f"[OmegaOrchestrator™] ✓ provr={provr_used} "
             f"quality={quality_score:.2f} ms={total_ms} "
             f"cache={'HIT' if cache_hit else 'MISS'} "
             f"world={world_articles_count}art"
@@ -269,7 +267,7 @@ class OmegaOrchestrator:
 
         return OmegaResponse(
             content=final_output,
-            provider_used=provider_used,
+            provr_used=provr_used,
             model_used=model_used,
             quality_score=quality_score,
             intent_domain=intent.domain if intent else "unknown",
@@ -288,12 +286,12 @@ class OmegaOrchestrator:
         system_prompt: str,
         max_tokens: Optional[int],
         temperature: Optional[float],
-        provider_hint: Optional[str],
+        provr_hint: Optional[str],
         intent,
     ) -> Tuple[str, str, str, bool]:
         """
-        Esegui chiamata AI tramite provider disponibili.
-        Returns: (output, provider, model, cache_hit)
+        Esegui chiamata AI tramite provr disponibili.
+        Returns: (output, provr, model, cache_hit)
         Prova nell'ordine: advanced_orchestrator → direct call
         """
         # Tenta import advanced_orchestrator
@@ -312,7 +310,7 @@ class OmegaOrchestrator:
             if result and result.get("content"):
                 return (
                     result["content"],
-                    result.get("provider", "advanced"),
+                    result.get("provr", "advanced"),
                     result.get("model", "auto"),
                     result.get("cache_hit", False),
                 )
@@ -321,14 +319,14 @@ class OmegaOrchestrator:
 
         # Fallback: ritorna placeholder (in produzione qui ci sarebbe direct HTTP call)
         return (
-            "[OmegaOrchestrator™: provider non disponibile in questo ambiente. "
+            "[OmegaOrchestrator™: provr non disponibile in questo ambiente. "
             "Configura le API keys in .env per attivare il routing AI completo.]",
             "fallback",
             "none",
             False,
         )
 
-    async def _async_learn(self, intent, quality_score: float, provider_used: str):
+    async def _async_learn(self, intent, quality_score: float, provr_used: str):
         """Learning asincrono post-response (non blocca l'utente)."""
         try:
             # AutoOptimizer si occuperà del learning approfondito

@@ -243,7 +243,7 @@ class CacheEngine:
     def make_key(*args, **kwargs) -> str:
         """Genera chiave cache deterministica da argomenti."""
         raw = json.dumps({"a": args, "k": kwargs}, sort_keys=True, default=str)
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.blake2b(raw.encode(), digest_size=16).hexdigest()
 
     def get(self, key: str) -> Optional[Any]:
         """Cerca in L1 poi L2."""

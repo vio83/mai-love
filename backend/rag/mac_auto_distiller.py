@@ -19,7 +19,7 @@ Daemon PERMANENTE che gira in background sul Mac e:
    - Registra sessioni di lavoro come metadati
 
 3. COMPRESSIONE TRASPARENTE
-   - Il Mac funziona identico a prima
+   - Il Mac funziona ntico a prima
    - In background, tutto viene indicizzato nel knowledge DB
    - Ricerca full-text su TUTTO il Mac in millisecondi
 
@@ -47,9 +47,6 @@ import sqlite3
 import logging
 import argparse
 import subprocess
-import platform
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -62,10 +59,10 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from backend.rag.harvest_state import (
-    HarvestStateDB, HarvestProgress, setup_logger, DATA_DIR, LOG_DIR
+    HarvestStateDB, setup_logger, DATA_DIR, LOG_DIR
 )
 from backend.rag.knowledge_distiller import (
-    Level1_Metadata, DistilledKnowledgeDB, get_distilled_db,
+    Level1_Metadata, get_distilled_db,
 )
 
 # ============================================================
@@ -570,7 +567,7 @@ class AutoDistillerDaemon:
 
         if batch:
             try:
-                inserted = self.db.distill_batch_metadata(batch)
+                self.db.distill_batch_metadata(batch)
                 self._stats["files_indexed"] += len([f for f in new_files if f])
                 self._stats["files_updated"] += len([f for f in modified_files if f])
 
@@ -833,13 +830,11 @@ def show_status():
     print("=" * 60)
 
     # Stato daemon
-    running = False
     if os.path.exists(PID_FILE):
         try:
             with open(PID_FILE) as f:
                 pid = int(f.read().strip())
             os.kill(pid, 0)
-            running = True
             print(f"\n🟢 Daemon ATTIVO (PID: {pid})")
         except (OSError, ValueError):
             print("\n🔴 Daemon NON attivo (PID file stale)")
@@ -948,7 +943,7 @@ Esempio:
                                 "status", "run"],
                         help="Comando da eseguire")
     parser.add_argument("--dirs", nargs="*",
-                        help="Directory da monitorare (override config)")
+                        help="Directory da monitorare (overr config)")
 
     args = parser.parse_args()
 

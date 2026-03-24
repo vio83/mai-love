@@ -13,7 +13,7 @@ def run_case(model: str, max_tokens: int) -> dict:
     payload = {
         "message": "Rispondi con la sola parola: OK",
         "mode": "cloud",
-        "provider": "claude",
+        "provr": "claude",
         "model": model,
         "max_tokens": max_tokens,
         "temperature": 0,
@@ -36,7 +36,7 @@ def run_case(model: str, max_tokens: int) -> dict:
         "max_tokens": max_tokens,
         "wall_ms": wall_ms,
         "api_latency_ms": body.get("latency_ms"),
-        "provider": body.get("provider"),
+        "provr": body.get("provr"),
         "response_preview": (body.get("content") or "")[:80],
     }
 

@@ -8,7 +8,7 @@ Sistema di auto-generazione API keys per utente.
 Analogia hotel:
 - Ogni utente (ospite) riceve una chiave unica per la sua stanza
 - La chiave è derivata dalla sua email (impronta digitale)
-- Ogni AI provider ha la sua chiave specifica
+- Ogni AI provr ha la sua chiave specifica
 - Il passe-partout (master key) può aprire tutte le porte
 
 Meccanismo:
@@ -20,9 +20,9 @@ Meccanismo:
 5. Le VIO keys utente sono token derivati, non chiavi reali
 
 Sicurezza:
-- Le chiavi reali dei provider (OpenAI, Anthropic, etc.) NON
+- Le chiavi reali dei provr (OpenAI, Anthropic, etc.) NON
   vengono mai esposte all'utente
-- Ogni VIO key è un HMAC(email_hash + provider + timestamp)
+- Ogni VIO key è un HMAC(email_hash + provr + timestamp)
 - Le VIO keys possono essere revocate/rigenerate istantaneamente
 """
 
@@ -30,12 +30,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import os
 import secrets
 import sqlite3
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -46,8 +45,8 @@ VIO_KEY_PREFIX = "vio83"
 KEY_DERIVATION_SECRET_ENV = "VIO_KEY_DERIVATION_SECRET"
 DB_PATH = Path("data/vio83_users.db")  # Stesso DB degli utenti
 
-# Provider supportati nell'ecosistema VIO
-SUPPORTED_PROVIDERS = {
+# Provr supportati nell'ecosistema VIO
+SUPPORTED_PROVRS = {
     "ollama":      {"tier": "local",  "free": True,  "display": "Ollama (Locale)"},
     "groq":        {"tier": "free",   "free": True,  "display": "Groq Cloud"},
     "together":    {"tier": "free",   "free": True,  "display": "Together AI"},
@@ -64,11 +63,11 @@ SUPPORTED_PROVIDERS = {
 
 @dataclass(frozen=True, slots=True)
 class VioApiKey:
-    """Una API key auto-generata per un utente + provider specifico."""
+    """Una API key auto-generata per un utente + provr specifico."""
     key_id: str           # UUID
     user_id: str
-    provider: str
-    vio_key: str          # vio83_<provider>_<hash> — il token proxy
+    provr: str
+    vio_key: str          # vio83_<provr>_<hash> — il token proxy
     created_at: float
     expires_at: float
     is_active: bool = True
@@ -83,31 +82,31 @@ def _get_derivation_secret() -> str:
     return os.environ.get(KEY_DERIVATION_SECRET_ENV, "vio83-orchestra-key-derivation-2026")
 
 
-def derive_vio_key(email_hash: str, provider: str, timestamp: float) -> str:
+def derive_vio_key(email_hash: str, provr: str, timestamp: float) -> str:
     """
-    Auto-genera una VIO API key unica per utente + provider.
+    Auto-genera una VIO API key unica per utente + provr.
 
     La chiave è un token derivato deterministicamente da:
     - email_hash (impronta digitale dell'utente)
-    - provider (quale AI)
+    - provr (quale AI)
     - timestamp (quando generata)
     - derivation secret (segreto del platform)
 
-    Formato: vio83_<provider>_<signature>
+    Formato: vio83_<provr>_<signature>
     """
     secret = _get_derivation_secret()
-    payload = f"{email_hash}:{provider}:{timestamp}:{secret}"
+    payload = f"{email_hash}:{provr}:{timestamp}:{secret}"
     signature = hmac.new(
         secret.encode("utf-8"),
         payload.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()[:32]
-    return f"{VIO_KEY_PREFIX}_{provider}_{signature}"
+    return f"{VIO_KEY_PREFIX}_{provr}_{signature}"
 
 
 def verify_vio_key_format(key: str) -> Optional[str]:
     """
-    Verifica formato VIO key e ritorna il provider.
+    Verifica formato VIO key e ritorna il provr.
     Returns None se formato invalido.
     """
     if not key or not key.startswith(f"{VIO_KEY_PREFIX}_"):
@@ -115,10 +114,10 @@ def verify_vio_key_format(key: str) -> Optional[str]:
     parts = key.split("_", 2)
     if len(parts) != 3:
         return None
-    provider = parts[1]
-    if provider not in SUPPORTED_PROVIDERS:
+    provr = parts[1]
+    if provr not in SUPPORTED_PROVRS:
         return None
-    return provider
+    return provr
 
 
 # ─── API Key Vault Manager ──────────────────────────────────────────
@@ -128,7 +127,7 @@ class ApiKeyVaultManager:
     Gestisce l'auto-generazione e il ciclo di vita delle API keys.
 
     Per ogni utente registrato:
-    1. In base al piano acquistato, genera VIO keys per i provider inclusi
+    1. In base al piano acquistato, genera VIO keys per i provr inclusi
     2. Ogni VIO key è unica, legata all'email, revocabile
     3. Le master API keys reali restano solo nel server (passe-partout)
     4. L'utente vede solo le sue VIO keys personalizzate
@@ -153,7 +152,7 @@ class ApiKeyVaultManager:
             CREATE TABLE IF NOT EXISTS user_api_keys (
                 key_id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
-                provider TEXT NOT NULL,
+                provr TEXT NOT NULL,
                 vio_key TEXT UNIQUE NOT NULL,
                 created_at REAL NOT NULL,
                 expires_at REAL NOT NULL,
@@ -161,20 +160,20 @@ class ApiKeyVaultManager:
                 last_used REAL DEFAULT 0,
                 usage_count INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                UNIQUE(user_id, provider)
+                UNIQUE(user_id, provr)
             );
 
             CREATE TABLE IF NOT EXISTS key_usage_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key_id TEXT NOT NULL,
                 user_id TEXT NOT NULL,
-                provider TEXT NOT NULL,
+                provr TEXT NOT NULL,
                 action TEXT NOT NULL,
                 timestamp REAL NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_uak_user ON user_api_keys(user_id);
-            CREATE INDEX IF NOT EXISTS idx_uak_provider ON user_api_keys(provider);
+            CREATE INDEX IF NOT EXISTS idx_uak_provr ON user_api_keys(provr);
             CREATE INDEX IF NOT EXISTS idx_uak_viokey ON user_api_keys(vio_key);
             CREATE INDEX IF NOT EXISTS idx_keylog_time ON key_usage_log(timestamp);
         """)
@@ -185,10 +184,10 @@ class ApiKeyVaultManager:
         self,
         user_id: str,
         email_hash: str,
-        plan_providers: list[str],
+        plan_provrs: list[str],
     ) -> list[VioApiKey]:
         """
-        Auto-genera VIO API keys per tutti i provider nel piano dell'utente.
+        Auto-genera VIO API keys per tutti i provr nel piano dell'utente.
 
         Come un hotel che prepara le chiavi per tutte le stanze
         che il cliente ha prenotato.
@@ -197,35 +196,35 @@ class ApiKeyVaultManager:
         now = time.time()
         expiry = now + (365 * 86400)  # 1 anno
 
-        for provider in plan_providers:
-            if provider not in SUPPORTED_PROVIDERS:
+        for provr in plan_provrs:
+            if provr not in SUPPORTED_PROVRS:
                 continue
 
             # Controlla se esiste già una chiave attiva
             existing = self._conn.execute(
-                "SELECT key_id FROM user_api_keys WHERE user_id = ? AND provider = ? AND is_active = 1",
-                (user_id, provider)
+                "SELECT key_id FROM user_api_keys WHERE user_id = ? AND provr = ? AND is_active = 1",
+                (user_id, provr)
             ).fetchone()
             if existing:
                 continue
 
             # Auto-genera la VIO key
-            vio_key = derive_vio_key(email_hash, provider, now)
+            vio_key = derive_vio_key(email_hash, provr, now)
             key_id = str(secrets.token_hex(8))
 
             self._conn.execute(
                 """INSERT INTO user_api_keys
-                (key_id, user_id, provider, vio_key, created_at, expires_at)
+                (key_id, user_id, provr, vio_key, created_at, expires_at)
                 VALUES (?, ?, ?, ?, ?, ?)""",
-                (key_id, user_id, provider, vio_key, now, expiry)
+                (key_id, user_id, provr, vio_key, now, expiry)
             )
 
             generated.append(VioApiKey(
-                key_id=key_id, user_id=user_id, provider=provider,
+                key_id=key_id, user_id=user_id, provr=provr,
                 vio_key=vio_key, created_at=now, expires_at=expiry,
             ))
 
-            self._log_key_action(key_id, user_id, provider, "generated")
+            self._log_key_action(key_id, user_id, provr, "generated")
 
         self._conn.commit()
         return generated
@@ -239,7 +238,7 @@ class ApiKeyVaultManager:
         """
         now = time.time()
         row = self._conn.execute(
-            """SELECT key_id, user_id, provider, vio_key, created_at,
+            """SELECT key_id, user_id, provr, vio_key, created_at,
                       expires_at, is_active, last_used, usage_count
             FROM user_api_keys
             WHERE vio_key = ? AND is_active = 1 AND expires_at > ?""",
@@ -250,7 +249,7 @@ class ApiKeyVaultManager:
             return None
 
         key = VioApiKey(
-            key_id=row[0], user_id=row[1], provider=row[2],
+            key_id=row[0], user_id=row[1], provr=row[2],
             vio_key=row[3], created_at=row[4], expires_at=row[5],
             is_active=bool(row[6]), last_used=now, usage_count=row[8] + 1,
         )
@@ -266,9 +265,9 @@ class ApiKeyVaultManager:
 
     # ─── Rigenerazione chiave ───────────────────────────────────────
 
-    def regenerate_key(self, user_id: str, email_hash: str, provider: str) -> Optional[VioApiKey]:
+    def regenerate_key(self, user_id: str, email_hash: str, provr: str) -> Optional[VioApiKey]:
         """
-        Rigenera una VIO key per un provider.
+        Rigenera una VIO key per un provr.
         Come quando il cliente perde la chiave: l'hotel
         disattiva la vecchia e ne crea una nuova.
         """
@@ -276,27 +275,27 @@ class ApiKeyVaultManager:
 
         # Disattiva la vecchia chiave
         self._conn.execute(
-            "UPDATE user_api_keys SET is_active = 0 WHERE user_id = ? AND provider = ?",
-            (user_id, provider)
+            "UPDATE user_api_keys SET is_active = 0 WHERE user_id = ? AND provr = ?",
+            (user_id, provr)
         )
 
         # Genera nuova chiave
-        vio_key = derive_vio_key(email_hash, provider, now)
+        vio_key = derive_vio_key(email_hash, provr, now)
         key_id = str(secrets.token_hex(8))
         expiry = now + (365 * 86400)
 
         self._conn.execute(
             """INSERT INTO user_api_keys
-            (key_id, user_id, provider, vio_key, created_at, expires_at)
+            (key_id, user_id, provr, vio_key, created_at, expires_at)
             VALUES (?, ?, ?, ?, ?, ?)""",
-            (key_id, user_id, provider, vio_key, now, expiry)
+            (key_id, user_id, provr, vio_key, now, expiry)
         )
         self._conn.commit()
 
-        self._log_key_action(key_id, user_id, provider, "regenerated")
+        self._log_key_action(key_id, user_id, provr, "regenerated")
 
         return VioApiKey(
-            key_id=key_id, user_id=user_id, provider=provider,
+            key_id=key_id, user_id=user_id, provr=provr,
             vio_key=vio_key, created_at=now, expires_at=expiry,
         )
 
@@ -305,20 +304,20 @@ class ApiKeyVaultManager:
     def get_user_keys(self, user_id: str) -> list[dict]:
         """Lista tutte le VIO keys attive di un utente."""
         rows = self._conn.execute(
-            """SELECT key_id, provider, vio_key, created_at, expires_at,
+            """SELECT key_id, provr, vio_key, created_at, expires_at,
                       last_used, usage_count
             FROM user_api_keys
             WHERE user_id = ? AND is_active = 1
-            ORDER BY provider""",
+            ORDER BY provr""",
             (user_id,)
         ).fetchall()
 
         return [
             {
                 "key_id": r[0],
-                "provider": r[1],
+                "provr": r[1],
                 "vio_key": self._mask_key(r[2]),
-                "provider_display": SUPPORTED_PROVIDERS.get(r[1], {}).get("display", r[1]),
+                "provr_display": SUPPORTED_PROVRS.get(r[1], {}).get("display", r[1]),
                 "created_at": r[3],
                 "expires_at": r[4],
                 "last_used": r[5],
@@ -327,24 +326,24 @@ class ApiKeyVaultManager:
             for r in rows
         ]
 
-    def get_user_active_providers(self, user_id: str) -> list[str]:
-        """Lista provider attivi per un utente."""
+    def get_user_active_provrs(self, user_id: str) -> list[str]:
+        """Lista provr attivi per un utente."""
         rows = self._conn.execute(
-            "SELECT provider FROM user_api_keys WHERE user_id = ? AND is_active = 1",
+            "SELECT provr FROM user_api_keys WHERE user_id = ? AND is_active = 1",
             (user_id,)
         ).fetchall()
         return [r[0] for r in rows]
 
     # ─── Revoca chiave ──────────────────────────────────────────────
 
-    def revoke_key(self, user_id: str, provider: str) -> bool:
+    def revoke_key(self, user_id: str, provr: str) -> bool:
         """Revoca una chiave (come bloccare una chiave persa)."""
         self._conn.execute(
-            "UPDATE user_api_keys SET is_active = 0 WHERE user_id = ? AND provider = ?",
-            (user_id, provider)
+            "UPDATE user_api_keys SET is_active = 0 WHERE user_id = ? AND provr = ?",
+            (user_id, provr)
         )
         self._conn.commit()
-        self._log_key_action("", user_id, provider, "revoked")
+        self._log_key_action("", user_id, provr, "revoked")
         return True
 
     def revoke_all_user_keys(self, user_id: str) -> int:
@@ -358,10 +357,10 @@ class ApiKeyVaultManager:
 
     # ─── Master key resolution ──────────────────────────────────────
 
-    def resolve_master_key(self, provider: str) -> Optional[str]:
+    def resolve_master_key(self, provr: str) -> Optional[str]:
         """
-        Risolvi la master API key reale per un provider.
-        Questo è il PASSE-PARTOUT: le chiavi reali dei provider
+        Risolvi la master API key reale per un provr.
+        Questo è il PASSE-PARTOUT: le chiavi reali dei provr
         che il sistema usa internamente per le chiamate AI.
 
         Le master keys vengono dalle variabili d'ambiente (.env).
@@ -379,7 +378,7 @@ class ApiKeyVaultManager:
             "gemini": "GEMINI_API_KEY",
             "perplexity": "PERPLEXITY_API_KEY",
         }
-        env_var = env_map.get(provider)
+        env_var = env_map.get(provr)
         if not env_var:
             return None
         return os.environ.get(env_var)
@@ -392,11 +391,11 @@ class ApiKeyVaultManager:
             return key[:8] + "..."
         return key[:16] + "..." + key[-4:]
 
-    def _log_key_action(self, key_id: str, user_id: str, provider: str, action: str) -> None:
+    def _log_key_action(self, key_id: str, user_id: str, provr: str, action: str) -> None:
         try:
             self._conn.execute(
-                "INSERT INTO key_usage_log (key_id, user_id, provider, action, timestamp) VALUES (?, ?, ?, ?, ?)",
-                (key_id, user_id, provider, action, time.time())
+                "INSERT INTO key_usage_log (key_id, user_id, provr, action, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (key_id, user_id, provr, action, time.time())
             )
             self._conn.commit()
         except Exception:
@@ -406,12 +405,12 @@ class ApiKeyVaultManager:
         total_keys = self._conn.execute(
             "SELECT COUNT(*) FROM user_api_keys WHERE is_active = 1"
         ).fetchone()[0]
-        by_provider = {}
+        by_provr = {}
         for row in self._conn.execute(
-            "SELECT provider, COUNT(*) FROM user_api_keys WHERE is_active = 1 GROUP BY provider"
+            "SELECT provr, COUNT(*) FROM user_api_keys WHERE is_active = 1 GROUP BY provr"
         ):
-            by_provider[row[0]] = row[1]
-        return {"total_active_keys": total_keys, "by_provider": by_provider}
+            by_provr[row[0]] = row[1]
+        return {"total_active_keys": total_keys, "by_provr": by_provr}
 
     def close(self) -> None:
         if self._conn:

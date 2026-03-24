@@ -4,8 +4,8 @@
 # ALL RIGHTS RESERVED — https://github.com/vio83/vio83-ai-orchestra
 # ============================================================
 """
-VIO 83 AI ORCHESTRA - Configurazione Provider AI
-Mappa completa dei provider supportati con modelli e endpoint.
+VIO 83 AI ORCHESTRA - Configurazione Provr AI
+Mappa completa dei provr supportati con modelli e endpoint.
 
 ORDINE PRIORITÀ:
 1. LOCALI (Ollama) — Gratis, nessuna API key, sempre disponibili
@@ -18,10 +18,10 @@ from typing import Optional
 
 
 # ═══════════════════════════════════════════════════════════
-# PROVIDER LOCALI (Ollama) — PRIORITÀ 1: Gratis, sempre attivi
+# PROVR LOCALI (Ollama) — PRIORITÀ 1: Gratis, sempre attivi
 # ═══════════════════════════════════════════════════════════
 
-LOCAL_PROVIDERS = {
+LOCAL_PROVRS = {
     "ollama": {
         "name": "Ollama (Locale)",
         "host": "http://localhost:11434",
@@ -85,11 +85,11 @@ LOCAL_PROVIDERS = {
 
 
 # ═══════════════════════════════════════════════════════════
-# PROVIDER CLOUD CON API KEY GRATUITA — PRIORITÀ 2
+# PROVR CLOUD CON API KEY GRATUITA — PRIORITÀ 2
 # Funzionano con piano free (limiti generosi)
 # ═══════════════════════════════════════════════════════════
 
-FREE_CLOUD_PROVIDERS = {
+FREE_CLOUD_PROVRS = {
     "groq": {
         "name": "Groq (Gratis)",
         "litellm_prefix": "groq",
@@ -194,12 +194,12 @@ FREE_CLOUD_PROVIDERS = {
 
 
 # ═══════════════════════════════════════════════════════════
-# PROVIDER CLOUD A PAGAMENTO — PRIORITÀ 3
+# PROVR CLOUD A PAGAMENTO — PRIORITÀ 3
 # Richiedono API key con crediti a pagamento
 # Ordinati: dal più economico al più costoso
 # ═══════════════════════════════════════════════════════════
 
-CLOUD_PROVIDERS = {
+CLOUD_PROVRS = {
     # --- TIER 1: Economici (< $1/1M token) ---
     "deepseek": {
         "name": "DeepSeek",
@@ -388,10 +388,10 @@ CLOUD_PROVIDERS = {
 
 
 # ═══════════════════════════════════════════════════════════
-# TUTTI I PROVIDER COMBINATI (per lookup rapido)
+# TUTTI I PROVR COMBINATI (per lookup rapido)
 # ═══════════════════════════════════════════════════════════
 
-ALL_CLOUD_PROVIDERS = {**FREE_CLOUD_PROVIDERS, **CLOUD_PROVIDERS}
+ALL_CLOUD_PROVRS = {**FREE_CLOUD_PROVRS, **CLOUD_PROVRS}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -489,7 +489,7 @@ REQUEST_TYPE_ROUTING = {
 ELITE_TASK_STACKS = {
     "replica_honesty": {
         "exact_replica_possible": False,
-        "reason": "Senza il codice sorgente reale, i workflow proprietari, i prompt interni, i dati e le integrazioni originali di LegalRoom/OpenClaw non esiste una replica 100% bit-identica onesta.",
+        "reason": "Senza il codice sorgente reale, i workflow proprietari, i prompt interni, i dati e le integrazioni originali di LegalRoom/OpenClaw non esiste una replica 100% bit-ntica onesta.",
         "what_is_possible_now": "Replica locale/proxy ad alta fedeltà di capacità, UX operativa, orchestrazione modelli, runtime health, supervisor e task stack specialistici.",
     },
     "coding_agent_max": {
@@ -504,7 +504,7 @@ ELITE_TASK_STACKS = {
         "local": ["mistral:latest", "llama3:latest"],
         "best_for": ["analisi norme", "comparazione giurisdizioni", "memo legali", "due diligence documentale"],
     },
-    "medicine_evidence_max": {
+    "medicine_evnce_max": {
         "primary": ["claude-opus-4-20250514", "gemini-2.5-pro-preview-06-05", "deep-research"],
         "secondary": ["deepseek-reasoner", "gpt-4o"],
         "local": ["mistral:latest"],
@@ -534,39 +534,39 @@ def get_elite_task_stacks() -> dict:
 # FUNZIONI HELPER
 # ═══════════════════════════════════════════════════════════
 
-def get_available_cloud_providers() -> dict:
-    """Ritorna solo i provider cloud con API key configurata."""
+def get_available_cloud_provrs() -> dict:
+    """Ritorna solo i provr cloud con API key configurata."""
     available = {}
-    for key, provider in ALL_CLOUD_PROVIDERS.items():
-        env_key = provider["env_key"]
+    for key, provr in ALL_CLOUD_PROVRS.items():
+        env_key = provr["env_key"]
         if os.environ.get(env_key):
-            available[key] = provider
+            available[key] = provr
     return available
 
 
-def get_free_cloud_providers() -> dict:
-    """Ritorna i provider cloud gratuiti con API key configurata."""
+def get_free_cloud_provrs() -> dict:
+    """Ritorna i provr cloud gratuiti con API key configurata."""
     available = {}
-    for key, provider in FREE_CLOUD_PROVIDERS.items():
-        env_key = provider["env_key"]
+    for key, provr in FREE_CLOUD_PROVRS.items():
+        env_key = provr["env_key"]
         if os.environ.get(env_key):
-            available[key] = provider
+            available[key] = provr
     return available
 
 
-def get_all_providers_ordered() -> list[dict]:
+def get_all_provrs_ordered() -> list[dict]:
     """
-    Ritorna TUTTI i provider ordinati per priorità:
+    Ritorna TUTTI i provr ordinati per priorità:
     1. Locali (Ollama) — gratis, sempre disponibili
     2. Cloud gratuiti (Groq, Together, OpenRouter) — gratis con API key
     3. Cloud economici (DeepSeek, Mistral) — pochi centesimi
     4. Cloud standard (Claude, GPT-4, Grok, Gemini) — dollari
     """
-    providers = []
+    provrs = []
 
     # 1. Locali
-    for key, prov in LOCAL_PROVIDERS.items():
-        providers.append({
+    for key, prov in LOCAL_PROVRS.items():
+        provrs.append({
             "id": key,
             "tier": "local",
             "priority": prov.get("priority", 1),
@@ -574,9 +574,9 @@ def get_all_providers_ordered() -> list[dict]:
         })
 
     # 2. Cloud gratuiti
-    for key, prov in FREE_CLOUD_PROVIDERS.items():
+    for key, prov in FREE_CLOUD_PROVRS.items():
         env_key = prov["env_key"]
-        providers.append({
+        provrs.append({
             "id": key,
             "tier": "free_cloud",
             "priority": prov.get("priority", 2),
@@ -585,9 +585,9 @@ def get_all_providers_ordered() -> list[dict]:
         })
 
     # 3. Cloud a pagamento
-    for key, prov in CLOUD_PROVIDERS.items():
+    for key, prov in CLOUD_PROVRS.items():
         env_key = prov["env_key"]
-        providers.append({
+        provrs.append({
             "id": key,
             "tier": "paid_cloud",
             "priority": prov.get("priority", 3),
@@ -595,15 +595,26 @@ def get_all_providers_ordered() -> list[dict]:
             **prov,
         })
 
-    return sorted(providers, key=lambda p: p["priority"])
+    return sorted(provrs, key=lambda p: p["priority"])
 
 
-def get_litellm_model_string(provider: str, model: Optional[str] = None) -> str:
+def get_litellm_model_string(provr: str, model: Optional[str] = None) -> str:
     """Costruisci la stringa modello per LiteLLM."""
-    # Check in tutti i provider cloud
-    for providers_dict in [FREE_CLOUD_PROVIDERS, CLOUD_PROVIDERS]:
-        if provider in providers_dict:
-            prefix = providers_dict[provider]["litellm_prefix"]
-            model_name = model or providers_dict[provider]["default_model"]
+    # Check in tutti i provr cloud
+    for provrs_dict in [FREE_CLOUD_PROVRS, CLOUD_PROVRS]:
+        if provr in provrs_dict:
+            prefix = provrs_dict[provr]["litellm_prefix"]
+            model_name = model or provrs_dict[provr]["default_model"]
             return f"{prefix}/{model_name}"
     return model or "ollama/llama3:latest"
+
+
+# Backward compatibility aliases (PROVIDERS naming)
+LOCAL_PROVIDERS = LOCAL_PROVRS
+FREE_CLOUD_PROVIDERS = FREE_CLOUD_PROVRS
+CLOUD_PROVIDERS = CLOUD_PROVRS
+ALL_CLOUD_PROVIDERS = ALL_CLOUD_PROVRS
+
+get_available_cloud_providers = get_available_cloud_provrs
+get_free_cloud_providers = get_free_cloud_provrs
+get_all_providers_ordered = get_all_provrs_ordered

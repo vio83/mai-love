@@ -3,7 +3,7 @@ VIO 83 AI ORCHESTRA — Daily Auto-Update System with Certification
 Versione: 3.0 (16 Marzo 2026)
 
 Sistema di AUTO-AGGIORNAMENTO GIORNALIERO PERMANENTE:
-✅ Scarica nuovi modelli, provider, dipendenze OGNI GIORNO
+✅ Scarica nuovi modelli, provr, dipendenze OGNI GIORNO
 ✅ Verifica + Certifica ogni aggiornamento
 ✅ Auto-installa e auto-applica tutto
 ✅ Auto-rollback se qualcosa fallisce
@@ -19,15 +19,12 @@ import hashlib
 import asyncio
 import logging
 import sqlite3
-import subprocess
 import urllib.request
 import urllib.error
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from datetime import datetime
 from dataclasses import dataclass, asdict
-import tempfile
-import shutil
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,7 +44,7 @@ class UpdateArtifact:
     version: str
     source_url: str
     checksum_sha256: str
-    category: str  # "model", "provider", "dependency", "config"
+    category: str  # "model", "provr", "dependency", "config"
     timestamp: float
     verified: bool = False
     installed: bool = False
@@ -179,7 +176,7 @@ class DailyAutoUpdateEngine:
         return hashlib.sha256(data).hexdigest()
 
     async def discover_new_models(self) -> List[UpdateArtifact]:
-        """Scopri nuovi modelli disponibili da provider cloud"""
+        """Scopri nuovi modelli disponibili da provr cloud"""
         logger.info("\n🔍 STEP 1: Scoperta Nuovi Modelli")
         logger.info("="*60)
 
@@ -239,19 +236,19 @@ class DailyAutoUpdateEngine:
         logger.info(f"\n✅ Scoperta completata: {len(artifacts)} nuovi artefatti\n")
         return artifacts
 
-    async def discover_new_providers(self) -> List[UpdateArtifact]:
-        """Scopri nuovi provider AI disponibili"""
-        logger.info("\n🔍 STEP 2: Scoperta Nuovi Provider")
+    async def discover_new_provrs(self) -> List[UpdateArtifact]:
+        """Scopri nuovi provr AI disponibili"""
+        logger.info("\n🔍 STEP 2: Scoperta Nuovi Provr")
         logger.info("="*60)
 
-        # Fatto: verifica se nuovi provider sono aggiunti a providers.json
-        providers_config = self.project_root / "backend" / "config" / "providers.py"
-        if not providers_config.exists():
-            logger.warning(f"   ⚠️  Provider config non trovato")
+        # Fatto: verifica se nuovi provr sono aggiunti a provrs.json
+        provrs_config = self.project_root / "backend" / "config" / "provrs.py"
+        if not provrs_config.exists():
+            logger.warning("   ⚠️  Provr config non trovato")
             return []
 
-        logger.info(f"   ✅ Provider config trovato")
-        logger.info(f"\n✅ Provider discovery completato\n")
+        logger.info("   ✅ Provr config trovato")
+        logger.info("\n✅ Provr discovery completato\n")
         return []
 
     async def discover_new_dependencies(self) -> List[UpdateArtifact]:
@@ -266,9 +263,9 @@ class DailyAutoUpdateEngine:
         if requirements_path.exists():
             logger.info(f"   📦 Checking {requirements_path}...")
             # TODO: Implementa check per nuove versioni su PyPI
-            logger.info(f"   ✅ Requirements check completato")
+            logger.info("   ✅ Requirements check completato")
 
-        logger.info(f"\n✅ Dependencies discovery completato\n")
+        logger.info("\n✅ Dependencies discovery completato\n")
         return artifacts
 
     async def download_artifacts(self, artifacts: List[UpdateArtifact]) -> int:
@@ -299,7 +296,7 @@ class DailyAutoUpdateEngine:
 
     async def verify_artifacts(self, artifacts: List[UpdateArtifact]) -> int:
         """Verifica integrità e signature di tutti gli artefatti"""
-        logger.info(f"\n✔️  STEP 5: Verifica Artefatti")
+        logger.info("\n✔️  STEP 5: Verifica Artefatti")
         logger.info("="*60)
 
         verified = 0
@@ -317,7 +314,7 @@ class DailyAutoUpdateEngine:
                     self._audit_log("verify", artifact.name, artifact.version, "success")
                     logger.info(f"   ✅ Verified: {artifact.name}")
                 else:
-                    logger.error(f"   ❌ Checksum mismatch!")
+                    logger.error("   ❌ Checksum mismatch!")
                     self._audit_log("verify", artifact.name, artifact.version, "error", "Checksum mismatch")
                     self.failures.append({"artifact": artifact.name, "error": "Checksum mismatch"})
 
@@ -331,7 +328,7 @@ class DailyAutoUpdateEngine:
 
     async def test_artifacts(self, artifacts: List[UpdateArtifact]) -> int:
         """Testa funzionalità di tutti gli artefatti"""
-        logger.info(f"\n🧪 STEP 6: Test Funzionalità Artefatti")
+        logger.info("\n🧪 STEP 6: Test Funzionalità Artefatti")
         logger.info("="*60)
 
         tested = 0
@@ -365,7 +362,7 @@ class DailyAutoUpdateEngine:
 
     async def install_artifacts(self, artifacts: List[UpdateArtifact]) -> int:
         """Installa tutti gli artefatti verificati e testati"""
-        logger.info(f"\n⚙️  STEP 7: Installazione Artefatti")
+        logger.info("\n⚙️  STEP 7: Installazione Artefatti")
         logger.info("="*60)
 
         installed = 0
@@ -401,7 +398,7 @@ class DailyAutoUpdateEngine:
 
     async def certify_artifacts(self, artifacts: List[UpdateArtifact]) -> int:
         """Certifica ufficialmente tutti gli artefatti installati"""
-        logger.info(f"\n📜 STEP 8: Certificazione Artefatti")
+        logger.info("\n📜 STEP 8: Certificazione Artefatti")
         logger.info("="*60)
 
         certified = 0
@@ -508,9 +505,9 @@ class DailyAutoUpdateEngine:
         try:
             # 1. Scoperta
             models = await self.discover_new_models()
-            providers = await self.discover_new_providers()
+            provrs = await self.discover_new_provrs()
             dependencies = await self.discover_new_dependencies()
-            all_artifacts = models + providers + dependencies
+            all_artifacts = models + provrs + dependencies
 
             if not all_artifacts:
                 logger.info("ℹ️   Nessun nuovo artefatto da aggiornare")

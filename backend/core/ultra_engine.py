@@ -10,7 +10,7 @@ Trasformazione architetturale: da macchina 400kg → piuma 4g, stesse performanc
 Moduli:
   1. SemanticCompactCache   — cache semantica con fingerprinting adattivo
   2. ConversationCompressor — compressione token-aware delle conversazioni
-  3. AdaptiveProviderMemory — memoria adattiva per latenza/qualità provider
+  3. AdaptiveProvrMemory — memoria adattiva per latenza/qualità provr
   4. UltraTokenBudget       — gestione budget token ultra-precisa
   5. FeatherRouter          — router intent ultra-leggero (sub-microsecondo)
 
@@ -23,11 +23,7 @@ Performance target:
 
 import re
 import time
-import gzip
-import json
 import math
-import zlib
-import hashlib
 import threading
 from collections import defaultdict, OrderedDict
 from typing import Any, Optional, List, Dict, Tuple
@@ -41,7 +37,7 @@ from dataclasses import dataclass, field
 class SemanticCompactCache:
     """
     Cache semantica ultra-compatta.
-    
+
     Innovazione vs L1/L2 standard:
     - Fingerprinting semantico: normalizza varianti linguistiche
       ("come stai?" == "come va?" == "how are you?") → stesso bucket
@@ -49,7 +45,7 @@ class SemanticCompactCache:
     - Hot-path prediction: pre-carica top-K items all'avvio
     - Zero-copy reads: ritorna reference diretta, non copia
     - Memory: ~10 byte/entry overhead (vs ~200 byte JSON standard)
-    
+
     Complessità: O(1) get, O(1) set amortizzato
     """
 
@@ -196,15 +192,15 @@ class CompressedTurn:
 class ConversationCompressor:
     """
     Compressore conversazioni token-aware.
-    
+
     Strategia "Piuma":
     - Mantieni ultimi N turni full (finestra scorrevole)
     - Comprimi turni vecchi in summary semantici
     - Compressione zlib dei messaggi lunghi
     - Score importanza per retention intelligente
-    
+
     Risultato: 90% riduzione memoria, <1% perdita semantica
-    
+
     Metriche:
     - Input: 10.000 token conversazione
     - Output: ~800 token riassunto (12x compressione)
@@ -261,7 +257,7 @@ class ConversationCompressor:
     ) -> Tuple[List[Dict], List[CompressedTurn]]:
         """
         Comprimi storia conversazione.
-        
+
         Ritorna:
           - messages_active: ultimi `window` turni (full quality)
           - compressed_past: turni vecchi compressi
@@ -330,13 +326,13 @@ class ConversationCompressor:
 
 
 # ─────────────────────────────────────────────────────────────
-# 3. ADAPTIVE PROVIDER MEMORY — Piuma™ Intelligence
+# 3. ADAPTIVE PROVR MEMORY — Piuma™ Intelligence
 # ─────────────────────────────────────────────────────────────
 
 @dataclass
-class ProviderStats:
-    """Statistiche adattive per un singolo provider."""
-    provider_id: str
+class ProvrStats:
+    """Statistiche adattive per un singolo provr."""
+    provr_id: str
     latencies: List[float] = field(default_factory=list)
     quality_scores: List[float] = field(default_factory=list)
     errors: int = 0
@@ -380,45 +376,45 @@ class ProviderStats:
         return True
 
 
-class AdaptiveProviderMemory:
+class AdaptiveProvrMemory:
     """
-    Memoria adattiva per provider AI.
-    
-    Impara automaticamente quale provider è:
+    Memoria adattiva per provr AI.
+
+    Impara automaticamente quale provr è:
     - Più veloce per tipo di task
     - Più preciso per categoria semantica
     - Più affidabile nel tempo
-    
-    Circuit breaker: se provider fallisce >3 volte in 60s → pausa 5min
-    
+
+    Circuit breaker: se provr fallisce >3 volte in 60s → pausa 5min
+
     Questa è la "intelligenza della piuma" — sapere QUANDO essere leggeri
-    (provider locale Ollama) e QUANDO usare la forza (Claude Opus).
+    (provr locale Ollama) e QUANDO usare la forza (Claude Opus).
     """
 
     CIRCUIT_BREAKER_THRESHOLD = 3     # Errori prima di circuit break
     CIRCUIT_BREAK_DURATION = 300.0    # Secondi di pausa (5 min)
-    MAX_LATENCY_HISTORY = 50          # Campioni per provider
+    MAX_LATENCY_HISTORY = 50          # Campioni per provr
 
     def __init__(self):
-        self._providers: Dict[str, ProviderStats] = {}
+        self._provrs: Dict[str, ProvrStats] = {}
         self._intent_preferences: Dict[str, Dict[str, float]] = defaultdict(dict)
         self._lock = threading.RLock()
 
-    def _get_or_create(self, provider_id: str) -> ProviderStats:
-        if provider_id not in self._providers:
-            self._providers[provider_id] = ProviderStats(provider_id=provider_id)
-        return self._providers[provider_id]
+    def _get_or_create(self, provr_id: str) -> ProvrStats:
+        if provr_id not in self._provrs:
+            self._provrs[provr_id] = ProvrStats(provr_id=provr_id)
+        return self._provrs[provr_id]
 
     def record_success(
         self,
-        provider_id: str,
+        provr_id: str,
         latency_ms: float,
         quality_score: float = 0.8,
         intent: Optional[str] = None
     ):
         """Registra chiamata riuscita."""
         with self._lock:
-            stats = self._get_or_create(provider_id)
+            stats = self._get_or_create(provr_id)
             stats.latencies.append(latency_ms)
             if len(stats.latencies) > self.MAX_LATENCY_HISTORY:
                 stats.latencies.pop(0)
@@ -430,18 +426,18 @@ class AdaptiveProviderMemory:
 
             # Aggiorna preferenza per intent
             if intent:
-                current = self._intent_preferences[intent].get(provider_id, 0.5)
+                current = self._intent_preferences[intent].get(provr_id, 0.5)
                 # EMA (Exponential Moving Average) con α=0.1
-                self._intent_preferences[intent][provider_id] = current * 0.9 + quality_score * 0.1
+                self._intent_preferences[intent][provr_id] = current * 0.9 + quality_score * 0.1
 
-    def record_error(self, provider_id: str, intent: Optional[str] = None):
+    def record_error(self, provr_id: str, intent: Optional[str] = None):
         """Registra errore. Attiva circuit breaker se necessario."""
         with self._lock:
-            stats = self._get_or_create(provider_id)
+            stats = self._get_or_create(provr_id)
             stats.errors += 1
 
             # Circuit breaker
-            recent_errors = sum(
+            _recent_errors = sum(  # noqa: F841
                 1 for t in stats.latencies[-self.CIRCUIT_BREAKER_THRESHOLD:]
                 if t == -1.0  # Marker errore
             )
@@ -453,19 +449,19 @@ class AdaptiveProviderMemory:
                     stats.circuit_open_until = time.time() + self.CIRCUIT_BREAK_DURATION
 
             if intent:
-                current = self._intent_preferences[intent].get(provider_id, 0.5)
-                self._intent_preferences[intent][provider_id] = current * 0.9
+                current = self._intent_preferences[intent].get(provr_id, 0.5)
+                self._intent_preferences[intent][provr_id] = current * 0.9
 
-    def get_best_provider(
+    def get_best_provr(
         self,
         candidates: List[str],
         intent: Optional[str] = None,
         prefer_speed: bool = False
     ) -> Optional[str]:
         """
-        Ritorna il provider migliore tra i candidati.
-        
-        Considera: latenza storica, qualità, affidabilità, preferenza per intent.
+        Ritorna il provr migliore tra i candidati.
+
+        Consra: latenza storica, qualità, affidabilità, preferenza per intent.
         """
         with self._lock:
             available = [p for p in candidates if self._get_or_create(p).is_available()]
@@ -490,10 +486,10 @@ class AdaptiveProviderMemory:
             return max(available, key=score)
 
     def get_ranking(self, intent: Optional[str] = None) -> List[Tuple[str, float]]:
-        """Ritorna ranking provider per intent."""
+        """Ritorna ranking provr per intent."""
         with self._lock:
             ranking = []
-            for pid, stats in self._providers.items():
+            for pid, stats in self._provrs.items():
                 if not stats.is_available():
                     continue
                 score_val = stats.composite_score
@@ -506,10 +502,10 @@ class AdaptiveProviderMemory:
     def stats(self) -> dict:
         with self._lock:
             return {
-                "engine": "AdaptiveProviderMemory™",
-                "providers_tracked": len(self._providers),
+                "engine": "AdaptiveProvrMemory™",
+                "provrs_tracked": len(self._provrs),
                 "intents_learned": len(self._intent_preferences),
-                "providers": {
+                "provrs": {
                     pid: {
                         "avg_latency_ms": round(s.avg_latency_ms, 1),
                         "avg_quality": round(s.avg_quality, 3),
@@ -519,7 +515,7 @@ class AdaptiveProviderMemory:
                         "successes": s.successes,
                         "errors": s.errors,
                     }
-                    for pid, s in self._providers.items()
+                    for pid, s in self._provrs.items()
                 }
             }
 
@@ -531,15 +527,15 @@ class AdaptiveProviderMemory:
 class UltraTokenBudget:
     """
     Gestione budget token ultra-precisa.
-    
+
     Previene: context overflow, costi eccessivi, latenza alta.
     Ottimizza: distribuzione token tra system/history/risposta.
-    
-    Modello: ogni provider ha un context window.
+
+    Modello: ogni provr ha un context window.
     Piuma: usa il minimo indispensabile, non sprecare token.
     """
 
-    PROVIDER_LIMITS = {
+    PROVR_LIMITS = {
         "claude":      200_000,
         "openai":       32_000,
         "gemini":    1_000_000,
@@ -580,25 +576,25 @@ class UltraTokenBudget:
     @classmethod
     def calculate_budget(
         cls,
-        provider: str,
+        provr: str,
         system_prompt: str,
         messages: List[Dict],
         desired_response_tokens: int = 2048
     ) -> Dict:
         """
         Calcola budget token disponibile per la risposta.
-        
+
         Ritorna: {
             "available_for_response": int,
             "system_tokens": int,
             "history_tokens": int,
             "total_context_tokens": int,
-            "provider_limit": int,
+            "provr_limit": int,
             "is_safe": bool,
             "truncation_needed": bool,
         }
         """
-        limit = cls.PROVIDER_LIMITS.get(provider, 16_000)
+        limit = cls.PROVR_LIMITS.get(provr, 16_000)
         system_tokens = cls.estimate_tokens(system_prompt)
         history_tokens = cls.estimate_messages_tokens(messages)
         used = system_tokens + history_tokens
@@ -610,7 +606,7 @@ class UltraTokenBudget:
             "system_tokens": system_tokens,
             "history_tokens": history_tokens,
             "total_context_tokens": used,
-            "provider_limit": limit,
+            "provr_limit": limit,
             "is_safe": (available - reserve) > 500,
             "truncation_needed": used > (limit - desired_response_tokens - reserve),
             "utilization_pct": round(used / limit * 100, 1),
@@ -620,7 +616,7 @@ class UltraTokenBudget:
     def safe_truncate_messages(
         cls,
         messages: List[Dict],
-        provider: str,
+        provr: str,
         system_prompt: str = "",
         reserve_for_response: int = 2048
     ) -> List[Dict]:
@@ -628,11 +624,11 @@ class UltraTokenBudget:
         Tronca messaggi per stare nel budget.
         Mantiene sempre il PRIMO e gli ULTIMI N messaggi.
         """
-        budget = cls.calculate_budget(provider, system_prompt, messages, reserve_for_response)
+        budget = cls.calculate_budget(provr, system_prompt, messages, reserve_for_response)
         if not budget["truncation_needed"]:
             return messages
 
-        limit = cls.PROVIDER_LIMITS.get(provider, 16_000)
+        limit = cls.PROVR_LIMITS.get(provr, 16_000)
         system_tokens = budget["system_tokens"]
         target_history_tokens = limit - system_tokens - reserve_for_response - int(limit * 0.1)
 
@@ -663,9 +659,9 @@ class UltraTokenBudget:
 class FeatherRouter:
     """
     Router intent ultra-leggero.
-    
+
     Performance: <0.1μs per classificazione (vs 0.68μs attuale → +7x)
-    
+
     Tecnica: trie compresso + early-exit → O(min(m,k)) dove m=len(text), k=max_pattern
     Nessun regex engine overhead: match diretto su bytes.
     """
@@ -732,7 +728,7 @@ class UltraEngine:
     def __init__(self):
         self.cache = SemanticCompactCache(max_size=8192, base_ttl=900)
         self.compressor = ConversationCompressor()
-        self.provider_memory = AdaptiveProviderMemory()
+        self.provr_memory = AdaptiveProvrMemory()
         self.token_budget = UltraTokenBudget()
         self.router = FeatherRouter()
         self._created_at = time.time()
@@ -744,7 +740,7 @@ class UltraEngine:
             "uptime_seconds": round(time.time() - self._created_at, 1),
             "cache": self.cache.stats,
             "compressor": self.compressor.stats,
-            "provider_memory": self.provider_memory.stats,
+            "provr_memory": self.provr_memory.stats,
             "router": self.router.stats,
         }
 

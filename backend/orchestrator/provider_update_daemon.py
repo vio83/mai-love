@@ -1,8 +1,8 @@
 """
-VIO 83 AI ORCHESTRA — Provider Auto-Update Daemon
+VIO 83 AI ORCHESTRA — Provr Auto-Update Daemon
 Versione: 1.0 (16 Marzo 2026)
 
-Auto-aggiornamento permanente dei provider AI:
+Auto-aggiornamento permanente dei provr AI:
 ✅ Monitora health endpoint
 ✅ Scarica modelli nuovi
 ✅ Aggiorna prezzi in realtime
@@ -16,9 +16,8 @@ import json
 import time
 import asyncio
 import logging
-import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 from datetime import datetime
 import urllib.request
 import urllib.error
@@ -33,8 +32,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class ProviderAutoUpdater:
-    """Daemon che auto-aggiorna i provider AI"""
+class ProvrAutoUpdater:
+    """Daemon che auto-aggiorna i provr AI"""
 
     def __init__(self):
         load_dotenv()
@@ -42,7 +41,7 @@ class ProviderAutoUpdater:
         self.config_path = self.project_root / "backend" / "config"
         self.data_path = self.project_root / "data"
         self.data_path.mkdir(exist_ok=True)
-        self.update_db = self.data_path / "provider_updates.db"
+        self.update_db = self.data_path / "provr_updates.db"
         self._init_db()
         self.last_update = {}
 
@@ -52,19 +51,19 @@ class ProviderAutoUpdater:
         c = conn.cursor()
         c.execute("""
             CREATE TABLE IF NOT EXISTS update_history (
-                provider TEXT,
+                provr TEXT,
                 update_type TEXT,
                 timestamp REAL,
                 status TEXT,
                 details TEXT,
-                PRIMARY KEY (provider, update_type, timestamp)
+                PRIMARY KEY (provr, update_type, timestamp)
             )
         """)
         conn.commit()
         conn.close()
 
-    async def check_provider_health(self, provider_name: str, health_url: str) -> bool:
-        """Controlla se il provider è online"""
+    async def check_provr_health(self, provr_name: str, health_url: str) -> bool:
+        """Controlla se il provr è online"""
         try:
             req = urllib.request.Request(
                 health_url,
@@ -72,10 +71,10 @@ class ProviderAutoUpdater:
             )
             with urllib.request.urlopen(req, timeout=5) as response:
                 if response.status == 200:
-                    logger.info(f"✅ {provider_name} è ONLINE")
+                    logger.info(f"✅ {provr_name} è ONLINE")
                     return True
         except Exception as e:
-            logger.warning(f"⚠️  {provider_name} offline: {e}")
+            logger.warning(f"⚠️  {provr_name} offline: {e}")
             return False
         return False
 
@@ -173,10 +172,10 @@ class ProviderAutoUpdater:
 
         return pricing
 
-    async def update_provider_models(self):
+    async def update_provr_models(self):
         """Aggiorna la lista dei modelli disponibili"""
         logger.info("\n" + "="*60)
-        logger.info("🔄 INIZIO: Update Provider Models")
+        logger.info("🔄 INIZIO: Update Provr Models")
         logger.info("="*60)
 
         updates = {}
@@ -192,7 +191,7 @@ class ProviderAutoUpdater:
             updates["groq"] = groq_models
 
         # Salva aggiornamenti
-        update_file = self.data_path / "provider_models_latest.json"
+        update_file = self.data_path / "provr_models_latest.json"
         with open(update_file, "w") as f:
             json.dump(updates, f, indent=2)
         logger.info(f"✅ Modelli salvati in {update_file}")
@@ -200,26 +199,26 @@ class ProviderAutoUpdater:
         # Log history
         conn = sqlite3.connect(self.update_db)
         c = conn.cursor()
-        for provider, models in updates.items():
+        for provr, models in updates.items():
             c.execute(
                 "INSERT INTO update_history VALUES (?, ?, ?, ?, ?)",
-                (provider, "models", time.time(), "success", json.dumps({"count": len(models)})),
+                (provr, "models", time.time(), "success", json.dumps({"count": len(models)})),
             )
         conn.commit()
         conn.close()
 
         return updates
 
-    async def update_provider_pricing(self):
-        """Aggiorna i prezzi dei provider"""
+    async def update_provr_pricing(self):
+        """Aggiorna i prezzi dei provr"""
         logger.info("\n" + "="*60)
-        logger.info("🔄 INIZIO: Update Provider Pricing")
+        logger.info("🔄 INIZIO: Update Provr Pricing")
         logger.info("="*60)
 
         pricing = await self.fetch_pricing_info()
 
         # Salva pricing
-        pricing_file = self.data_path / "provider_pricing_latest.json"
+        pricing_file = self.data_path / "provr_pricing_latest.json"
         with open(pricing_file, "w") as f:
             json.dump(pricing, f, indent=2)
         logger.info(f"✅ Prezzi salvati in {pricing_file}")
@@ -227,10 +226,10 @@ class ProviderAutoUpdater:
         # Log history
         conn = sqlite3.connect(self.update_db)
         c = conn.cursor()
-        for provider, prices in pricing.items():
+        for provr, prices in pricing.items():
             c.execute(
                 "INSERT INTO update_history VALUES (?, ?, ?, ?, ?)",
-                (provider, "pricing", time.time(), "success", json.dumps(prices)),
+                (provr, "pricing", time.time(), "success", json.dumps(prices)),
             )
         conn.commit()
         conn.close()
@@ -238,12 +237,12 @@ class ProviderAutoUpdater:
         return pricing
 
     async def check_health_status(self):
-        """Monitora lo stato di tutti i provider"""
+        """Monitora lo stato di tutti i provr"""
         logger.info("\n" + "="*60)
-        logger.info("🔄 INIZIO: Health Check Providers")
+        logger.info("🔄 INIZIO: Health Check Provrs")
         logger.info("="*60)
 
-        providers = {
+        provrs = {
             "ollama": "http://localhost:11434/api/tags",
             "groq": "https://api.groq.com/health",
             "together": "https://api.together.xyz/health",
@@ -251,12 +250,12 @@ class ProviderAutoUpdater:
         }
 
         health_status = {}
-        for name, url in providers.items():
-            status = await self.check_provider_health(name, url)
+        for name, url in provrs.items():
+            status = await self.check_provr_health(name, url)
             health_status[name] = {"online": status, "checked_at": datetime.now().isoformat()}
 
         # Salva
-        health_file = self.data_path / "provider_health_latest.json"
+        health_file = self.data_path / "provr_health_latest.json"
         with open(health_file, "w") as f:
             json.dump(health_status, f, indent=2)
         logger.info(f"✅ Health status salvato in {health_file}")
@@ -266,7 +265,7 @@ class ProviderAutoUpdater:
     async def run_continuous(self, interval_seconds: int = 3600):
         """Esegui aggiornamenti in loop permanente"""
         logger.info("\n" + "═"*60)
-        logger.info("🚀 VIO AI Orchestra — Provider Auto-Update Daemon")
+        logger.info("🚀 VIO AI Orchestra — Provr Auto-Update Daemon")
         logger.info("✅ STARTED (ogni {} secondi)".format(interval_seconds))
         logger.info("═"*60 + "\n")
 
@@ -283,11 +282,11 @@ class ProviderAutoUpdater:
 
                 # 2. Update models (ogni 3600s)
                 if iteration % 1 == 0:
-                    await self.update_provider_models()
+                    await self.update_provr_models()
 
                 # 3. Update pricing (ogni 7200s)
                 if iteration % 2 == 0:
-                    await self.update_provider_pricing()
+                    await self.update_provr_pricing()
 
                 logger.info(f"\n✅ CICLO #{iteration} COMPLETATO")
                 logger.info(f"⏳ Prossimo ciclo tra {interval_seconds}s...\n")
@@ -301,13 +300,13 @@ class ProviderAutoUpdater:
     async def run_once(self):
         """Esegui un singolo aggiornamento"""
         logger.info("\n" + "═"*60)
-        logger.info("🚀 VIO AI Orchestra — Provider Auto-Update (Single Run)")
+        logger.info("🚀 VIO AI Orchestra — Provr Auto-Update (Single Run)")
         logger.info("═"*60 + "\n")
 
         try:
             await self.check_health_status()
-            await self.update_provider_models()
-            await self.update_provider_pricing()
+            await self.update_provr_models()
+            await self.update_provr_pricing()
             logger.info("\n✅ Update completato!")
         except Exception as e:
             logger.error(f"❌ Errore: {e}", exc_info=True)
@@ -316,7 +315,7 @@ class ProviderAutoUpdater:
 async def main():
     import sys
 
-    updater = ProviderAutoUpdater()
+    updater = ProvrAutoUpdater()
 
     if len(sys.argv) > 1 and sys.argv[1] == "once":
         # Single run

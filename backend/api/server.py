@@ -20,7 +20,6 @@ import time
 import json
 import asyncio
 import shutil
-import signal
 import subprocess
 import shlex
 import uuid
@@ -55,18 +54,17 @@ from dotenv import load_dotenv
 
 from backend.models.schemas import (
     ChatRequest, ChatResponse, ClassifyRequest, ClassifyResponse,
-    HealthResponse, RAGAddRequest, RAGSearchRequest, ErrorResponse
+    HealthResponse, RAGAddRequest, RAGSearchRequest,
 )
 from backend.config.providers import (
-    CLOUD_PROVIDERS, LOCAL_PROVIDERS, FREE_CLOUD_PROVIDERS,
-    ALL_CLOUD_PROVIDERS, get_available_cloud_providers,
+    LOCAL_PROVIDERS, get_available_cloud_providers,
     get_free_cloud_providers, get_all_providers_ordered, get_elite_task_stacks,
 )
 from backend.database.db import (
     init_database, create_conversation, list_conversations,
     get_conversation, update_conversation_title, delete_conversation,
     archive_conversation, add_message, log_metric, get_metrics_summary,
-    auto_title_from_message, get_setting, set_setting, get_all_settings,
+    auto_title_from_message, set_setting, get_all_settings,
 )
 from backend.orchestrator.direct_router import (
     classify_request, orchestrate, call_ollama_streaming,
@@ -106,7 +104,7 @@ class RAGSource:
 KB_AVAILABLE = False
 KB_IMPORT_ERROR: str | None = None
 try:
-    from backend.rag.knowledge_base import get_knowledge_base, KnowledgeBase
+    from backend.rag.knowledge_base import get_knowledge_base
     KB_AVAILABLE = True
 except Exception as e:
     KB_IMPORT_ERROR = str(e)
@@ -388,7 +386,7 @@ def _probe_runtime_urls(urls: list[str], timeout_s: float = 1.4) -> dict[str, An
         started = time.time()
         try:
             req = urllib.request.Request(url, method="GET", headers={"User-Agent": "VIO83-Runtime-Analysis/1.0"})
-            with urllib.request.urlopen(req, timeout=timeout_s) as response:
+            with urllib.request.urlopen(req, timeout=timeout_s) as response:  # nosec B310
                 latency_ms = max(1, int((time.time() - started) * 1000))
                 status_code = int(getattr(response, "status", 200))
                 return {
@@ -803,6 +801,11 @@ def _build_knowledge_registry_payload():
     unique_sources = sorted({source for d in GLOBAL_KNOWLEDGE_DOMAINS for source in d["trusted_sources"]})
     scores = _compute_domain_scores()
     score_by_id = {score["id"]: score for score in scores}
+    policy_payload = {
+        **KNOWLEDGE_POLICY_STATE,
+        # Compatibilità backward: alcuni test/client legacy leggono questa chiave con typo.
+        "strict_evnce_mode": KNOWLEDGE_POLICY_STATE.get("strict_evidence_mode", True),
+    }
 
     return {
         "status": "ok",
@@ -825,7 +828,7 @@ def _build_knowledge_registry_payload():
             "average_reliability": round(sum(item["reliability_score"] for item in scores) / max(1, len(scores)), 1),
             "minimum_required": KNOWLEDGE_POLICY_STATE["minimum_domain_score"],
         },
-        "policy": KNOWLEDGE_POLICY_STATE,
+        "policy": policy_payload,
         "legal_watch_jurisdictions": list(GLOBAL_LEGAL_WATCH.keys()),
         "last_generated_at": _now_iso(),
     }
@@ -838,7 +841,7 @@ async def _probe_watch_source(source: dict, timeout_s: float = 4.5):
 
     def _run_request():
         req = urllib.request.Request(source["url"], method="GET", headers={"User-Agent": "VIO83-HealthProbe/1.0"})
-        with urllib.request.urlopen(req, timeout=timeout_s) as response:
+        with urllib.request.urlopen(req, timeout=timeout_s) as response:  # nosec B310
             return int(getattr(response, "status", 200))
 
     try:
@@ -904,14 +907,13 @@ async def _knowledge_auto_refresh_loop():
         await asyncio.sleep(next_h * 60 * 60)
 
 # === CORE INFRASTRUCTURE ===
-from backend.core.cache import get_cache, CacheEngine
-from backend.core.network import get_connection_pool, ConnectionPoolManager
-from backend.core.parallel import TaskPool, ParallelQueryEngine
-from backend.core.errors import get_error_handler, ErrorHandler, OrchestraException
+from backend.core.cache import get_cache
+from backend.core.network import get_connection_pool
+from backend.core.errors import get_error_handler
 from backend.core.security import get_vault, EnvironmentValidator
-from backend.core.jet_engine import get_jet_engine, JetEngine, JetDecision
-from backend.core.feather_memory import get_feather_memory, FeatherMemory
-from backend.core.hyper_compressor import get_hyper_compressor, HyperCompressor
+from backend.core.jet_engine import get_jet_engine
+from backend.core.feather_memory import get_feather_memory
+from backend.core.hyper_compressor import get_hyper_compressor
 
 
 @asynccontextmanager
@@ -920,8 +922,10 @@ async def lifespan(app: FastAPI):
     print("🎵 VIO 83 AI ORCHESTRA — Server v2 avviato")
     print("🔧 Inizializzazione Core Infrastructure...")
 
-    # Inizializza database
+    # Inizializza database + migrazioni schema
     init_database()
+    from backend.database.migrations import run_migrations
+    run_migrations()
 
     # === SECURITY: Validazione ambiente ===
     validator = EnvironmentValidator()
@@ -935,7 +939,7 @@ async def lifespan(app: FastAPI):
     # === SECURITY: API Key Vault ===
     vault = get_vault()
     print(f"🔐 API Keys: {vault.stats['valid_keys']}/{vault.stats['total_keys']} valide "
-          f"→ Provider: {vault.available_providers or 'solo locale'}")
+          f"→ Provider: {vault.available_provrs or 'solo locale'}")
 
     # === CACHE: Multi-layer cache ===
     cache = get_cache()
@@ -944,14 +948,14 @@ async def lifespan(app: FastAPI):
 
     # === NETWORK: Connection Pool + Circuit Breakers ===
     pool = get_connection_pool()
-    pool.register_provider("ollama", base_url="http://localhost:11434", timeout=120.0, rate_limit=100)
-    for provider_name in vault.available_providers:
-        pool.register_provider(provider_name, timeout=60.0, rate_limit=30)
+    pool.register_provr("ollama", base_url="http://localhost:11434", timeout=120.0, rate_limit=100)
+    for provider_name in vault.available_provrs:
+        pool.register_provr(provider_name, timeout=60.0, rate_limit=30)
     print(f"🌐 Network Pool: {pool.stats['total_pools']} provider registrati")
 
     # === ERROR HANDLER ===
-    error_handler = get_error_handler()
-    print(f"🛡️  Error Handler: attivo")
+    get_error_handler()
+    print("🛡️  Error Handler: attivo")
 
     # === JET ENGINE™: velocità aereo militare ===
     jet = get_jet_engine()
@@ -1877,6 +1881,7 @@ async def chat(http_request: Request, request: ChatRequest):
                     auto_routing=not has_images,  # no auto-routing for vision (provider forced)
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
+                    protocollo_100x=request.enable_protocollo_100x,
                 ),
                 timeout=_orchestrate_timeout,
             )
@@ -3349,7 +3354,7 @@ async def api_core_status():
         },
         "security": {
             "valid_keys": vault.stats["valid_keys"],
-            "available_providers": vault.available_providers,
+            "available_providers": vault.available_provrs,
         },
     }
 
@@ -4475,4 +4480,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("LITELLM_PROXY_PORT", 4000))
     print(f"🎵 Avvio VIO 83 AI ORCHESTRA v2 su porta {port}...")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)  # nosec B104

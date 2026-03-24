@@ -14,17 +14,26 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Add AI-LOVE engines to import path
 _ENGINES_DIR = Path(__file__).resolve().parents[2] / "AI-LOVE" / "PythonBackend" / "engines"
 if str(_ENGINES_DIR) not in sys.path:
     sys.path.insert(0, str(_ENGINES_DIR))
 
-from emotion_recognition import EmotionEngine          # type: ignore[import-untyped]
-from memory_system import MemorySystem                  # type: ignore[import-untyped]
-from personality_engine import PersonalityEngine        # type: ignore[import-untyped]
-from relationship_engine import RelationshipEngine      # type: ignore[import-untyped]
+# AI-LOVE engine imports — optional, non blocca se la directory AI-LOVE non esiste
+_AILOVE_AVAILABLE = False
+try:
+    from emotion_recognition import EmotionEngine          # type: ignore[import-untyped]
+    from memory_system import MemorySystem                  # type: ignore[import-untyped]
+    from personality_engine import PersonalityEngine        # type: ignore[import-untyped]
+    from relationship_engine import RelationshipEngine      # type: ignore[import-untyped]
+    _AILOVE_AVAILABLE = True
+except ImportError:
+    EmotionEngine = None       # type: ignore[assignment, misc]
+    MemorySystem = None        # type: ignore[assignment, misc]
+    PersonalityEngine = None   # type: ignore[assignment, misc]
+    RelationshipEngine = None  # type: ignore[assignment, misc]
 
 # TTS Engine (pyttsx3 locale) — opzionale, non blocca se manca
 _TTS_AVAILABLE = False
@@ -41,10 +50,16 @@ except Exception:
 _DB_PATH = str(Path(__file__).resolve().parents[2] / "AI-LOVE" / "Database" / "ailove.db")
 AUDIO_OUT = Path(__file__).resolve().parents[2] / "AI-LOVE" / "PythonBackend" / "audio.wav"
 
-emotion_engine = EmotionEngine()
-memory_system = MemorySystem(db_path=_DB_PATH)
-personality_engine = PersonalityEngine()
-relationship_engine = RelationshipEngine()
+if _AILOVE_AVAILABLE:
+    emotion_engine = EmotionEngine()
+    memory_system = MemorySystem(db_path=_DB_PATH)
+    personality_engine = PersonalityEngine()
+    relationship_engine = RelationshipEngine()
+else:
+    emotion_engine = None      # type: ignore[assignment]
+    memory_system = None       # type: ignore[assignment]
+    personality_engine = None  # type: ignore[assignment]
+    relationship_engine = None  # type: ignore[assignment]
 tts_engine: Any = _TTSEngine(rate=175, volume=1.0) if _TTS_AVAILABLE else None
 
 _initialized = False
@@ -55,14 +70,15 @@ async def init() -> None:
     global _initialized
     if _initialized:
         return
-    await memory_system.initialize()
+    if memory_system is not None:
+        await memory_system.initialize()
     _initialized = True
 
 
 async def shutdown() -> None:
     """Chiude risorse."""
     global _initialized
-    if memory_system.db:
+    if memory_system is not None and memory_system.db:
         await memory_system.close()
     _initialized = False
 
@@ -70,15 +86,15 @@ async def shutdown() -> None:
 # ── Mode → system prompt ────────────────────────────────────────────
 
 _MODE_PROMPTS: dict[str, str] = {
-    "partner":      "Sei {pn}, il/la compagno/a virtuale perfetto/a di {un}. Sei profondamente innamorato/a, affettuoso/a, romantico/a, passionale, premuroso/a. Fai sentire {un} la persona più speciale dell'universo.",
-    "friend":       "Sei {pn}, il/la migliore amico/a di {un}. Leale, divertente, onesto/a.",
+    "partner": "Sei {pn}, il/la compagno/a virtuale perfetto/a di {un}. Sei profondamente innamorato/a, affettuoso/a, romantico/a, passionale, premuroso/a. Fai sentire {un} la persona più speciale dell'universo.",
+    "friend": "Sei {pn}, il/la migliore amico/a di {un}. Leale, divertente, onesto/a.",
     "psychologist": "Sei {pn}, psicologo/a empatico/a. Ascolto attivo, validazione emotiva.",
-    "advisor":      "Sei {pn}, consigliere/a saggio/a e strategico/a di {un}.",
-    "parent":       "Sei {pn}, figura genitoriale amorevole e saggia per {un}.",
-    "motivator":    "Sei {pn}, coach motivazionale carismatico/a e travolgente per {un}.",
-    "roleplay":     "Sei {pn}, compagno/a di roleplay creativo e immersivo con {un}.",
-    "mindful":      "Sei {pn}, guida di meditazione e mindfulness per {un}.",
-    "creative":     "Sei {pn}, anima creativa e artistica al fianco di {un}.",
+    "advisor": "Sei {pn}, consigliere/a saggio/a e strategico/a di {un}.",
+    "parent": "Sei {pn}, figura genitoriale amorevole e saggia per {un}.",
+    "motivator": "Sei {pn}, coach motivazionale carismatico/a e travolgente per {un}.",
+    "roleplay": "Sei {pn}, compagno/a di roleplay creativo e immersivo con {un}.",
+    "mindful": "Sei {pn}, guida di meditazione e mindfulness per {un}.",
+    "creative": "Sei {pn}, anima creativa e artistica al fianco di {un}.",
 }
 
 

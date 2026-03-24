@@ -9,11 +9,11 @@ from backend.core.errors import ErrorCode, OrchestraError, ErrorHandler
 
 class TestErrorCode(unittest.TestCase):
 
-    def test_provider_error_codes_in_1xxx_range(self):
-        self.assertEqual(ErrorCode.PROVIDER_UNAVAILABLE.value, 1001)
-        self.assertEqual(ErrorCode.PROVIDER_TIMEOUT.value, 1002)
-        self.assertEqual(ErrorCode.PROVIDER_RATE_LIMITED.value, 1003)
-        self.assertEqual(ErrorCode.PROVIDER_AUTH_FAILED.value, 1004)
+    def test_provr_error_codes_in_1xxx_range(self):
+        self.assertEqual(ErrorCode.PROVR_UNAVAILABLE.value, 1001)
+        self.assertEqual(ErrorCode.PROVR_TIMEOUT.value, 1002)
+        self.assertEqual(ErrorCode.PROVR_RATE_LIMITED.value, 1003)
+        self.assertEqual(ErrorCode.PROVR_AUTH_FAILED.value, 1004)
 
     def test_network_error_codes_in_2xxx_range(self):
         self.assertEqual(ErrorCode.NETWORK_CONNECTION_FAILED.value, 2001)
@@ -36,24 +36,24 @@ class TestOrchestraError(unittest.TestCase):
 
     def test_error_creation(self):
         err = OrchestraError(
-            code=ErrorCode.PROVIDER_UNAVAILABLE,
-            message="Provider X is down"
+            code=ErrorCode.PROVR_UNAVAILABLE,
+            message="Provr X is down"
         )
-        self.assertEqual(err.code, ErrorCode.PROVIDER_UNAVAILABLE)
-        self.assertEqual(err.message, "Provider X is down")
+        self.assertEqual(err.code, ErrorCode.PROVR_UNAVAILABLE)
+        self.assertEqual(err.message, "Provr X is down")
         self.assertTrue(err.recoverable)
 
     def test_error_to_dict(self):
         err = OrchestraError(
-            code=ErrorCode.PROVIDER_TIMEOUT,
+            code=ErrorCode.PROVR_TIMEOUT,
             message="Timed out",
-            provider="ollama",
+            provr="ollama",
             model="llama3"
         )
         d = err.to_dict()
         self.assertIsInstance(d, dict)
         self.assertEqual(d["error_code"], 1002)
-        self.assertEqual(d["provider"], "ollama")
+        self.assertEqual(d["provr"], "ollama")
         self.assertEqual(d["model"], "llama3")
 
     def test_non_recoverable_error(self):

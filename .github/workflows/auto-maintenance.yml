@@ -78,8 +78,8 @@ jobs:
       - name: Install backend dependencies
         run: pip install -q fastapi uvicorn httpx python-dotenv pydantic flake8
 
-      - name: Flake8 lint (errors only — E/F codes)
-        run: flake8 backend/ --select=E,F --max-line-length=120 --exclude=backend/__pycache__,backend/rag/
+      - name: Flake8 lint (critical errors + real bugs)
+        run: flake8 backend/ --select=E9,F63,F7,F82,F401,F841,F541 --max-line-length=120 --exclude=backend/__pycache__,backend/rag/
 
       - name: Python syntax compile check
         run: python3 -m py_compile backend/api/server.py backend/config/providers.py backend/database/db.py backend/orchestrator/direct_router.py

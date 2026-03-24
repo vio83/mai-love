@@ -54,6 +54,7 @@ const defaultSettings: AppSettings = {
     ragEnabled: false,
     strictEvidenceMode: false,
     autoRouting: true,
+    protocollo100x: true,
   },
   apiKeys: [],
   ollamaHost: 'http://localhost:11434',
@@ -81,6 +82,7 @@ function normalizeOrchestrator(
     primaryProvider,
     fallbackProviders: fallback as AIProvider[],
     autoRouting: orchestrator.autoRouting ?? true,
+    protocollo100x: orchestrator.protocollo100x ?? true,
   };
 }
 
@@ -264,7 +266,7 @@ export const useAppStore = create<AppState>()(
           };
 
           if (version < STORE_VERSION) {
-            console.log('[VIO83] Migrazione store v' + version + ' → v' + STORE_VERSION);
+            console.warn('[VIO83] Migrazione store v' + version + ' -> v' + STORE_VERSION);
           }
 
           return {

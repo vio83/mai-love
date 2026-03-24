@@ -1,52 +1,42 @@
 // VIO 83 AI ORCHESTRA — Cross-Check: Verifica Multi-Modello
 import { motion } from 'framer-motion';
 import { AlertTriangle, Brain, CheckCircle, Percent, Shield, XCircle } from 'lucide-react';
+import { useMemo } from 'react';
 import { useI18n } from '../hooks/useI18n';
+import { useAppStore } from '../stores/appStore';
 
-const crossChecks = [
+interface CrossCheckEntry {
+  id: string;
+  query: string;
+  models: string[];
+  concordanceScore: number;
+  level: 'full_agree' | 'partial' | 'disagree';
+  verdict: string;
+  timestamp: number;
+}
+
+const DEMO_CHECKS: CrossCheckEntry[] = [
   {
-    id: '1', query: 'Rust è memory-safe senza garbage collector?',
+    id: 'demo-1', query: 'Rust è memory-safe senza garbage collector?',
     models: ['Claude Opus 4', 'DeepSeek R1', 'GPT-4o'],
-    concordanceScore: 99.2, level: 'full_agree' as const,
+    concordanceScore: 99.2, level: 'full_agree',
     verdict: 'Tutti i modelli confermano: Rust usa ownership + borrow checker per memory safety a compile time.',
     timestamp: Date.now() - 300000,
   },
   {
-    id: '2', query: 'Miglior algoritmo di sorting per dati quasi ordinati?',
-    models: ['Claude Sonnet 4', 'Grok 3', 'DeepSeek R1'],
-    concordanceScore: 97.5, level: 'full_agree' as const,
-    verdict: 'Consenso: Insertion Sort O(n) per quasi-ordinati, Timsort per caso generale.',
-    timestamp: Date.now() - 900000,
-  },
-  {
-    id: '3', query: 'I computer quantistici possono rompere RSA-2048 oggi?',
-    models: ['Claude Opus 4', 'Grok 3', 'Mistral Large'],
-    concordanceScore: 88.3, level: 'partial' as const,
-    verdict: 'Parziale: D\'accordo che oggi no. Disaccordo sulla timeline (range 2030-2040).',
-    timestamp: Date.now() - 3600000,
-  },
-  {
-    id: '4', query: 'P = NP?',
+    id: 'demo-2', query: 'P = NP?',
     models: ['Claude Opus 4', 'DeepSeek R1', 'GPT-4o'],
-    concordanceScore: 95.0, level: 'full_agree' as const,
+    concordanceScore: 95.0, level: 'full_agree',
     verdict: 'Consenso: Ampiamente ritenuto P ≠ NP, ma non dimostrato (Premio Millennium).',
     timestamp: Date.now() - 7200000,
   },
-  {
-    id: '5', query: 'Qual è il framework Python più veloce per API async?',
-    models: ['Claude Sonnet 4', 'Gemini 2.0', 'DeepSeek R1'],
-    concordanceScore: 92.1, level: 'full_agree' as const,
-    verdict: 'Consenso su FastAPI (basato su Starlette/Uvicorn). Benchmark TechEmpower confermano.',
-    timestamp: Date.now() - 14400000,
-  },
-  {
-    id: '6', query: 'L\'AGI arriverà entro il 2030?',
-    models: ['Claude Opus 4', 'GPT-4o', 'Grok 3'],
-    concordanceScore: 62.4, level: 'disagree' as const,
-    verdict: 'Disaccordo: Claude più cauto (post-2035), GPT-4o neutro, Grok ottimista (2028-2030).',
-    timestamp: Date.now() - 28800000,
-  },
 ];
+
+function classifyLevel(score: number): 'full_agree' | 'partial' | 'disagree' {
+  if (score >= 90) return 'full_agree';
+  if (score >= 70) return 'partial';
+  return 'disagree';
+}
 
 const levelConfigBase = {
   full_agree: { icon: CheckCircle, labelKey: 'crosscheckPage.fullAgree', color: 'var(--vio-green)', bg: 'rgba(0,255,0,0.1)' },
@@ -56,6 +46,39 @@ const levelConfigBase = {
 
 export default function CrossCheckPage() {
   const { t, lang } = useI18n();
+  const conversations = useAppStore(s => s.conversations);
+
+  // Estrai cross-check results reali dalle conversazioni
+  const crossChecks: CrossCheckEntry[] = useMemo(() => {
+    const realChecks: CrossCheckEntry[] = [];
+    for (const conv of conversations) {
+      for (const msg of conv.messages) {
+        if (msg.role === 'assistant' && msg.provider) {
+          // Controlla il campo qualityScore come proxy di cross-check
+          const ccr = (msg as unknown as Record<string, unknown>)['crossCheckResult'] as
+            | { concordance?: boolean; concordanceScore?: number; secondProvider?: string; secondResponse?: string }
+            | undefined;
+          if (ccr && ccr.concordanceScore !== undefined) {
+            const score = ccr.concordanceScore;
+            realChecks.push({
+              id: msg.id,
+              query: conv.messages.find(m => m.role === 'user')?.content.slice(0, 80) || conv.title,
+              models: [msg.provider, ccr.secondProvider || 'unknown'],
+              concordanceScore: score,
+              level: classifyLevel(score),
+              verdict: ccr.concordance
+                ? `Concordanza tra ${msg.provider} e ${ccr.secondProvider}`
+                : `Disaccordo tra ${msg.provider} e ${ccr.secondProvider}`,
+              timestamp: msg.timestamp,
+            });
+          }
+        }
+      }
+    }
+    // Se non ci sono cross-check reali, mostra demo con label
+    return realChecks.length > 0 ? realChecks : DEMO_CHECKS;
+  }, [conversations]);
+
   const totalChecks = crossChecks.length;
   const fullAgree = crossChecks.filter(c => c.level === 'full_agree').length;
   const partial = crossChecks.filter(c => c.level === 'partial').length;

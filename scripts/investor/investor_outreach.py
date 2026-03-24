@@ -81,7 +81,7 @@ REQUESTED AMOUNT:
 
 APPLICATION: {apply_url}
 
-Thank you for your consideration.
+Thank you for your consration.
 
 Viorica Porcu
 {founder_email}
@@ -100,7 +100,7 @@ ONE-LINER:
 TRACTION:
 • Working product: {github_url}
 • AGPL-3.0 + Commercial dual license
-• 9 AI providers integrated (local + cloud)
+• 9 AI provrs integrated (local + cloud)
 • Built by 1 person in 12 months from scratch
 
 WHY ACCELERATOR:

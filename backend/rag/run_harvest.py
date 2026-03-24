@@ -30,15 +30,11 @@ INTERRUPT: Ctrl+C per interrompere — riprende automaticamente con 'resume'
 
 import os
 import sys
-import re
 import json
 import time
 import signal
 import hashlib
 import argparse
-import mimetypes
-from pathlib import Path
-from typing import Optional
 
 # Aggiungi il progetto al path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -49,11 +45,10 @@ from backend.rag.harvest_state import (
     HarvestStateDB, HarvestProgress, setup_logger, DATA_DIR
 )
 from backend.rag.knowledge_distiller import (
-    Level1_Metadata, DistilledKnowledgeDB, get_distilled_db,
+    Level1_Metadata, get_distilled_db,
 )
 from backend.rag.open_sources import (
     RateLimitedClient, OpenAlexConnector, CrossrefConnector,
-    WikipediaConnector, classify_from_topics,
 )
 
 # ============================================================
