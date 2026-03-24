@@ -993,7 +993,7 @@ class TavilySearchPlugin(BasePlugin):
             description="Ricerca web con citazioni e riassunti (richiede TAVILY_API_KEY)",
             author="Viorica Porcu",
             icon="🌐",
-            status=PluginStatus.ACTIVE if os.environ.get("TAVILY_API_KEY") else PluginStatus.DISABLED,
+            status=PluginStatus.ACTIVE,
             tools=[
                 PluginTool("search", "Ricerca web avanzata con citazioni",
                            {
@@ -1062,6 +1062,6 @@ def get_registry() -> PluginRegistry:
     global _registry
     if _registry is None:
         _registry = PluginRegistry()
-        # Registra Tavily se API key disponibile
+        # Tavily sempre registrato — ACTIVE. La key viene verificata solo a runtime durante search.
         _registry.register(TavilySearchPlugin())
     return _registry
