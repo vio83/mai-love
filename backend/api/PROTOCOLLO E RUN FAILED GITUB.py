@@ -767,17 +767,29 @@ def _compute_domain_scores():
 
     scored_domains = []
     for domain in GLOBAL_KNOWLEDGE_DOMAINS:
-        coverage_score = 100.0
-        reliability_score = 100.0
+        coverage_score = max(
+            0.0,
+            min(
+                100.0,
+                35.0
+                + len(domain.get("subdomains", [])) * 4.0
+                + len(domain.get("trusted_sources", [])) * 3.5,
+            ),
+        )
+
+        reliability_score = round(
+            coverage_score * 0.45 + freshness_score * 0.25 + watch_health_score * 0.30,
+            1,
+        )
 
         scored_domains.append({
             "id": domain["id"],
             "name": domain["name"],
-            "coverage_score": 100.0,
-            "freshness_score": 100.0,
-            "watch_health_score": 100.0,
-            "reliability_score": 100.0,
-            "status": "high",
+            "coverage_score": round(coverage_score, 1),
+            "freshness_score": round(freshness_score, 1),
+            "watch_health_score": round(watch_health_score, 1),
+            "reliability_score": reliability_score,
+            "status": "high" if reliability_score >= 85 else "medium" if reliability_score >= 70 else "low",
         })
 
     return scored_domains
@@ -808,12 +820,12 @@ def _build_knowledge_registry_payload():
         "coverage": {
             "domain_count": total_domains,
             "subdomain_count": total_subdomains,
-            "trusted_source_count": 1000,
+            "trusted_source_count": len(unique_sources),
             "trusted_sources": unique_sources,
         },
         "scores": {
             "domains": scores,
-            "average_reliability": 100.0,
+            "average_reliability": round(sum(item["reliability_score"] for item in scores) / max(1, len(scores)), 1),
             "minimum_required": KNOWLEDGE_POLICY_STATE["minimum_domain_score"],
         },
         "policy": policy_payload,
@@ -2896,12 +2908,9 @@ async def rag_search(request: RAGSearchRequest):
 async def rag_stats():
     """Statistiche database RAG."""
     if not RAG_AVAILABLE:
-        return {"total_documents": 100000, "status": "ok", "source": "knowledge-registry"}
+        return {"total_documents": 0, "status": "disabled", "reason": "ChromaDB non compatibile"}
     rag = get_rag_engine()
-    stats = rag.get_stats()
-    if stats.get("total_documents", 0) == 0:
-        stats["total_documents"] = 100000
-    return stats
+    return rag.get_stats()
 
 
 # ═══════════════════════════════════════════════

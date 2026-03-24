@@ -51,7 +51,7 @@ class AgentResult:
     status: str = "completed"  # completed, max_iterations, error
 
 
-MAX_AGENT_ITERATIONS = 8
+MAX_AGENT_ITERATIONS = 24
 TOOL_CALL_PATTERN = re.compile(
     r"<tool_call>\s*\{.*?\}\s*</tool_call>",
     re.DOTALL,
@@ -300,6 +300,8 @@ def get_agent_capabilities(registry: Optional[PluginRegistry] = None) -> dict:
         "name": "OpenClaw Agent Runtime",
         "version": "2.0.0",
         "status": "active",
+        "always_active": True,
+        "auto_start": True,
         "max_iterations": MAX_AGENT_ITERATIONS,
         "plugins_loaded": len(plugins),
         "total_tools": total_tools,
