@@ -48,6 +48,7 @@ class ChatRequest(BaseModel):
     enable_protocollo_100x: bool = True  # Protocollo di Aderenza Totale 100x
     response_format: Optional[StructuredOutputFormat] = None  # G1: Structured output (JSON mode)
     show_thinking: bool = False  # G3: Mostra reasoning/thinking blocks dell'AI
+    history: Optional[List[dict]] = None  # Contesto conversazione dal frontend
 
 
 class ClassifyRequest(BaseModel):

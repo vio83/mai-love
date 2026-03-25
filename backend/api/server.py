@@ -2237,7 +2237,16 @@ async def chat_stream(request: ChatRequest):
     runtime_mode = request.mode or "local"
     messages = [{"role": "user", "content": request.message}]
 
-    if request.conversation_id:
+    # Contesto conversazione: history dal frontend > database > singolo messaggio
+    if request.history and len(request.history) > 0:
+        messages = [
+            {"role": str(m.get("role", "user")), "content": str(m.get("content", ""))}
+            for m in request.history
+            if m.get("content")
+        ]
+        if not messages or messages[-1].get("content") != request.message:
+            messages.append({"role": "user", "content": request.message})
+    elif request.conversation_id:
         conv = get_conversation(request.conversation_id)
         if conv and conv.get("messages"):
             messages = [
@@ -2297,6 +2306,41 @@ async def chat_stream(request: ChatRequest):
     use_cloud = runtime_mode == "cloud" and request.provider and request.provider != "ollama"
     effective_provider = request.provider or "ollama"
 
+    # ✈️  JetEngine™: TurboCache lookup pre-streaming
+    _jet = get_jet_engine()
+    _history_len = len(messages) - 1 if len(messages) > 1 else 0
+    _jet_decision = _jet.dec(
+        message=request.message,
+        model=model,
+        runtime_mode=runtime_mode,
+        explicit_provr=request.provider,
+        available_cloud=None,
+        history_len=_history_len,
+    )
+
+    # TurboCache hit → risposta istantanea come singolo evento SSE
+    if _jet_decision.cache_hit and not request.conversation_id and not request.system_prompt:
+        _structured_logger.info(json.dumps({"event": "jet_stream_cache_hit", "intent": _jet_decision.profile.intent}))
+        cached_resp = _jet_decision.cached_resp or {}
+        cached_content = str(cached_resp.get("content", ""))
+
+        async def cached_generator():
+            yield f"data: {json.dumps({'token': cached_content, 'done': False})}\n\n"
+            yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': cached_content, 'latency_ms': 1, 'model': str(cached_resp.get('model', model)), 'provider': str(cached_resp.get('provider', effective_provider)), 'cache_hit': True})}\n\n"
+
+        return StreamingResponse(
+            cached_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
+
+    # Applica routing JetEngine (se non ha provider esplicito)
+    if not request.provider:
+        routed_provider = _jet_decision.routing.provider
+        if routed_provider != "cache":
+            effective_provider = routed_provider
+            use_cloud = effective_provider != "ollama"
+
     async def event_generator():
         full_content = ""
         start = time.time()
@@ -2322,7 +2366,6 @@ async def chat_stream(request: ChatRequest):
                 yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
 
             latency = int((time.time() - start) * 1000)
-            yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': full_content, 'latency_ms': latency, 'model': model, 'provider': effective_provider})}\n\n"
 
             # Salva nel database
             conv_id = request.conversation_id
@@ -2330,6 +2373,8 @@ async def chat_stream(request: ChatRequest):
                 title = auto_title_from_message(request.message)
                 conv_data = create_conversation(title=title, mode=runtime_mode)
                 conv_id = conv_data["id"]
+
+            yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': full_content, 'latency_ms': latency, 'model': model, 'provider': effective_provider, 'conversation_id': conv_id})}\n\n"
 
             add_message(conv_id, "user", request.message)
             add_message(conv_id, "assistant", full_content,
@@ -2344,6 +2389,15 @@ async def chat_stream(request: ChatRequest):
                 model=model,
                 mode=runtime_mode,
             )
+
+            # ✈️  JetEngine™: salva nel TurboCache semantico
+            if not request.conversation_id and not request.system_prompt:
+                _jet.cache_store(request.message, model, {
+                    "content": full_content,
+                    "provider": effective_provider,
+                    "model": model,
+                    "latency_ms": latency,
+                })
 
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"

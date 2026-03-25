@@ -1,8 +1,11 @@
 // VIO 83 AI ORCHESTRA - AI Orchestrator Service
 // Il cuore dell'app: gestisce routing, fallback, cross-check e streaming
+// Strategia backend-first: POST /chat/stream → JetEngine + RAG + persistence
+// Fallback: chiamate dirette a Ollama/Cloud se backend non raggiungibile
 
 import type { AIMode, AIProvider, AIResponse, Message } from '../../types';
 
+const BACKEND_URL = 'http://localhost:4000';
 const CONTEXT_WINDOW_MAX_MESSAGES = 10;
 const CONTEXT_WINDOW_MAX_CHARS = 8_000;
 const RESPONSE_CACHE_TTL_MS = 60_000;
@@ -132,11 +135,6 @@ function routeToLocalModel(requestType: RequestType, preferredModel: string): st
 
   const candidate = localByRequestType[requestType] || preferredModel || 'llama3.2:3b';
   return LOCAL_MODEL_ALIASES[candidate] || candidate;
-}
-
-function pickLocalVerifierModel(primaryModel: string): string {
-  const candidates = ['qwen2.5-coder:3b', 'llama3.2:3b', 'mistral:latest', 'deepseek-r1:latest'];
-  return candidates.find((candidate) => candidate !== primaryModel) || 'llama3.2:3b';
 }
 
 function normalizeLocalModel(model: string): string {
@@ -273,45 +271,6 @@ async function pickRetryLocalModel(host: string, excludedModels: Set<string>): P
 
   const firstAvailable = installed.find((model) => !excludedModels.has(model));
   return firstAvailable || null;
-}
-
-async function fetchLocalRagContext(question: string): Promise<{ contextText: string; sourceCount: number }> {
-  const cleanQuestion = question.trim();
-  if (!cleanQuestion) return { contextText: '', sourceCount: 0 };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 800); // 800ms max, was 1800
-
-  try {
-    const query = new URLSearchParams({
-      question: cleanQuestion,
-      max_context_tokens: '600', // ridotto da 1200 per velocità
-      n_results: '3', // ridotto da 5
-    }).toString();
-
-    const response = await fetch(`http://localhost:4000/kb/context?${query}`, {
-      method: 'POST',
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return { contextText: '', sourceCount: 0 };
-    }
-
-    const data = await response.json();
-    const contextText = typeof data?.context_text === 'string' ? data.context_text.trim() : '';
-    const sourceCount = Array.isArray(data?.sources) ? data.sources.length : 0;
-
-    if (!contextText) {
-      return { contextText: '', sourceCount };
-    }
-
-    return { contextText, sourceCount };
-  } catch {
-    return { contextText: '', sourceCount: 0 };
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
 
 // ============================================================
@@ -623,6 +582,111 @@ async function callCloud(
 }
 
 // ============================================================
+// BACKEND STREAMING — POST /chat/stream con SSE
+// ============================================================
+
+async function callBackendStream(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  config: {
+    mode: AIMode;
+    provider: AIProvider;
+    model?: string;
+    conversationId?: string;
+    maxTokens?: number;
+    temperature?: number;
+    enableRag?: boolean;
+    protocollo100x?: boolean;
+    showThinking?: boolean;
+  },
+  onToken?: (token: string) => void,
+  signal?: AbortSignal,
+): Promise<AIResponse> {
+  const start = Date.now();
+  const body = {
+    message,
+    history: history.length > 1 ? history : undefined,
+    mode: config.mode,
+    provider: config.provider === 'ollama' ? undefined : config.provider,
+    model: config.model,
+    conversation_id: config.conversationId,
+    max_tokens: config.maxTokens || 512,
+    temperature: config.temperature || 0.7,
+    enable_rag: config.enableRag ?? true,
+    enable_protocollo_100x: config.protocollo100x ?? true,
+    show_thinking: config.showThinking ?? false,
+  };
+
+  const response = await fetch(`${BACKEND_URL}/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Backend error: ${response.status} — ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Backend: no response body for streaming');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullContent = '';
+  let finalProvider: AIProvider = config.provider;
+  let finalModel = config.model || '';
+  let finalLatency = 0;
+  let thinking: string | undefined;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter((l) => l.startsWith('data: '));
+
+    for (const line of lines) {
+      const jsonStr = line.slice(6);
+      try {
+        const event = JSON.parse(jsonStr);
+
+        if (event.error) {
+          throw new Error(`Backend stream error: ${event.error}`);
+        }
+
+        if (event.token && !event.done) {
+          fullContent += event.token;
+          onToken?.(event.token);
+        }
+
+        if (event.done) {
+          if (event.full_content) fullContent = event.full_content;
+          if (event.provider) finalProvider = event.provider as AIProvider;
+          if (event.model) finalModel = event.model;
+          if (event.latency_ms) finalLatency = event.latency_ms;
+          if (event.thinking) thinking = event.thinking;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith('Backend stream error:')) throw e;
+        // skip malformed JSON
+      }
+    }
+  }
+
+  return {
+    content: fullContent,
+    provider: finalProvider,
+    model: finalModel,
+    tokensUsed: 0,
+    latencyMs: finalLatency || Date.now() - start,
+    thinking,
+  };
+}
+
+// ============================================================
 // FUNZIONE PRINCIPALE — Invia messaggio all'orchestra
 // ============================================================
 
@@ -653,10 +717,6 @@ export async function sendToOrchestra(
   const effectiveProvider: AIProvider =
     effectiveMode === 'cloud' ? (config.primaryProvider || 'claude') : 'ollama';
 
-  if (effectiveMode === 'cloud') {
-    console.warn(`[Orchestra] Cloud mode: provider=${effectiveProvider}`);
-  }
-
   const messageLength = (lastMessage.content || '').trim().length;
   const deepMode = Boolean(config.crossCheckEnabled || config.ragEnabled || config.strictEvidenceMode);
   const wantsDeepDetail = /approfond|dettagl|detail|complete|completo|exhaustive/i.test(lastMessage.content || '');
@@ -665,8 +725,7 @@ export async function sendToOrchestra(
     ? Math.min(Math.round(baseGenerationBudget * 1.6), deepMode ? 1024 : 768)
     : baseGenerationBudget;
 
-  // Routing intelligente — classifica PRIMA di costruire il prompt
-  const provider = effectiveProvider;
+  // Routing intelligente
   let requestType: RequestType = 'conversation';
   let activeOllamaModel = config.ollamaModel || 'llama3.2:3b';
 
@@ -674,11 +733,12 @@ export async function sendToOrchestra(
     requestType = classifyRequest(lastMessage.content);
     activeOllamaModel = routeToLocalModel(requestType, activeOllamaModel);
   }
-  console.warn(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${provider}`);
+  console.warn(`[Orchestra] Tipo: ${requestType} | Mode: ${effectiveMode} | Provider: ${effectiveProvider}`);
 
+  // Cache frontend (primo layer ultra-rapido)
   const cacheKey = buildResponseCacheKey({
     mode: effectiveMode,
-    provider,
+    provider: effectiveProvider,
     model: activeOllamaModel,
     requestType,
     deepMode,
@@ -692,106 +752,28 @@ export async function sendToOrchestra(
     return cachedResponse;
   }
 
-  // Prepara messaggi con system prompt SPECIALIZZATO per tipo di richiesta
-  // Per modelli locali < 7B usa prompt compatto (~400 token vs ~4000)
-  const isLocal = effectiveMode === 'local' || provider === 'ollama';
-  // Protocollo 100x: enforce execution-grade, verifiable outputs when enabled.
-  const protocollo100x = config.protocollo100x ?? true;
-  let systemPrompt = isLocal
-    ? buildLocalSystemPrompt(requestType, protocollo100x)
-    : buildSystemPrompt(requestType, protocollo100x);
-  const strictEvidenceMode = Boolean(config.strictEvidenceMode);
-  let strictEvidenceDegraded = false;
-  let strictEvidenceBanner = '';
-  let ragContext: { contextText: string; sourceCount: number } = { contextText: '', sourceCount: 0 };
+  // === STRATEGIA BACKEND-FIRST ===
+  // Il backend fornisce JetEngine, RAG, FeatherMemory, persistence, system prompt specializzato
+  const backendModel = effectiveMode === 'local' ? activeOllamaModel : undefined;
+  const apiHistory = optimizedMessages.map((m) => ({ role: m.role, content: m.content }));
 
-  // Parallelize RAG fetch with other setup work — saves 300-800ms
-  const ragPromise = (config.ragEnabled && (config.strictEvidenceMode || messageLength > 48))
-    ? fetchLocalRagContext(lastMessage.content)
-    : Promise.resolve({ contextText: '', sourceCount: 0 });
-  ragContext = await ragPromise;
-
-  if (strictEvidenceMode) {
-    if (!config.ragEnabled) {
-      strictEvidenceDegraded = true;
-      strictEvidenceBanner =
-        '⚠️ **Strict Evidence degradato (continuità operativa attiva)**\n\n' +
-        'RAG è disattivato: procedo comunque con risposta best-effort per evitare blocchi. ' +
-        'I dettagli non verificabili verranno segnalati esplicitamente.';
-
-      systemPrompt +=
-        '\n\n=== STRICT EVIDENCE DEGRADATO (RAG OFF) ===\n' +
-        '- Mantieni massima accuratezza possibile con conoscenza generale consolidata.\n' +
-        '- Etichetta chiaramente ciò che NON può essere verificato in questa sessione.\n' +
-        '- Non inventare fonti, date o citazioni.\n' +
-        '- Produci comunque una risposta completa e utile (mai bloccare output).\n' +
-        '=== FINE POLICY ===';
-    }
-
-    if (!strictEvidenceDegraded && (!ragContext.contextText || ragContext.sourceCount === 0)) {
-      strictEvidenceDegraded = true;
-      strictEvidenceBanner =
-        '⚠️ **Strict Evidence degradato (nessuna fonte locale sufficiente)**\n\n' +
-        'Non ho trovato evidenze certificate sufficienti nella KB locale: procedo comunque per continuità operativa, ' +
-        'segnalando esplicitamente i limiti di verificabilità.';
-
-      systemPrompt +=
-        '\n\n=== STRICT EVIDENCE DEGRADATO (KB INSUFFICIENTE) ===\n' +
-        '- Fornisci risposta completa, strutturata e prudente.\n' +
-        '- Distingui chiaramente: fatti consolidati vs dettagli non verificati localmente.\n' +
-        '- Evidenzia limiti e aree dove servirebbero fonti aggiuntive.\n' +
-        '- Non interrompere mai la risposta con messaggi di blocco.\n' +
-        '=== FINE POLICY ===';
-    }
-
-    if (!strictEvidenceDegraded) {
-      systemPrompt +=
-        '\n\n=== STRICT EVIDENCE POLICY ATTIVA ===\n' +
-        '- Rispondi SOLO con elementi supportati dal contesto certificato fornito.\n' +
-        '- Se il contesto non copre un punto, dichiaralo esplicitamente come non verificato.\n' +
-        '- Evita inferenze non supportate e segnala sempre i limiti delle fonti disponibili.\n' +
-        '=== FINE POLICY ===';
-    }
-  }
-
-  if (config.ragEnabled && ragContext.contextText) {
-    systemPrompt +=
-      `\n\n=== CONTESTO RAG LOCALE CERTIFICATO ===\n` +
-      `Fonti recuperate: ${ragContext.sourceCount}\n` +
-      `Usa le fonti seguenti per migliorare accuratezza e verificabilità della risposta:\n\n` +
-      `${ragContext.contextText}\n` +
-      `=== FINE CONTESTO ===`;
-  }
-
-  const apiMessages: Array<{ role: string; content: string }> = [
-    { role: 'system', content: systemPrompt },
-    ...optimizedMessages.map(m => ({ role: m.role, content: m.content })),
-  ];
-
-  // Tenta provider principale
   try {
-    let response: AIResponse;
-
-    if (effectiveMode === 'local' || provider === 'ollama') {
-      response = await callOllama(
-        apiMessages,
-        activeOllamaModel,
-        config.ollamaHost,
-        onToken,
-        signal,
-        generationBudget,
-      );
-    } else {
-      response = await callCloud(apiMessages, provider, config.apiKeys, onToken, signal, generationBudget);
-    }
-
-    if (strictEvidenceDegraded && strictEvidenceBanner) {
-      response.content = `${strictEvidenceBanner}\n\n${response.content}`;
-    }
+    const response = await callBackendStream(
+      lastMessage.content,
+      apiHistory,
+      {
+        mode: effectiveMode,
+        provider: effectiveProvider,
+        model: backendModel,
+        maxTokens: generationBudget,
+        enableRag: config.ragEnabled,
+        protocollo100x: config.protocollo100x,
+      },
+      onToken,
+      signal,
+    );
 
     setCachedResponse(cacheKey, response);
-
-    // Track metrics per category
     recordMetric({
       category: requestType,
       provider: response.provider,
@@ -801,63 +783,64 @@ export async function sendToOrchestra(
       success: true,
     });
 
-    // Cross-check opzionale
-    if (config.crossCheckEnabled) {
-      // Fire-and-forget: cross-check locale NON blocca la risposta all'utente
-      // Il risultato verrà aggiunto in background (M1 8GB troppo lento per doppia inference sincrona)
-      const verifierModel = pickLocalVerifierModel(activeOllamaModel);
-      const crossCheckMessages = [
-        ...apiMessages,
-        { role: 'assistant', content: response.content },
-        {
-          role: 'user',
-          content: 'Verifica la risposta precedente. Rispondi con "CONFERMATO" se è accurata. Altrimenti rispondi con "CORREZIONE:" seguito da una nota breve.',
-        },
-      ];
-      callOllama(crossCheckMessages, verifierModel, config.ollamaHost, undefined, undefined, 160)
-        .then(checkResponse => {
-          const normalized = checkResponse.content.trim().toUpperCase();
-          const concordance = normalized.startsWith('CONFERMATO') || normalized.startsWith('CONFIRMED');
-          response.crossCheckResult = {
-            concordance,
-            secondProvider: 'ollama',
-            secondResponse: `[${verifierModel}] ${checkResponse.content}`,
-          };
-        })
-        .catch(e => {
-          console.warn('[Orchestra] Cross-check locale fallito:', e);
-        });
+    return response;
+  } catch (backendError) {
+    console.warn('[Orchestra] Backend non raggiungibile, fallback diretto:', backendError);
+  }
+
+  // === FALLBACK DIRETTO ===
+  // Se il backend è down, usa le chiamate dirette (Ollama/Cloud)
+  const isLocal = effectiveMode === 'local' || effectiveProvider === 'ollama';
+  const protocollo100x = config.protocollo100x ?? true;
+  const systemPrompt = isLocal
+    ? buildLocalSystemPrompt(requestType, protocollo100x)
+    : buildSystemPrompt(requestType, protocollo100x);
+
+  const apiMessages: Array<{ role: string; content: string }> = [
+    { role: 'system', content: systemPrompt },
+    ...optimizedMessages.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
+  try {
+    let response: AIResponse;
+
+    if (isLocal) {
+      response = await callOllama(
+        apiMessages,
+        activeOllamaModel,
+        config.ollamaHost,
+        onToken,
+        signal,
+        generationBudget,
+      );
+    } else {
+      response = await callCloud(apiMessages, effectiveProvider, config.apiKeys, onToken, signal, generationBudget);
     }
+
+    setCachedResponse(cacheKey, response);
+    recordMetric({
+      category: requestType,
+      provider: response.provider,
+      model: response.model,
+      tokensUsed: response.tokensUsed || 0,
+      latencyMs: response.latencyMs || 0,
+      success: true,
+    });
 
     return response;
   } catch (error) {
-    // Fallback — prova sempre Ollama come ultimo tentativo
-    console.warn(`[Orchestra] ${provider} fallito, tentativo fallback...`);
-
-    // Prima prova i fallback configurati
-    for (const fallback of config.fallbackProviders) {
-      try {
-        if (fallback !== 'ollama') continue;
-
-        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal, generationBudget);
-        if (strictEvidenceDegraded && strictEvidenceBanner) {
-          fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
-        }
-        setCachedResponse(cacheKey, fallbackResponse);
-        return fallbackResponse;
-      } catch (e) {
-        console.warn(`[Orchestra] Fallback ${fallback} fallito:`, e);
-      }
-    }
-
-    // Ultimo tentativo: Ollama sempre (se non già provato)
-    if (provider !== 'ollama') {
+    // Ultimo tentativo: Ollama locale
+    if (effectiveProvider !== 'ollama') {
       try {
         console.warn('[Orchestra] Ultimo tentativo: Ollama locale');
-        const fallbackResponse = await callOllama(apiMessages, activeOllamaModel, config.ollamaHost, onToken, signal, generationBudget);
-        if (strictEvidenceDegraded && strictEvidenceBanner) {
-          fallbackResponse.content = `${strictEvidenceBanner}\n\n${fallbackResponse.content}`;
-        }
+        const fallbackResponse = await callOllama(
+          apiMessages,
+          activeOllamaModel,
+          config.ollamaHost,
+          onToken,
+          signal,
+          generationBudget,
+        );
         setCachedResponse(cacheKey, fallbackResponse);
         return fallbackResponse;
       } catch (e) {
@@ -865,7 +848,7 @@ export async function sendToOrchestra(
       }
     }
 
-    throw new Error(`Tutti i modelli locali Ollama hanno fallito. Errore originale: ${error}`);
+    throw new Error(`Tutti i provider hanno fallito. Errore originale: ${error}`);
   }
 }
 

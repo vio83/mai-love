@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
+import { deleteBackendConversation, fetchConversations } from '../services/conversationService';
+import type { BackendConversation } from '../services/conversationService';
 
 interface AppState {
   // Current conversation
@@ -36,6 +38,7 @@ interface AppState {
   stopStreaming: () => void;
   setAbortController: (controller: AbortController | null) => void;
   deleteConversation: (id: string) => void;
+  loadConversationsFromBackend: () => Promise<void>;
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
   activateFullOrchestration: () => void;
@@ -206,6 +209,44 @@ export const useAppStore = create<AppState>()(
             conversations: state.conversations.filter(c => c.id !== id),
             activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
           }));
+          // Best-effort: elimina anche nel backend
+          deleteBackendConversation(id).catch(() => {});
+        },
+
+        loadConversationsFromBackend: async () => {
+          try {
+            const backendConvs = await fetchConversations(50);
+            const mapped: Conversation[] = backendConvs.map((bc: BackendConversation) => ({
+              id: bc.id,
+              title: bc.title,
+              messages: (bc.messages || []).map((m) => ({
+                id: m.id,
+                role: m.role as 'user' | 'assistant',
+                content: m.content,
+                provider: (m.provider || undefined) as AIProvider | undefined,
+                model: m.model || undefined,
+                timestamp: m.timestamp * 1000,
+                latencyMs: m.latency_ms || undefined,
+                tokensUsed: m.tokens_used || undefined,
+                verified: m.verified === 1 ? true : m.verified === 0 ? false : undefined,
+                qualityScore: m.quality_score || undefined,
+              })),
+              model: bc.primary_provider || 'ollama',
+              provider: (bc.primary_provider || 'ollama') as AIProvider,
+              mode: bc.mode as AIMode,
+              createdAt: bc.created_at * 1000,
+              updatedAt: bc.updated_at * 1000,
+            }));
+
+            // Merge: mantieni conversazioni locali senza duplicati
+            set(state => {
+              const backendIds = new Set(mapped.map(c => c.id));
+              const localOnly = state.conversations.filter(c => !backendIds.has(c.id));
+              return { conversations: [...mapped, ...localOnly] };
+            });
+          } catch {
+            // Backend non raggiungibile — mantieni conversazioni locali
+          }
         },
 
         setCurrentPage: (page) => set({ currentPage: page }),

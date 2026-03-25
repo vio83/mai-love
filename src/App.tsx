@@ -34,6 +34,7 @@ export default function App() {
   const currentPage = useAppStore(s => s.currentPage);
   const updateSettings = useAppStore(s => s.updateSettings);
   const authToken = useAppStore(s => s.authToken);
+  const loadConversationsFromBackend = useAppStore(s => s.loadConversationsFromBackend);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -44,6 +45,11 @@ export default function App() {
       }
     }
   }, [settings.onboardingCompleted, settings.language, updateSettings]);
+
+  // Carica conversazioni dal backend all'avvio
+  useEffect(() => {
+    loadConversationsFromBackend();
+  }, [loadConversationsFromBackend]);
 
   const showOnboarding = !settings.onboardingCompleted;
 
