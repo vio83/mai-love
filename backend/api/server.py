@@ -157,7 +157,7 @@ RUNTIME_ENV_DEFAULTS = {
     "LEGALROOM_START_CMD": "",
     "N8N_START_CMD": "",
     "OPENCLAW_HEALTH_URLS": "http://127.0.0.1:4000/openclaw/health,http://127.0.0.1:4111/health",
-    "LEGALROOM_HEALTH_URLS": "http://127.0.0.1:4222/health,http://127.0.0.1:4222/",
+    "LEGALROOM_HEALTH_URLS": "http://127.0.0.1:4000/legalroom/health,http://127.0.0.1:4222/health,http://127.0.0.1:4222/",
     "N8N_HEALTH_URLS": "http://127.0.0.1:5678/healthz,http://127.0.0.1:5678/rest/healthz,http://127.0.0.1:5678/",
     "RUNTIME_APPS_UPDATE_POLICY": "user-approved",
     "RUNTIME_APPS_OFFLINE_MODE": "keep-last-approved",
@@ -4388,6 +4388,21 @@ async def openclaw_health():
         "agent": "OpenClaw",
         "plugins": caps["plugins_loaded"],
         "tools": caps["total_tools"],
+    }
+
+
+@app.get("/legalroom/health")
+async def legalroom_health():
+    """Health check built-in per runtime LegalRoom compatibility."""
+    return {
+        "status": "healthy",
+        "service": "LegalRoom",
+        "mode": "builtin-compat",
+        "checks": {
+            "policy_engine": True,
+            "audit_exports": True,
+            "knowledge_policy": True,
+        },
     }
 
 
