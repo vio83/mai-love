@@ -1,0 +1,236 @@
+name: Self-Healing CI — Anti-Run-Failed
+
+# ============================================================
+# VIO 83 AI ORCHESTRA — Sistema Auto-Correggente Anti-Failure
+# Questo workflow:
+# 1. Si attiva su OGNI failure di qualsiasi workflow
+# 2. Diagnostica la causa root del failure
+# 3. Tenta auto-fix per problemi comuni
+# 4. Crea un PR con il fix se riesce
+# 5. Apre una issue dettagliata se non riesce
+# ============================================================
+
+"on":
+  workflow_run:
+    workflows:
+      - "CI — Release Gate"
+      - "Python Backend — Lint & Test"
+      - "Auto-Maintenance 100x"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: self-healing-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose-and-heal:
+    name: "Diagnose & Auto-Fix"
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 5
+
+      - name: Setup tools
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline 2>/dev/null || npm install
+          pip install -q fastapi uvicorn httpx python-dotenv pydantic flake8 pytest pytest-asyncio numpy argon2-cffi
+
+      - name: Diagnose failure
+        id: diagnose
+        run: |
+          echo "## Diagnosis Report" >> $GITHUB_STEP_SUMMARY
+          FIXES_NEEDED=""
+          DIAGNOSIS=""
+
+          # Check 1: TypeScript errors
+          if ! npx tsc --noEmit 2>/dev/null; then
+            DIAGNOSIS="${DIAGNOSIS}typescript_error,"
+            echo "- ❌ TypeScript errors detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ TypeScript OK" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 2: Python syntax
+          PYERR=$(python3 -c "
+          import py_compile, pathlib, sys
+          errors = 0
+          for f in pathlib.Path('backend').rglob('*.py'):
+              try:
+                  py_compile.compile(str(f), doraise=True)
+              except py_compile.PyCompileError as e:
+                  print(f'PYERR: {f}: {e}')
+                  errors += 1
+          sys.exit(errors)
+          " 2>&1) || true
+
+          if echo "$PYERR" | grep -q "PYERR:"; then
+            DIAGNOSIS="${DIAGNOSIS}python_syntax,"
+            echo "- ❌ Python syntax errors" >> $GITHUB_STEP_SUMMARY
+            echo "$PYERR" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ Python syntax OK" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 3: Flake8 critical
+          if ! flake8 backend/ --select=E9,F63,F7,F82 --quiet 2>/dev/null; then
+            DIAGNOSIS="${DIAGNOSIS}flake8_critical,"
+            echo "- ❌ Flake8 critical errors" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ Flake8 OK" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 4: Missing files
+          for f in README.md LICENSE package.json package-lock.json; do
+            if [ ! -f "$f" ]; then
+              DIAGNOSIS="${DIAGNOSIS}missing_file_${f},"
+              echo "- ❌ Missing: $f" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          # Check 5: Import chain
+          python3 -c "
+          import sys; sys.path.insert(0, '.')
+          from backend.models.schemas import ChatRequest
+          from backend.config.providers import get_all_providers_ordered
+          from backend.database.db import init_database
+          " 2>/dev/null || DIAGNOSIS="${DIAGNOSIS}import_chain,"
+
+          # Check 6: npm build
+          if ! npm run build 2>/dev/null; then
+            DIAGNOSIS="${DIAGNOSIS}build_failure,"
+            echo "- ❌ Build failure" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ Build OK" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "diagnosis=${DIAGNOSIS}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Diagnosis:** \`${DIAGNOSIS:-none}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Attempt auto-fix
+        id: autofix
+        if: steps.diagnose.outputs.diagnosis != ''
+        run: |
+          FIXED=0
+          DIAGNOSIS="${{ steps.diagnose.outputs.diagnosis }}"
+
+          # Auto-fix 1: Regenerate package-lock if missing
+          if echo "$DIAGNOSIS" | grep -q "missing_file_package-lock.json"; then
+            npm install --package-lock-only
+            FIXED=$((FIXED + 1))
+          fi
+
+          # Auto-fix 2: Remove trailing whitespace in Python files
+          if echo "$DIAGNOSIS" | grep -q "flake8_critical"; then
+            find backend -name "*.py" -exec sed -i 's/[[:space:]]*$//' {} \;
+            FIXED=$((FIXED + 1))
+          fi
+
+          # Auto-fix 3: Fix common import issues — add missing __init__.py
+          for dir in backend backend/api backend/core backend/config backend/models backend/database backend/orchestrator backend/rag backend/automation backend/plugins backend/openclaw backend/utils; do
+            if [ -d "$dir" ] && [ ! -f "$dir/__init__.py" ]; then
+              touch "$dir/__init__.py"
+              FIXED=$((FIXED + 1))
+            fi
+          done
+
+          echo "fixes_applied=$FIXED" >> $GITHUB_OUTPUT
+
+      - name: Create fix PR if changes made
+        if: steps.autofix.outputs.fixes_applied > 0
+        run: |
+          git config user.name "VIO Self-Healing CI"
+          git config user.email "ci@vio83.dev"
+
+          BRANCH="fix/self-healing-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "fix: auto-heal CI failure [self-healing-ci]
+
+          Diagnosis: ${{ steps.diagnose.outputs.diagnosis }}
+          Fixes applied: ${{ steps.autofix.outputs.fixes_applied }}
+
+          Auto-generated by Self-Healing CI workflow."
+
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "fix: Auto-heal CI failure" \
+            --body "## Self-Healing CI Auto-Fix
+
+          **Workflow fallito**: ${{ github.event.workflow_run.name }}
+          **Diagnosis**: \`${{ steps.diagnose.outputs.diagnosis }}\`
+          **Fixes applicati**: ${{ steps.autofix.outputs.fixes_applied }}
+
+          Questo PR è stato generato automaticamente dal Self-Healing CI.
+          Verifica i cambiamenti e mergia se corretti.
+
+          *Auto-generated by self-healing-ci.yml*" \
+            --label "automated,ci-fix"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report if no auto-fix possible
+        if: steps.diagnose.outputs.diagnosis != '' && (steps.autofix.outputs.fixes_applied == '0' || steps.autofix.outputs.fixes_applied == '')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const diagnosis = '${{ steps.diagnose.outputs.diagnosis }}';
+            const workflow = context.payload.workflow_run.name;
+            const runUrl = context.payload.workflow_run.html_url;
+            const sha = context.payload.workflow_run.head_sha.substring(0, 7);
+
+            // Check for existing open issue
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'self-healing-ci'
+            });
+
+            if (existing.data.length > 0) {
+              // Comment on existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body: `**Nuova failure** — ${workflow}\nSHA: \`${sha}\`\nDiagnosis: \`${diagnosis}\`\nRun: ${runUrl}`
+              });
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔧 Self-Healing CI: fix manuale richiesto [${sha}]`,
+              body: `## CI Failure — Auto-Fix Non Possibile\n\n**Workflow**: ${workflow}\n**SHA**: \`${sha}\`\n**Diagnosis**: \`${diagnosis}\`\n**Run**: ${runUrl}\n\n### Azioni richieste\n\nIl Self-Healing CI ha diagnosticato il problema ma non è riuscito a fixarlo automaticamente.\nControlla la diagnosis sopra e fixa manualmente.\n\n### Comandi utili\n\`\`\`bash\nbash scripts/ci/validate_before_push.sh  # Replica CI localmente\nbash scripts/ci/pre_push_gate.sh         # Quick check\n\`\`\``,
+              labels: ['self-healing-ci', 'ci-failure', 'automated']
+            });
