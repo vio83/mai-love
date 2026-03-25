@@ -111,6 +111,7 @@ cat > "$LAUNCH_AGENTS/com.vio83.health-monitor.plist" << 'PLIST'
 LOG=/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/health-monitor.log
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 DISK_FREE=$(df -g / | awk 'NR==2{print $4}')
+MIN_DISK_GB=45
 PM2_COUNT=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; p=json.load(sys.stdin); print(sum(1 for x in p if x.get('pm2_env',{}).get('status')=='online'))" 2>/dev/null || echo "0")
 BACKEND=$(curl -sf http://127.0.0.1:4000/health 2>/dev/null && echo "ok" || echo "down")
 
@@ -120,12 +121,13 @@ if [ "$BACKEND" = "down" ]; then
   echo "[$TS] RESTART: backend was down" >> "$LOG"
 fi
 
-# Alert se disco sotto 5GB
-if [ "$DISK_FREE" -lt 5 ]; then
-  osascript -e "display notification \"⚠️ Mac: solo ${DISK_FREE}GB liberi! Esegui cleanup.\" with title \"VIO 83 Disk Alert\"" 2>/dev/null || true
+# Alert + recovery se disco sotto soglia 45GB
+if [ "$DISK_FREE" -lt "$MIN_DISK_GB" ]; then
+    bash /Users/padronavio/Projects/vio83-ai-orchestra/scripts/mac-free-space-NOW.sh >/dev/null 2>&1 || true
+    osascript -e "display notification \"⚠️ Mac: ${DISK_FREE}GB liberi (<${MIN_DISK_GB}GB). Cleanup automatico eseguito.\" with title \"VIO 83 Disk Guard\"" 2>/dev/null || true
 fi
 
-echo "[$TS] disk:${DISK_FREE}GB pm2:${PM2_COUNT} backend:${BACKEND}" >> "$LOG"
+echo "[$TS] disk:${DISK_FREE}GB min:${MIN_DISK_GB}GB pm2:${PM2_COUNT} backend:${BACKEND}" >> "$LOG"
 # Rotazione log 200KB
 if [ $(wc -c < "$LOG") -gt 200000 ]; then tail -c 100000 "$LOG" > /tmp/hm_tmp && mv /tmp/hm_tmp "$LOG"; fi
         </string>
@@ -177,6 +179,38 @@ launchctl unload "$LAUNCH_AGENTS/com.vio83.vscode-npm-cleanup.plist" 2>/dev/null
 launchctl load -w "$LAUNCH_AGENTS/com.vio83.vscode-npm-cleanup.plist" 2>/dev/null
 log "LaunchAgent 4: vscode-npm-cleanup → ogni lunedì 02:00"
 
+# ─── LaunchAgent 5: GitHub failed-runs autopilot (ogni 60s) ───
+cat > "$LAUNCH_AGENTS/com.vio83.github-failed-runs-autopilot.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.vio83.github-failed-runs-autopilot</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/padronavio/Projects/vio83-ai-orchestra/scripts/ci/github-failed-runs-autopilot.sh</string>
+        <string>--owner</string>
+        <string>vio83</string>
+        <string>--lookback-hours</string>
+        <string>24</string>
+        <string>--max-runs-per-repo</string>
+        <string>3</string>
+    </array>
+    <key>StartInterval</key><integer>60</integer>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><false/>
+    <key>StandardOutPath</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/github-failed-runs-autopilot.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/padronavio/Projects/vio83-ai-orchestra/automation/logs/github-failed-runs-autopilot-error.log</string>
+</dict>
+</plist>
+PLIST
+launchctl unload "$LAUNCH_AGENTS/com.vio83.github-failed-runs-autopilot.plist" 2>/dev/null || true
+launchctl load -w "$LAUNCH_AGENTS/com.vio83.github-failed-runs-autopilot.plist" 2>/dev/null
+log "LaunchAgent 5: github-failed-runs-autopilot → ogni 60s"
+
 sep
 echo ""
 echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════════════════════╗"
@@ -186,6 +220,7 @@ echo "║  LaunchAgent 1: mac-cleanup       → ogni notte 03:00    ║"
 echo "║  LaunchAgent 2: cargo-cleanup     → domenica 04:00      ║"
 echo "║  LaunchAgent 3: health-monitor    → ogni 5 minuti       ║"
 echo "║  LaunchAgent 4: vscode-npm-clean  → lunedì 02:00        ║"
+echo "║  LaunchAgent 5: gh failed-runs    → ogni 60 secondi     ║"
 echo "╠══════════════════════════════════════════════════════════╣"
 echo "║  Log: ~/Projects/vio83-ai-orchestra/automation/logs/    ║"
 echo "╚══════════════════════════════════════════════════════════╝${NC}"
