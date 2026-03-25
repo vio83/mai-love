@@ -1,5 +1,14 @@
 // VIO 83 AI ORCHESTRA - Componente Messaggio Chat
-import { AlertCircle, Bot, CheckCircle, Clock, ThumbsDown, ThumbsUp, User, Zap } from 'lucide-react';
+import {
+  AlertCircle,
+  Bot,
+  CheckCircle,
+  Clock,
+  ThumbsDown,
+  ThumbsUp,
+  User,
+  Zap,
+} from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -61,85 +70,97 @@ function ChatMessageInner({ message }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
 
-  const sendFeedback = useCallback(async (thumbsUp: boolean) => {
-    const newFeedback = thumbsUp ? 'up' : 'down';
-    if (feedback === newFeedback) return; // Already sent
-    setFeedback(newFeedback);
-    try {
-      await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: message.provider || 'ollama',
-          model: message.model || '',
-          thumbs_up: thumbsUp,
-          message_id: message.id,
-        }),
-      });
-    } catch {
-      // Silently fail — feedback is best-effort
-    }
-  }, [message.provider, message.model, message.id, feedback]);
+  const sendFeedback = useCallback(
+    async (thumbsUp: boolean) => {
+      const newFeedback = thumbsUp ? 'up' : 'down';
+      if (feedback === newFeedback) return; // Already sent
+      setFeedback(newFeedback);
+      try {
+        await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: message.provider || 'ollama',
+            model: message.model || '',
+            thumbs_up: thumbsUp,
+            message_id: message.id,
+          }),
+        });
+      } catch {
+        // Silently fail — feedback is best-effort
+      }
+    },
+    [message.provider, message.model, message.id, feedback],
+  );
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: '12px',
-      padding: '16px 20px',
-      backgroundColor: isUser ? 'transparent' : 'var(--vio-bg-secondary)',
-      borderBottom: '1px solid var(--vio-bg-tertiary)',
-    }}>
-      {/* Avatar */}
-      <div style={{
-        width: '32px',
-        height: '32px',
-        borderRadius: '50%',
+    <div
+      style={{
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: isUser ? 'var(--vio-bg-tertiary)' : 'rgba(0, 255, 0, 0.1)',
-        border: `1px solid ${isUser ? 'var(--vio-border)' : 'var(--vio-green-dim)'}`,
-        flexShrink: 0,
-      }}>
-        {isUser
-          ? <User size={16} color="var(--vio-text-secondary)" />
-          : <Bot size={16} color="var(--vio-green)" />
-        }
+        gap: '12px',
+        padding: '16px 20px',
+        backgroundColor: isUser ? 'transparent' : 'var(--vio-bg-secondary)',
+        borderBottom: '1px solid var(--vio-bg-tertiary)',
+      }}
+    >
+      {/* Avatar */}
+      <div
+        style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isUser ? 'var(--vio-bg-tertiary)' : 'rgba(0, 255, 0, 0.1)',
+          border: `1px solid ${isUser ? 'var(--vio-border)' : 'var(--vio-green-dim)'}`,
+          flexShrink: 0,
+        }}
+      >
+        {isUser ? (
+          <User size={16} color="var(--vio-text-secondary)" />
+        ) : (
+          <Bot size={16} color="var(--vio-green)" />
+        )}
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Header: provider badge */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '6px',
-        }}>
-          <span style={{
-            fontSize: '13px',
-            fontWeight: 600,
-            color: isUser ? 'var(--vio-text-secondary)' : 'var(--vio-green)',
-          }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '6px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: isUser ? 'var(--vio-text-secondary)' : 'var(--vio-green)',
+            }}
+          >
             {isUser ? t('chat.you') : t('chat.orchestra')}
           </span>
 
           {message.provider && (
-            <span style={{
-              fontSize: '11px',
-              padding: '2px 8px',
-              borderRadius: '10px',
-              backgroundColor: `${providerColors[message.provider]}20`,
-              color: providerColors[message.provider],
-              border: `1px solid ${providerColors[message.provider]}40`,
-            }}>
+            <span
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                borderRadius: '10px',
+                backgroundColor: `${providerColors[message.provider]}20`,
+                color: providerColors[message.provider],
+                border: `1px solid ${providerColors[message.provider]}40`,
+              }}
+            >
               {providerNames[message.provider]}
             </span>
           )}
 
-          {message.verified && (
-            <CheckCircle size={14} color="var(--vio-green)" />
-          )}
+          {message.verified && <CheckCircle size={14} color="var(--vio-green)" />}
 
           {message.qualityScore !== undefined && message.qualityScore < 0.7 && (
             <AlertCircle size={14} color="var(--vio-orange)" />
@@ -148,42 +169,50 @@ function ChatMessageInner({ message }: ChatMessageProps) {
 
         {/* G3: Thinking / reasoning block */}
         {message.thinking && (
-          <details style={{
-            marginBottom: '10px',
-            borderRadius: '8px',
-            border: '1px solid var(--vio-border)',
-            backgroundColor: 'var(--vio-bg-secondary)',
-            padding: '0',
-          }}>
-            <summary style={{
-              cursor: 'pointer',
-              padding: '8px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--vio-text-secondary)',
-              userSelect: 'none',
-            }}>
+          <details
+            style={{
+              marginBottom: '10px',
+              borderRadius: '8px',
+              border: '1px solid var(--vio-border)',
+              backgroundColor: 'var(--vio-bg-secondary)',
+              padding: '0',
+            }}
+          >
+            <summary
+              style={{
+                cursor: 'pointer',
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--vio-text-secondary)',
+                userSelect: 'none',
+              }}
+            >
               💭 Reasoning
             </summary>
-            <div style={{
-              padding: '8px 12px 12px',
-              fontSize: '12.5px',
-              lineHeight: '1.6',
-              color: 'var(--vio-text-secondary)',
-              fontStyle: 'italic',
-              whiteSpace: 'pre-wrap',
-            }}>
+            <div
+              style={{
+                padding: '8px 12px 12px',
+                fontSize: '12.5px',
+                lineHeight: '1.6',
+                color: 'var(--vio-text-secondary)',
+                fontStyle: 'italic',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
               {message.thinking}
             </div>
           </details>
         )}
 
         {/* Message body with Markdown */}
-        <div style={{
-          fontSize: '14px',
-          lineHeight: '1.7',
-          color: 'var(--vio-text-primary)',
-        }}>
+        <div
+          style={{
+            fontSize: '14px',
+            lineHeight: '1.7',
+            color: 'var(--vio-text-primary)',
+          }}
+        >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -192,14 +221,17 @@ function ChatMessageInner({ message }: ChatMessageProps) {
                 const match = /language-(\w+)/.exec(className || '');
                 const inline = !match;
                 return inline ? (
-                  <code style={{
-                    backgroundColor: 'var(--vio-bg-tertiary)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    fontFamily: 'var(--vio-font-mono)',
-                    color: 'var(--vio-cyan)',
-                  }} {...rest}>
+                  <code
+                    style={{
+                      backgroundColor: 'var(--vio-bg-tertiary)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontFamily: 'var(--vio-font-mono)',
+                      color: 'var(--vio-cyan)',
+                    }}
+                    {...rest}
+                  >
                     {children}
                   </code>
                 ) : (
@@ -241,10 +273,22 @@ function ChatMessageInner({ message }: ChatMessageProps) {
                   <img
                     src={att.dataUrl}
                     alt={att.name}
-                    style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
+                    style={{
+                      width: '100%',
+                      maxHeight: '180px',
+                      objectFit: 'cover',
+                      borderRadius: '6px',
+                      marginBottom: '6px',
+                    }}
                   />
                 ) : null}
-                <div style={{ fontSize: '12px', color: 'var(--vio-text-secondary)', wordBreak: 'break-word' }}>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--vio-text-secondary)',
+                    wordBreak: 'break-word',
+                  }}
+                >
                   📎 {t('chat.attachment')}: {att.name}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--vio-text-dim)' }}>
@@ -256,16 +300,21 @@ function ChatMessageInner({ message }: ChatMessageProps) {
         )}
 
         {/* Footer: timestamp + model info */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginTop: '8px',
-          fontSize: '11px',
-          color: 'var(--vio-text-dim)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '8px',
+            fontSize: '11px',
+            color: 'var(--vio-text-dim)',
+          }}
+        >
           <Clock size={11} />
-          {new Date(message.timestamp).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.timestamp).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
 
           {message.model && (
             <>
@@ -278,7 +327,11 @@ function ChatMessageInner({ message }: ChatMessageProps) {
             <>
               <span style={{ color: 'var(--vio-border)' }}>•</span>
               <Zap size={11} />
-              <span>{message.latencyMs < 1000 ? `${message.latencyMs}ms` : `${(message.latencyMs / 1000).toFixed(1)}s`}</span>
+              <span>
+                {message.latencyMs < 1000
+                  ? `${message.latencyMs}ms`
+                  : `${(message.latencyMs / 1000).toFixed(1)}s`}
+              </span>
             </>
           )}
 
@@ -325,8 +378,10 @@ function ChatMessageInner({ message }: ChatMessageProps) {
   );
 }
 
-const ChatMessage = memo(ChatMessageInner, (prev: ChatMessageProps, next: ChatMessageProps) =>
-  prev.message.id === next.message.id && prev.message.content === next.message.content
+const ChatMessage = memo(
+  ChatMessageInner,
+  (prev: ChatMessageProps, next: ChatMessageProps) =>
+    prev.message.id === next.message.id && prev.message.content === next.message.content,
 );
 
 export default ChatMessage;
