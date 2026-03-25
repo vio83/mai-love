@@ -2036,11 +2036,11 @@ async def chat(http_request: Request, request: ChatRequest):
         if conv and conv.get("messages"):
             _history_len = len(conv["messages"])
 
-        _jet_decision = _jet.decide(
+        _jet_decision = _jet.dec(
             message=request.message,
             model=request.model or "auto",
             runtime_mode=runtime_mode,
-            explicit_provider=request.provider,
+            explicit_provr=request.provider,
             available_cloud=None,
             history_len=_history_len,
         )
@@ -2410,7 +2410,7 @@ async def ultra_classify(request: dict = Body(...)):
     if not message:
         raise HTTPException(400, "message required")
     jet = get_jet_engine()
-    decision = jet.decide(message=message, runtime_mode=request.get("mode", "hybrid"))
+    decision = jet.dec(message=message, runtime_mode=request.get("mode", "hybrid"))
     try:
         from backend.core.knowledge_taxonomy import classify_text, get_optimal_config
         tax_results = classify_text(message, max_results=3)

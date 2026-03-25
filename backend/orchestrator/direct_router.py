@@ -66,6 +66,10 @@ from backend.core.errors import (
 )
 from backend.core.network import get_connection_pool
 
+# === JETENGINE™ + KNOWLEDGE TAXONOMY ===
+from backend.core.jet_engine import get_jet_engine
+from backend.core.knowledge_taxonomy import get_optimal_config
+
 # Alias per retrocompatibilità (server.py lo importa come VIO83_SYSTEM_PROMPT)
 VIO83_SYSTEM_PROMPT = VIO83_MASTER_PROMPT
 logger = logging.getLogger(__name__)
@@ -1314,6 +1318,33 @@ def _post_call_learn(messages: list[dict], result: dict, request_type: str) -> N
         pass  # Mai bloccare per errori di learning
 
 
+def _validate_structured_output(content: str, response_format: dict | None) -> dict | None:
+    """
+    Valida che il contenuto sia JSON valido quando response_format.type == 'json_schema'.
+    Ritorna il dict parsato se OK, None se non richiesto, raise se invalido.
+    """
+    if not response_format:
+        return None
+    fmt_type = response_format.get("type", "")
+    if fmt_type not in ("json_object", "json_schema"):
+        return None
+    # Prova a parsare JSON dal contenuto (potrebbe avere markdown code blocks)
+    text = content.strip()
+    if text.startswith("```"):
+        # Rimuovi code fence
+        lines = text.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning("Structured output validation failed: %s", e)
+        return None
+
+
 async def orchestrate(
     messages: list[dict],
     mode: str = "local",
@@ -1336,21 +1367,63 @@ async def orchestrate(
     G3: show_thinking per esporre reasoning/thinking blocks.
     """
     last_msg = messages[-1]["content"] if messages else ""
+    t0 = time.perf_counter()
+
+    # ✈️  JetEngine™: cache semantica ultra-veloce + routing intelligente
+    jet = get_jet_engine()
+    jet_decision = jet.dec(
+        message=last_msg,
+        model=model or "auto",
+        runtime_mode=mode,
+        explicit_provr=provider if provider != "ollama" or mode != "local" else None,
+        history_len=len(messages),
+    )
+
+    # TurboCache hit → risposta istantanea (<2ms)
+    if jet_decision.cache_hit and jet_decision.cached_resp:
+        cached = jet_decision.cached_resp
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.info("JetEngine cache_hit intent=%s latency=%.1fms", jet_decision.profile.intent, latency_ms)
+        cached["_diagnostic"] = {
+            "cache_hit": True, "latency_ms": round(latency_ms, 1),
+            "intent": jet_decision.profile.intent, "complexity": jet_decision.profile.score,
+        }
+        return cached
+
+    # 🧬 Knowledge Taxonomy: configurazione ottimale per dominio
+    try:
+        tax_config = get_optimal_config(last_msg)
+        tax_provider = tax_config.get("provider")
+        tax_temperature = tax_config.get("temperature")
+        tax_max_tokens = tax_config.get("max_tokens")
+        tax_system_frag = tax_config.get("system_fragment", "")
+    except Exception:
+        tax_provider = None
+        tax_temperature = None
+        tax_max_tokens = None
+        tax_system_frag = ""
 
     # Routing intelligente — classifica PRIMA di costruire il prompt
     request_type = classify_request(last_msg) if auto_routing else "conversation"
     effective_temperature, effective_max_tokens, prefer_fast_model = _effective_generation_params(
         request_type=request_type,
         last_msg=last_msg,
-        requested_temperature=temperature,
-        requested_max_tokens=max_tokens,
+        requested_temperature=tax_temperature if tax_temperature is not None else temperature,
+        requested_max_tokens=tax_max_tokens if tax_max_tokens is not None else max_tokens,
     )
 
     force_local = _force_local_orchestration(mode)
     if force_local:
         effective_provr = "ollama"
+    elif jet_decision.routing.provider != "cache" and auto_routing:
+        # JetEngine routing ha priorità (local-first / parallel-sprint)
+        effective_provr = jet_decision.routing.provider
     else:
         effective_provr = route_to_provr(request_type, mode) if auto_routing else provider
+
+    # Taxonomy override: se tax consiglia provider diverso e non siamo forzati
+    if tax_provider and not force_local and auto_routing and effective_provr != "ollama":
+        effective_provr = tax_provider
 
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     has_system = any(m.get("role") == "system" for m in messages)
@@ -1385,6 +1458,10 @@ async def orchestrate(
                 system_prompt += reasoning_ctx
         except Exception:
             pass
+
+        # === KNOWLEDGE TAXONOMY: frammento di dominio specializzato ===
+        if tax_system_frag:
+            system_prompt += f"\n\n{tax_system_frag}"
 
         messages = [{"role": "system", "content": system_prompt}] + messages
 
@@ -1431,6 +1508,22 @@ async def orchestrate(
                 result["execution_profile"] = _execution_profile()
                 result["forced_local"] = force_local
 
+                # ✈️ JetEngine: salva in TurboCache
+                jet.cache_store(last_msg, local_model, result)
+
+                # 📊 Diagnostic
+                latency_ms = (time.perf_counter() - t0) * 1000
+                result["_diagnostic"] = {
+                    "cache_hit": False,
+                    "latency_ms": round(latency_ms, 1),
+                    "intent": jet_decision.profile.intent,
+                    "complexity": jet_decision.profile.score,
+                    "jet_routing": jet_decision.routing.reason,
+                    "provider": "ollama",
+                    "model": local_model,
+                    "fallback_idx": idx,
+                }
+
                 # === POST-CALL: Auto-learning + Self-optimization ===
                 _post_call_learn(messages, result, request_type)
 
@@ -1461,6 +1554,27 @@ async def orchestrate(
         result["execution_profile"] = _execution_profile()
         result["forced_local"] = force_local
 
+        # G1: Validazione structured output post-risposta
+        if response_format:
+            parsed = _validate_structured_output(result.get("content", ""), response_format)
+            if parsed is not None:
+                result["structured_output"] = parsed
+
+        # ✈️ JetEngine: salva in TurboCache
+        jet.cache_store(last_msg, model or effective_provr, result)
+
+        # 📊 Diagnostic
+        latency_ms = (time.perf_counter() - t0) * 1000
+        result["_diagnostic"] = {
+            "cache_hit": False,
+            "latency_ms": round(latency_ms, 1),
+            "intent": jet_decision.profile.intent,
+            "complexity": jet_decision.profile.score,
+            "jet_routing": jet_decision.routing.reason,
+            "provider": effective_provr,
+            "model": model,
+        }
+
         # === POST-CALL: Auto-learning + Self-optimization ===
         _post_call_learn(messages, result, request_type)
 
@@ -1485,6 +1599,22 @@ async def orchestrate(
                 result["fallback_from"] = effective_provr
                 result["execution_profile"] = _execution_profile()
                 result["forced_local"] = force_local
+
+                # ✈️ JetEngine: salva in TurboCache anche fallback
+                jet.cache_store(last_msg, fallback_provr, result)
+
+                # 📊 Diagnostic
+                latency_ms = (time.perf_counter() - t0) * 1000
+                result["_diagnostic"] = {
+                    "cache_hit": False,
+                    "latency_ms": round(latency_ms, 1),
+                    "intent": jet_decision.profile.intent,
+                    "complexity": jet_decision.profile.score,
+                    "jet_routing": jet_decision.routing.reason,
+                    "provider": fallback_provr,
+                    "fallback_from": effective_provr,
+                }
+
                 return result
             except Exception as fallback_error:
                 raise Exception(
