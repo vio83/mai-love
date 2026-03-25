@@ -52,6 +52,7 @@ export interface Message {
   qualityScore?: number; // Cross-check quality badge
   verified?: boolean;    // RAG verification status
   attachments?: Attachment[];
+  thinking?: string;     // G3: AI reasoning/thinking blocks
 }
 
 export interface Conversation {

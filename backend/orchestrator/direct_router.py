@@ -20,6 +20,7 @@ from typing import Optional, AsyncGenerator
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
+from backend.core.tracing import traced_span, record_ai_call
 from backend.config.providers import (
     CLOUD_PROVRS,
     FREE_CLOUD_PROVRS,
@@ -992,11 +993,28 @@ async def call_cloud(
     Supporta provider OpenAI-compatible + endpoint specifici Anthropic/Perplexity.
     G1: response_format per structured output (JSON mode).
     G3: show_thinking per catturare reasoning/thinking blocks.
+    G4: tracing OpenTelemetry per osservabilità.
     """
     resolved_model = _resolve_cloud_model(provider, model)
+    _call_start = time.time()
 
     if provider == "claude":
-        return await _call_cloud_claude(
+        result = await _call_cloud_claude(
+            model=resolved_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=response_format,
+            show_thinking=show_thinking,
+        )
+    elif provider == "perplexity":
+        result = await _call_cloud_perplexity(
+            model=resolved_model,
+            messages=messages,
+        )
+    else:
+        result = await _call_cloud_compatible_chat(
+            provider=provider,
             model=resolved_model,
             messages=messages,
             temperature=temperature,
@@ -1005,21 +1023,17 @@ async def call_cloud(
             show_thinking=show_thinking,
         )
 
-    if provider == "perplexity":
-        return await _call_cloud_perplexity(
-            model=resolved_model,
-            messages=messages,
-        )
+    # G4: registra span di tracing
+    _call_ms = (time.time() - _call_start) * 1000
+    with traced_span("call_cloud", {
+        "ai.provider": provider,
+        "ai.model": resolved_model,
+        "ai.tokens_used": result.get("tokens_used", 0),
+        "ai.latency_ms": round(_call_ms, 2),
+    }):
+        pass  # span registra solo attributi, la chiamata è già completata
 
-    return await _call_cloud_compatible_chat(
-        provider=provider,
-        model=resolved_model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        response_format=response_format,
-        show_thinking=show_thinking,
-    )
+    return result
 
 
 # === OLLAMA DIRETTO ===

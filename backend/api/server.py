@@ -1280,6 +1280,18 @@ async def lifespan(app: FastAPI):
 
     print("✅ VIO 83 AI ORCHESTRA — TUTTI I MOTORI AUTO-CRESCENTI ATTIVI")
 
+    # === G4: OpenTelemetry Tracing ===
+    try:
+        from backend.core.tracing import init_tracing, tracing_stats
+        otel_active = init_tracing()
+        if otel_active:
+            ts = tracing_stats()
+            print(f"📡 OpenTelemetry: attivo — exporter={ts['exporter']}")
+        else:
+            print("📡 OpenTelemetry: disabilitato (OTEL_ENABLED=false o dipendenze mancanti)")
+    except Exception as e:
+        print(f"⚠️  OpenTelemetry init: {e}")
+
     yield
 
     # === SHUTDOWN ===

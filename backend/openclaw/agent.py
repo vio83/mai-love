@@ -14,6 +14,7 @@ Uses Ollama locally or cloud providers for reasoning.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import re
@@ -406,11 +407,12 @@ async def run_agent_native(
                 data.get("stop_reason", "")
 
             else:
-                # OpenAI-compatible format
+                # OpenAI-compatible format — G2: enable parallel tool calls
                 payload = {
                     "model": resolved_model,
                     "messages": messages,
                     "tools": tools,
+                    "parallel_tool_calls": True,
                     "max_tokens": 2048,
                     "temperature": 0.1,
                 }
@@ -458,16 +460,39 @@ async def run_agent_native(
             result.answer = response_text
             break
 
-        # Execute each tool call
-        for tu in tool_uses:
-            tool_name_full = tu.get("name", "")
-            parts = tool_name_full.split("__", 1)
+        # Execute tool calls — G2: parallel execution when multiple tools
+        async def _exec_one_tool(tu_item):
+            """Execute a single tool call, returns (tu_item, plugin_id, tool_name, params, tool_result)."""
+            tn_full = tu_item.get("name", "")
+            parts = tn_full.split("__", 1)
             if len(parts) == 2:
-                plugin_id, tool_name = parts
+                pid, tname = parts
             else:
-                plugin_id, tool_name = "", tool_name_full
+                pid, tname = "", tn_full
+            prms = tu_item.get("input", {})
+            tres = await asyncio.to_thread(registry.execute, pid, tname, prms)
+            return tu_item, pid, tname, prms, tres
 
-            params = tu.get("input", {})
+        # Run all tool calls concurrently
+        tool_exec_results = await asyncio.gather(
+            *[_exec_one_tool(tu) for tu in tool_uses],
+            return_exceptions=True,
+        )
+
+        # Collect results for feeding back to the model
+        assistant_tool_calls_openai = []
+        tool_messages_openai = []
+        claude_tool_result_blocks = []
+
+        for idx, exec_res in enumerate(tool_exec_results):
+            if isinstance(exec_res, Exception):
+                tu = tool_uses[idx]
+                tool_name_full = tu.get("name", "")
+                tool_result = {"error": str(exec_res)}
+                plugin_id, tool_name, params = "", tool_name_full, tu.get("input", {})
+            else:
+                tu, plugin_id, tool_name, params, tool_result = exec_res
+                tool_name_full = tu.get("name", "")
 
             result.steps.append(AgentStep(
                 step=iteration + 1, action="tool_call",
@@ -475,8 +500,6 @@ async def run_agent_native(
                 tool_call=ToolCall(plugin_id, tool_name, params),
                 latency_ms=step_ms,
             ))
-
-            tool_result = registry.execute(plugin_id, tool_name, params)
             result.steps.append(AgentStep(
                 step=iteration + 1, action="tool_result",
                 content=json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
@@ -487,30 +510,41 @@ async def run_agent_native(
             if tool_id not in result.tools_used:
                 result.tools_used.append(tool_id)
 
-            # Feed back to AI
+            result_json = json.dumps(tool_result, ensure_ascii=False, default=str)[:2000]
+
             if is_claude:
-                messages.append({"role": "assistant", "content": data.get("content", [])})
-                messages.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": tu.get("id", ""),
-                        "content": json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
-                    }],
+                claude_tool_result_blocks.append({
+                    "type": "tool_result",
+                    "tool_use_id": tu.get("id", ""),
+                    "content": result_json,
                 })
             else:
-                messages.append({
-                    "role": "assistant",
-                    "content": response_text,
-                    "tool_calls": [{"id": tu.get("id", ""), "type": "function",
-                                    "function": {"name": tool_name_full,
-                                                 "arguments": json.dumps(params)}}],
+                assistant_tool_calls_openai.append({
+                    "id": tu.get("id", ""),
+                    "type": "function",
+                    "function": {
+                        "name": tool_name_full,
+                        "arguments": json.dumps(params),
+                    },
                 })
-                messages.append({
+                tool_messages_openai.append({
                     "role": "tool",
                     "tool_call_id": tu.get("id", ""),
-                    "content": json.dumps(tool_result, ensure_ascii=False, default=str)[:2000],
+                    "content": result_json,
                 })
+
+        # Feed all results back to the model in one turn
+        if is_claude:
+            messages.append({"role": "assistant", "content": data.get("content", [])})
+            messages.append({"role": "user", "content": claude_tool_result_blocks})
+        else:
+            messages.append({
+                "role": "assistant",
+                "content": response_text,
+                "tool_calls": assistant_tool_calls_openai,
+            })
+            for tm in tool_messages_openai:
+                messages.append(tm)
     else:
         result.status = "max_iterations"
         if not result.answer:

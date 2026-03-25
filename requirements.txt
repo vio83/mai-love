@@ -50,6 +50,13 @@ tavily-python>=0.5.0
 # === Metriche e Osservabilità ===
 # prometheus-client>=0.21.0  # Metriche Prometheus
 
+# === OpenTelemetry Tracing (G4) — Osservabilità distribuita ===
+# Attiva con OTEL_ENABLED=true in .env
+# Se non installati, il sistema funziona in modalità noop (zero overhead)
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp>=1.25.0
+
 # === Error Tracking (GAP-01) ===
 sentry-sdk[fastapi]>=2.0.0   # Error tracking produzione (SENTRY_DSN in .env)
 
