@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type { BackendConversation } from '../services/conversationService';
 import { deleteBackendConversation, fetchConversation, fetchConversations } from '../services/conversationService';
+import { extractApiKeysFromSettings, fetchAllSettings, saveSetting } from '../services/settingsService';
 import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
 
 interface AppState {
@@ -40,6 +41,7 @@ interface AppState {
   deleteConversation: (id: string) => void;
   syncConversationId: (localId: string, backendId: string) => void;
   loadConversationsFromBackend: () => Promise<void>;
+  loadSettingsFromBackend: () => Promise<void>;
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
   activateFullOrchestration: () => void;
@@ -151,7 +153,7 @@ export const useAppStore = create<AppState>()(
                   c.id === id ? { ...c, messages } : c
                 ),
               }));
-            }).catch(() => {});
+            }).catch(() => { });
           }
         },
 
@@ -183,6 +185,16 @@ export const useAppStore = create<AppState>()(
               }),
             },
           }));
+          // Sync non-sensibili al backend (best-effort)
+          const syncable: Record<string, string> = {};
+          if (newSettings.theme) syncable['theme'] = newSettings.theme;
+          if (newSettings.language) syncable['language'] = newSettings.language;
+          if (newSettings.ollamaHost) syncable['ollama_host'] = newSettings.ollamaHost;
+          if (newSettings.ollamaModel) syncable['ollama_model'] = newSettings.ollamaModel;
+          if (newSettings.fontSize !== undefined) syncable['font_size'] = String(newSettings.fontSize);
+          for (const [k, v] of Object.entries(syncable)) {
+            saveSetting(k, v).catch(() => {});
+          }
         },
 
         setMode: (mode) => {
@@ -283,6 +295,61 @@ export const useAppStore = create<AppState>()(
             });
           } catch {
             // Backend non raggiungibile — mantieni conversazioni locali
+          }
+        },
+
+        loadSettingsFromBackend: async () => {
+          try {
+            const backendSettings = await fetchAllSettings();
+            const apiKeysFromBackend = extractApiKeysFromSettings(backendSettings);
+            const currentSettings = get().settings;
+
+            // Merge: backend sovrascrive solo se ha dati
+            const merged: Partial<AppSettings> = {};
+            if (backendSettings['theme'] && ['vio-dark', 'light'].includes(backendSettings['theme'])) {
+              merged.theme = backendSettings['theme'] as 'vio-dark' | 'light';
+            }
+            if (backendSettings['language'] && ['it', 'en'].includes(backendSettings['language'])) {
+              merged.language = backendSettings['language'] as 'it' | 'en';
+            }
+            if (backendSettings['ollama_host']) {
+              merged.ollamaHost = backendSettings['ollama_host'];
+            }
+            if (backendSettings['ollama_model']) {
+              merged.ollamaModel = backendSettings['ollama_model'];
+            }
+            if (backendSettings['font_size']) {
+              const fs = parseInt(backendSettings['font_size'], 10);
+              if (fs >= 10 && fs <= 24) merged.fontSize = fs;
+            }
+
+            // Merge API keys: backend aggiunge, non sovrascrive chiavi locali esistenti
+            const existingKeys = new Map(
+              currentSettings.apiKeys.map(k => [k.provider, k]),
+            );
+            for (const [provider, key] of Object.entries(apiKeysFromBackend)) {
+              if (!existingKeys.has(provider as AIProvider) && key.length >= 5) {
+                existingKeys.set(provider as AIProvider, {
+                  provider: provider as AIProvider,
+                  key,
+                  isValid: true,
+                  lastChecked: Date.now(),
+                });
+              }
+            }
+            merged.apiKeys = Array.from(existingKeys.values());
+
+            set(state => ({
+              settings: {
+                ...state.settings,
+                ...merged,
+                orchestrator: normalizeOrchestrator({
+                  ...state.settings.orchestrator,
+                }),
+              },
+            }));
+          } catch {
+            // Backend non raggiungibile — mantieni settings locali
           }
         },
 

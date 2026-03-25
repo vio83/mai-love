@@ -1,6 +1,7 @@
 import { AlertCircle, Bot, Check, Eye, EyeOff, Globe, HardDrive, X, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../hooks/useI18n';
+import { saveApiKey, saveSetting } from '../../services/settingsService';
 import { useAppStore } from '../../stores/appStore';
 import type { AIProvider } from '../../types';
 import { RuntimeAppsSettings } from './RuntimeAppsSettings';

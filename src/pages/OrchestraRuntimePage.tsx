@@ -153,6 +153,19 @@ interface KnowledgeSchedulerPayload {
   };
 }
 
+interface CoreStatusPayload {
+  ops_autopilot?: {
+    last_harmony_score?: number;
+    last_free_gb?: number;
+    min_free_gb?: number;
+    signals?: {
+      vscode_running?: boolean;
+      claude_running?: boolean;
+      github_connected?: boolean;
+    };
+  };
+}
+
 function computeErrorRate(errors: { ts: string }[], minutes: number) {
   const windowMs = minutes * 60 * 1000;
   const now = Date.now();
@@ -226,6 +239,7 @@ export default function OrchestraRuntimePage() {
   const [knowledgeWatch, setKnowledgeWatch] = useState<KnowledgeWatchPayload | null>(null);
   const [knowledgeScores, setKnowledgeScores] = useState<DomainScoresPayload | null>(null);
   const [knowledgeScheduler, setKnowledgeScheduler] = useState<KnowledgeSchedulerPayload | null>(null);
+  const [coreStatus, setCoreStatus] = useState<CoreStatusPayload | null>(null);
   const [refreshingKnowledge, setRefreshingKnowledge] = useState(false);
   const [updatingKnowledgePolicy, setUpdatingKnowledgePolicy] = useState(false);
   const [exportingAudit, setExportingAudit] = useState(false);
@@ -277,13 +291,14 @@ export default function OrchestraRuntimePage() {
     };
 
     const bootstrap = async () => {
-      const [exts, activity, registry, watch, scores, scheduler] = await Promise.all([
+      const [exts, activity, registry, watch, scores, scheduler, core] = await Promise.all([
         fetchJson('http://localhost:4000/claude/extensions'),
         fetchJson('http://localhost:4000/claude/activity-summary'),
         fetchJson('http://localhost:4000/knowledge/registry'),
         fetchJson('http://localhost:4000/knowledge/legal-watch?jurisdiction=all'),
         fetchJson('http://localhost:4000/knowledge/domain-scores'),
         fetchJson('http://localhost:4000/knowledge/scheduler'),
+        fetchJson('http://localhost:4000/core/status'),
       ]);
 
       if (cancelled) return;
@@ -294,6 +309,7 @@ export default function OrchestraRuntimePage() {
       if (watch?.status === 'ok') setKnowledgeWatch(watch as KnowledgeWatchPayload);
       if (scores?.status === 'ok') setKnowledgeScores(scores as DomainScoresPayload);
       if (scheduler?.status === 'ok') setKnowledgeScheduler(scheduler as KnowledgeSchedulerPayload);
+      if (core) setCoreStatus(core as CoreStatusPayload);
 
       const strictFromBackend = scheduler?.policy?.strict_evidence_mode ?? scores?.strict_evidence_mode;
       if (typeof strictFromBackend === 'boolean') {
@@ -320,6 +336,10 @@ export default function OrchestraRuntimePage() {
   const onlineCount = state.targets.filter((target) => target.status === 'online').length;
   const strictEvidenceMode = settings.orchestrator.strictEvidenceMode ?? true;
   const orchestrationAllOn = settings.orchestrator.autoRouting && settings.orchestrator.crossCheckEnabled && settings.orchestrator.ragEnabled;
+  const opsHarmony = coreStatus?.ops_autopilot?.last_harmony_score ?? 0;
+  const opsFreeGb = coreStatus?.ops_autopilot?.last_free_gb ?? 0;
+  const opsMinFreeGb = coreStatus?.ops_autopilot?.min_free_gb ?? 45;
+  const opsSignals = coreStatus?.ops_autopilot?.signals;
 
   const runNow = async () => {
     if (runningTick) return;
@@ -545,6 +565,8 @@ export default function OrchestraRuntimePage() {
         {[
           { icon: ShieldCheck, label: t('runtimePage.targetOnline'), value: `${onlineCount}/${state.targets.length}`, color: 'var(--vio-green)' },
           { icon: Gauge, label: t('runtimePage.avgScore'), value: `${avgOptimization}%`, color: 'var(--vio-cyan)' },
+          { icon: Activity, label: 'Ops Harmony', value: `${opsHarmony.toFixed(1)}%`, color: opsHarmony >= 85 ? 'var(--vio-green)' : opsHarmony >= 70 ? 'var(--vio-yellow)' : 'var(--vio-red)' },
+          { icon: Cpu, label: `Disk Free (>=${opsMinFreeGb}GB)`, value: `${opsFreeGb.toFixed(1)} GB`, color: opsFreeGb >= opsMinFreeGb ? 'var(--vio-green)' : 'var(--vio-red)' },
           { icon: AlertTriangle, label: t('runtimePage.errors', { minutes: String(ERROR_RATE_WINDOW_MINUTES) }), value: `${globalErrorRate30m.total} (${globalErrorRate30m.perHour}/h)`, color: 'var(--vio-red)' },
           { icon: Clock3, label: t('runtimePage.tickInterval'), value: formatInterval(state.tickIntervalMs), color: 'var(--vio-magenta)' },
           { icon: RefreshCw, label: t('runtimePage.lastOpt'), value: new Date(state.lastOptimizationAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'it-IT', { hour: '2-digit', minute: '2-digit' }), color: 'var(--vio-yellow)' },
@@ -568,6 +590,31 @@ export default function OrchestraRuntimePage() {
           </motion.div>
         ))}
       </div>
+
+      {opsSignals && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {[ 
+            { label: 'VS Code', ok: Boolean(opsSignals.vscode_running) },
+            { label: 'Claude', ok: Boolean(opsSignals.claude_running) },
+            { label: 'GitHub', ok: Boolean(opsSignals.github_connected) },
+          ].map((sig) => (
+            <span
+              key={sig.label}
+              style={{
+                border: `1px solid ${sig.ok ? 'rgba(0,255,0,0.4)' : 'rgba(255,80,80,0.4)'}`,
+                borderRadius: '999px',
+                padding: '4px 10px',
+                fontSize: '10px',
+                color: sig.ok ? 'var(--vio-green)' : 'var(--vio-red)',
+                background: sig.ok ? 'rgba(0,255,0,0.08)' : 'rgba(255,80,80,0.08)',
+                fontWeight: 700,
+              }}
+            >
+              {sig.label}: {sig.ok ? 'OK' : 'DOWN'}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
