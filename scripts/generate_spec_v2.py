@@ -445,7 +445,7 @@ add_table(['Endpoint', 'Descrizione', 'Note'], [
     ('POST /knowledge/query', 'Query RAG sulla knowledge base', 'Risultati con citazioni'),
     ('POST /feedback', 'Feedback utente (thumbs up/down)', 'Per miglioramento continuo'),
     ('GET /conversations', 'Lista conversazioni salvate', 'Paginazione + filtri'),
-    ('POST /virtualpartner/chat', 'Chat VirtualPartner AI', 'Emotion/memory/personality'),
+
 ])
 
 doc.add_page_break()

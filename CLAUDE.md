@@ -4,7 +4,7 @@
 
 - Utente: Viorica Porcu (vio83)
 - Mac: MacBook Air M1, username padronavio
-- GitHub: <https://github.com/vio83> (repo: mai-love)
+- GitHub: <https://github.com/vio83> (repo: vio83-ai-orchestra)
 - Email: <porcu.v.83@gmail.com>
 
 ## Architettura sistema (verificata 25/03/2026)

@@ -208,12 +208,8 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
     ];
 
     updateSettings({ apiKeys: nextApiKeys });
-    // Sync al backend (best-effort — non blocca UI)
-    fetch(`/api/settings/api_key_${provider}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: key }),
-    }).catch(() => {});
+    // Sync al backend via settingsService (best-effort — non blocca UI)
+    saveApiKey(provider, key).catch(() => {});
     setSaved((prev) => ({ ...prev, [provider]: true }));
     setTimeout(() => setSaved((prev) => ({ ...prev, [provider]: false })), 2000);
   };
@@ -223,11 +219,8 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
     if (!/^https?:\/\//.test(normalizedHost)) return;
 
     updateSettings({ ollamaHost: normalizedHost });
-    fetch(`/api/settings/ollama_host`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: normalizedHost }),
-    }).catch(() => {});
+    // Sync al backend via settingsService (best-effort — non blocca UI)
+    saveSetting('ollama_host', normalizedHost).catch(() => {});
     setHostSaved(true);
     setTimeout(() => setHostSaved(false), 2000);
   };
@@ -660,7 +653,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">{t('settingsPanel.vectorDb')}</span>
-                    <span className="text-white">ChromaDB</span>
+                    <span className="text-white">VectorEngine™ + SQLite FTS5</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">{t('settingsPanel.ollamaHost')}</span>

@@ -65,7 +65,7 @@ VIO 83 AI Orchestra is a **local-first desktop AI app** for macOS.
 | Analytics page                                     | ✅ Active                                                  |
 | Tauri 2 desktop shell                              | ✅ Builds on macOS                                         |
 | Cloud API routing                                  | ⚠️ Keys configurable, routing locked local-only at runtime |
-| **VirtualPartnerAI (emotion/memory/relationship)** | ✅ **NEW** — 4 engines integrated + bridge                 |
+
 | **Stripe Billing Webhooks**                        | ✅ **NEW** — subscription management ready                 |
 | **IP Protection Certificate**                      | ✅ **NEW** — prior art timestamps + AGPL-3.0 enforcement   |
 

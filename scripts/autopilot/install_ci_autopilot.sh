@@ -68,7 +68,7 @@ if launchctl list | grep -q "$LABEL"; then
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "  ✅ CI Autopilot ATTIVO — PID: ${PID}"
-  echo "  → Repo monitorata: vio83/mai-love"
+  echo "  → Repo monitorata: vio83/vio83-ai-orchestra"
   echo "  → Log: $LOG_DIR/ci-autopilot-YYYYMMDD.log"
   echo "  → Status: data/autonomous_runtime/ci_autopilot_status.json"
   echo "  → Avvio automatico al login: SÌ (KeepAlive)"

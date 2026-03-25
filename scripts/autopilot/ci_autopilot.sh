@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # CI Autopilot — Daemon persistente 24/7
-# Monitora GitHub Actions (vio83/mai-love) e Apple Mail per fallimenti CI.
+# Monitora GitHub Actions (vio83/vio83-ai-orchestra) e Apple Mail per fallimenti CI.
 # Ri-esegue automaticamente i job falliti e invia notifiche macOS.
 # =============================================================================
 set -euo pipefail
@@ -18,7 +18,7 @@ RERUN_STATE_FILE="$REPO_ROOT/data/autonomous_runtime/ci_autopilot_rerun_state.js
 
 mkdir -p "$LOG_DIR" "$(dirname "$STATUS_FILE")"
 
-REPO="vio83/mai-love"
+REPO="vio83/vio83-ai-orchestra"
 POLL_INTERVAL=60          # secondi tra i controlli GitHub
 MAIL_CHECK_INTERVAL=120   # secondi tra i controlli Apple Mail
 MAX_RERUN_PER_RUN=2       # evita loop infiniti sullo stesso run ID

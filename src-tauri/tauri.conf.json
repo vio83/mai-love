@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://*.openai.com https://*.anthropic.com https://*.googleapis.com https://*.mistral.ai https://*.groq.com https://*.deepseek.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://*.openai.com https://*.anthropic.com https://*.googleapis.com https://*.mistral.ai https://*.groq.com https://*.deepseek.com https://*.together.xyz https://openrouter.ai https://*.openrouter.ai https://*.perplexity.ai https://x.ai https://*.x.ai; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:"
     }
   },
   "bundle": {

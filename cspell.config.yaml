@@ -6,7 +6,7 @@ ignorePaths:
   - "target/**"
   - "data/**"
   - "docs/**"
-  - "AI-LOVE/**"
+
   - "automation/**"
   - "logs/**"
   - "vio-tasks/**"
@@ -34,7 +34,7 @@ words:
   - "openrouter"
   - "openclaw"
   - "legalroom"
-  - "vpartner"
+
   - "zustand"
   - "pydantic"
   - "uvicorn"

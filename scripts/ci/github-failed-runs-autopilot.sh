@@ -44,7 +44,7 @@ Opzioni:
   --help                       Mostra aiuto
 
 Esempi:
-  $0 --repo vio83/mai-love
+  $0 --repo vio83/vio83-ai-orchestra
   $0 --owner vio83 --watch --interval-sec 60
 EOF
 }

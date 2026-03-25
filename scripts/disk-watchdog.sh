@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # VIO 83 — DISK SPACE WATCHDOG (ogni minuto)
-# Target: mantenere ≥40 GB liberi su /
+# Target: mantenere ≥45 GB liberi su /
 # Agisce SOLO se lo spazio scende sotto soglia
 # Azioni sicure e non distruttive — mai cancella dati utente
 # ============================================================
@@ -11,14 +11,15 @@ set -uo pipefail
 PROJECT_DIR="/Users/padronavio/Projects/vio83-ai-orchestra"
 LOG_FILE="$PROJECT_DIR/automation/logs/disk-watchdog.log"
 STATE_FILE="/tmp/vio83-disk-watchdog-state"
+FULL_SWEEP_STAMP="/tmp/vio83-disk-watchdog-full-sweep.ts"
 mkdir -p "$(dirname "$LOG_FILE")"
 
 # ─── SOGLIE (GB) ───
-# MacBook Air M1 228GB: disco quasi pieno (~23GB usati da sistema+venv)
-# Soglie calibrate sulla situazione reale del Mac
-TARGET_FREE_GB=15       # Obiettivo: tenere almeno 15 GB liberi
-WARN_FREE_GB=10         # Soglia warning: scatta pulizia media
-CRITICAL_FREE_GB=5      # Soglia critica: scatta pulizia aggressiva
+# MacBook Air M1 228GB: priorità massima alla salute dell'ambiente di sviluppo.
+# Soglie rialzate per mantenere headroom stabile per VS Code, build, cache e modelli locali.
+TARGET_FREE_GB=45       # Obiettivo: tenere almeno 45 GB liberi
+WARN_FREE_GB=35         # Soglia warning: scatta pulizia estesa
+CRITICAL_FREE_GB=25     # Soglia critica: scatta pulizia aggressiva + full sweep
 
 log() {
     echo "[$(date '+%Y-%m-%dT%H:%M:%S')] $1" >> "$LOG_FILE"
@@ -107,6 +108,17 @@ if [[ $FREE -lt $CRITICAL_FREE_GB ]]; then
 
     # Svuota Trash via rm (sicuro da daemon senza GUI)
     find ~/.Trash -mindepth 1 -delete 2>/dev/null || true
+
+    # Sweep completo rate-limited: al massimo ogni 6 ore
+    NOW_EPOCH=$(date +%s)
+    LAST_SWEEP=$(cat "$FULL_SWEEP_STAMP" 2>/dev/null || echo 0)
+    if [[ $((NOW_EPOCH - LAST_SWEEP)) -ge 21600 ]]; then
+        bash "$PROJECT_DIR/scripts/mac-free-space-NOW.sh" >/dev/null 2>&1 || true
+        echo "$NOW_EPOCH" > "$FULL_SWEEP_STAMP"
+        log "  ✔ Livello 3+: eseguito mac-free-space-NOW (rate-limited 6h)"
+    else
+        log "  ↷ Livello 3+: full sweep saltato (già eseguito nelle ultime 6h)"
+    fi
 
     log "  ✔ Livello 3: vite cache, dist, xcode, trash"
 fi

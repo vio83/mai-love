@@ -5,7 +5,7 @@ Riprendere e continuare lo sviluppo del progetto VIO AI Orchestra.
 
 ## Repository
 - Percorso locale: /Users/padronavio/Projects/vio83-ai-orchestra
-- GitHub: https://github.com/vio83/mai-love
+- GitHub: https://github.com/vio83/vio83-ai-orchestra
 - Sessione precedente: ~/.claude/projects/-Users-padronavio-Projects-vio83-ai-orchestra--claude-worktrees-festive-chatterjee/
 
 ## Stack tecnologico

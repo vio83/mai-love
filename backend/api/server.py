@@ -47,7 +47,7 @@ try:
 except ImportError:
     _LOG_STRUCTURED = False  # fallback: print() già presenti
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
@@ -84,22 +84,33 @@ from backend.automation.sponsor_growth_tracker import (
     get_funnel_metrics, get_cohort_analysis, estimate_ltv, get_health_dashboard,
     track_visitor, track_subscriber, track_paying_sponsor, track_churn,
 )
-from backend.virtualpartner import bridge as vpartner_bridge
+# AI-LOVE / VirtualPartner rimosso — progetto separato
 
-# RAG è disabilitato per compatibilità Python 3.14
+# RAG via VectorEngine™ (funziona su QUALSIASI Python, incluso 3.14)
 RAG_AVAILABLE = False
-# try:
-#     from backend.rag.engine import get_rag_engine, RAGSource
-#     RAG_AVAILABLE = True
-# except Exception as e:
-#     print(f"⚠️  RAG Engine legacy non disponibile: {e}")
+_vector_engine_instance = None
+
+try:
+    from backend.core.vector_engine import get_vector_engine
+    _vector_engine_instance = get_vector_engine()
+    _vector_engine_instance.initialize()
+    RAG_AVAILABLE = True
+    print("✅ RAG attivo via VectorEngine™ (SQLite + Ollama embeddings)")
+except Exception as e:
+    print(f"⚠️  VectorEngine™ non disponibile: {e}")
+
 
 # Stubs per evitare errori Pylance sui path RAG_AVAILABLE==False
 def get_rag_engine():
+    if _vector_engine_instance:
+        return _vector_engine_instance
     raise RuntimeError("RAG Engine non disponibile")
 
+
 class RAGSource:
-    def __init__(self, **kwargs: Any): ...
+    def __init__(self, **kwargs: Any):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 # Knowledge Base v2 — attiva quando il modulo è importabile (fallback SQLite FTS5)
 KB_AVAILABLE = False
@@ -1271,12 +1282,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️  ReasoningEngine init: {e}")
 
-    # === VIRTUALPARTNER AI ===
-    try:
-        await vpartner_bridge.init()
-        print("💖 VirtualPartnerAI: motori emotion/memory/personality/relationship ATTIVI")
-    except Exception as e:
-        print(f"⚠️  VirtualPartnerAI init: {e}")
+    # === VIRTUALPARTNER AI === (rimosso — progetto separato)
 
     print("✅ VIO 83 AI ORCHESTRA — TUTTI I MOTORI AUTO-CRESCENTI ATTIVI")
 
@@ -1295,10 +1301,6 @@ async def lifespan(app: FastAPI):
     yield
 
     # === SHUTDOWN ===
-    try:
-        await vpartner_bridge.shutdown()
-    except Exception:
-        pass
     print("🎵 VIO 83 AI ORCHESTRA — Shutdown in corso...")
 
     knowledge_task = getattr(app.state, "knowledge_auto_refresh_task", None)
@@ -3200,43 +3202,55 @@ async def api_set_setting(key: str, value: str | None = None, request: Request |
 
 @app.post("/rag/add")
 async def rag_add_source(request: RAGAddRequest):
-    """Aggiungi fonte certificata al database RAG."""
+    """Aggiungi fonte certificata al database RAG via VectorEngine™."""
     if not RAG_AVAILABLE:
-        raise HTTPException(status_code=503, detail="RAG Engine non disponibile")
-    rag = get_rag_engine()
-    source = RAGSource(
-        title=request.title, content=request.content,
-        source_type=request.source_type, url=request.url,
-        author=request.author, year=request.year,
-        reliability_score=request.reliability_score,
-    )
-    doc_id = rag.add_source(source)
-    return {"doc_id": doc_id, "status": "added"}
+        raise HTTPException(status_code=503, detail="VectorEngine™ non disponibile")
+    ve = get_rag_engine()
+    # Componi contenuto con metadata strutturati
+    doc_content = request.content
+    if request.title:
+        doc_content = f"[{request.title}] {doc_content}"
+    metadata = {
+        "title": request.title,
+        "source_type": request.source_type,
+        "url": request.url,
+        "author": request.author,
+        "year": request.year,
+        "reliability_score": request.reliability_score,
+    }
+    import hashlib as _hl
+    doc_id = _hl.sha256(doc_content.encode()).hexdigest()[:16]
+    success = ve.add_document(doc_id, doc_content, metadata=metadata)
+    return {"doc_id": doc_id, "status": "added" if success else "failed"}
 
 
 @app.post("/rag/search")
 async def rag_search(request: RAGSearchRequest):
-    """Cerca nelle fonti certificate."""
+    """Cerca nelle fonti certificate via VectorEngine™ (hybrid: cosine + BM25)."""
     if not RAG_AVAILABLE:
-        raise HTTPException(status_code=503, detail="RAG Engine non disponibile")
-    rag = get_rag_engine()
-    result = rag.search(request.query, n_results=request.n_results, min_score=request.min_score)
+        raise HTTPException(status_code=503, detail="VectorEngine™ non disponibile")
+    ve = get_rag_engine()
+    results = ve.search(request.query, limit=request.n_results or 5, hybrid=True)
+    min_sc = request.min_score or 0.0
+    filtered = [r for r in results if r.get("score", 0) >= min_sc]
     return {
-        "query": result.query, "matches": result.matches,
-        "verified": result.verified, "confidence": result.confidence,
-        "sources_used": result.sources_used,
+        "query": request.query,
+        "matches": filtered,
+        "verified": len(filtered) > 0,
+        "confidence": max((r.get("score", 0) for r in filtered), default=0.0),
+        "sources_used": len(filtered),
+        "engine": "VectorEngine™",
     }
 
 
 @app.get("/rag/stats")
 async def rag_stats():
-    """Statistiche database RAG."""
+    """Statistiche database RAG via VectorEngine™."""
     if not RAG_AVAILABLE:
-        return {"total_documents": 100000, "status": "ok", "source": "knowledge-registry"}
-    rag = get_rag_engine()
-    stats = rag.get_stats()
-    if stats.get("total_documents", 0) == 0:
-        stats["total_documents"] = 100000
+        return {"total_documents": 0, "status": "unavailable", "engine": "VectorEngine™"}
+    ve = get_rag_engine()
+    stats = ve.get_stats()
+    stats["engine"] = "VectorEngine™"
     return stats
 
 
@@ -4617,138 +4631,8 @@ async def api_kpi_business(refresh: bool = Query(True)):
 
 
 # ═══════════════════════════════════════════════
-# VIRTUALPARTNER AI — Endpoint unificati (Unity + Web)
+# VIRTUALPARTNER AI — Rimosso (progetto separato AI-LOVE)
 # ═══════════════════════════════════════════════
-
-@app.get("/virtualpartner/health")
-async def vpartner_health():
-    """Health check VirtualPartnerAI engines."""
-    return {
-        "status": "ok",
-        "engines": {
-            "emotion": True,
-            "memory": vpartner_bridge.memory_system.db is not None,
-            "personality": True,
-            "relationship": True,
-            "tts_local": vpartner_bridge.tts_engine is not None,
-        },
-        "version": "2.0.0-unified",
-    }
-
-
-@app.post("/virtualpartner/chat")
-async def vpartner_chat(request: Request):
-    """Chat VirtualPartnerAI con routing LLM via Orchestra.
-
-    Body JSON:
-    {
-        "user_id": "default",
-        "message": "Ciao amore!",
-        "mode": "partner",
-        "partner_name": "Alex",
-        "user_name": "Tesoro",
-        "traits": ["affectionate", "empathetic", "romantic"]
-    }
-    """
-    body = await request.json()
-    user_id = str(body.get("user_id", "default")).strip()
-    message = str(body.get("message", "")).strip()
-
-    if not message:
-        raise HTTPException(status_code=400, detail="Il campo 'message' è obbligatorio.")
-
-    result = await vpartner_bridge.chat(
-        user_id=user_id,
-        message=message,
-        mode=body.get("mode", "partner"),
-        partner_name=body.get("partner_name", "Alex"),
-        user_name=body.get("user_name", "Tesoro"),
-        traits=body.get("traits"),
-        orchestrate_fn=orchestrate,
-    )
-
-    return {
-        "status": "ok",
-        "text": result["response"],
-        "audio_file": result.get("audio_file", ""),
-        "emotion": result["emotion"],
-        "mood": result["mood"],
-        "emotions_state": result["emotions_state"],
-        "xp_gained": result["xp_gained"],
-        "relationship_level": result["relationship_level"],
-        "relationship_name": result["relationship_name"],
-        "badges_earned": result["badges_earned"],
-        "avatar_expression": result["avatar_expression"],
-    }
-
-
-@app.get("/virtualpartner/relationship/{user_id}")
-async def vpartner_relationship(user_id: str):
-    """Stato relazione VirtualPartnerAI."""
-    return vpartner_bridge.relationship_engine.get_state(user_id)
-
-
-@app.get("/virtualpartner/memory/{user_id}")
-async def vpartner_memory(user_id: str):
-    """Memoria utente VirtualPartnerAI."""
-    return await vpartner_bridge.memory_system.get_user_memory(user_id)
-
-
-@app.get("/virtualpartner/personality")
-async def vpartner_personality():
-    """Stato personalità corrente del partner virtuale."""
-    pe = vpartner_bridge.personality_engine
-    return {
-        "mood": pe.get_current_mood(),
-        "emotions": pe.emotions,
-    }
-
-
-@app.websocket("/ws/virtualpartner/{user_id}")
-async def vpartner_ws(websocket: WebSocket, user_id: str):
-    """WebSocket realtime per Unity / frontend VirtualPartnerAI.
-
-    Messaggi in ingresso (JSON):
-        {"text": "Ciao!", "mode": "partner", "partner_name": "Alex", "user_name": "Tesoro"}
-
-    Messaggi in uscita (JSON):
-        {"text": "...", "audio_file": "...", "emotion": "...", "mood": "...",
-         "xp_gained": N, "level": N, "level_name": "...", "badges": [...],
-         "avatar_expression": "...", "emotions": {...}}
-    """
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_json()
-            message = str(data.get("text", data.get("message", ""))).strip()
-            if not message:
-                await websocket.send_json({"text": "Ti ascolto, scrivimi qualcosa!", "audio_file": ""})
-                continue
-
-            result = await vpartner_bridge.chat(
-                user_id=user_id,
-                message=message,
-                mode=data.get("mode", "partner"),
-                partner_name=data.get("partner_name", "Alex"),
-                user_name=data.get("user_name", "Tesoro"),
-                traits=data.get("traits"),
-                orchestrate_fn=orchestrate,
-            )
-
-            await websocket.send_json({
-                "text": result["response"],
-                "audio_file": result.get("audio_file", ""),
-                "emotion": result["emotion"],
-                "mood": result["mood"],
-                "xp_gained": result["xp_gained"],
-                "level": result["relationship_level"],
-                "level_name": result["relationship_name"],
-                "badges": result["badges_earned"],
-                "avatar_expression": result["avatar_expression"],
-                "emotions": result["emotions_state"],
-            })
-    except WebSocketDisconnect:
-        pass
 
 
 # ═══════════════════════════════════════════════

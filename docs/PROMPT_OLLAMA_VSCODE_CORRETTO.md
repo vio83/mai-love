@@ -11,7 +11,7 @@
 |---|---|
 | **Nome** | VIO 83 AI Orchestra |
 | **Path** | `~/Projects/vio83-ai-orchestra` |
-| **GitHub** | `https://github.com/vio83/mai-love.git` (branch: `main`) |
+| **GitHub** | `https://github.com/vio83/vio83-ai-orchestra.git` (branch: `main`) |
 | **Utente** | Viorica Porcu (vio83) — Mac: `padronavio` |
 | **Licenza** | Dual: Proprietary + AGPL-3.0 |
 

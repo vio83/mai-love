@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# VIO / AI LOVE Readiness Audit 2026
+# VIO 83 AI Orchestra — Readiness Audit 2026
 # Esegue un audit tecnico locale e produce report JSON + testo.
 # ============================================================================
 set -euo pipefail

@@ -193,7 +193,7 @@ export const useAppStore = create<AppState>()(
           if (newSettings.ollamaModel) syncable['ollama_model'] = newSettings.ollamaModel;
           if (newSettings.fontSize !== undefined) syncable['font_size'] = String(newSettings.fontSize);
           for (const [k, v] of Object.entries(syncable)) {
-            saveSetting(k, v).catch(() => {});
+            saveSetting(k, v).catch(() => { });
           }
         },
 
