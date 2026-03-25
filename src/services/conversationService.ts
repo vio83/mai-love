@@ -1,7 +1,7 @@
 // VIO 83 AI ORCHESTRA - Conversation Service
 // Sincronizza conversazioni tra frontend e backend
 
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_BASE = '/api';
 
 export interface BackendConversation {
   id: string;
@@ -34,7 +34,7 @@ export async function fetchConversations(
   limit = 50,
 ): Promise<BackendConversation[]> {
   const response = await fetch(
-    `${BACKEND_URL}/conversations?limit=${limit}`,
+    `${BACKEND_BASE}/conversations?limit=${limit}`,
     { signal: AbortSignal.timeout(3000) },
   );
   if (!response.ok) throw new Error(`Backend: ${response.status}`);
@@ -45,7 +45,7 @@ export async function fetchConversation(
   convId: string,
 ): Promise<BackendConversation> {
   const response = await fetch(
-    `${BACKEND_URL}/conversations/${encodeURIComponent(convId)}`,
+    `${BACKEND_BASE}/conversations/${encodeURIComponent(convId)}`,
     { signal: AbortSignal.timeout(5000) },
   );
   if (!response.ok) throw new Error(`Backend: ${response.status}`);
@@ -56,7 +56,7 @@ export async function deleteBackendConversation(
   convId: string,
 ): Promise<void> {
   const response = await fetch(
-    `${BACKEND_URL}/conversations/${encodeURIComponent(convId)}`,
+    `${BACKEND_BASE}/conversations/${encodeURIComponent(convId)}`,
     { method: 'DELETE', signal: AbortSignal.timeout(3000) },
   );
   if (!response.ok) throw new Error(`Backend: ${response.status}`);

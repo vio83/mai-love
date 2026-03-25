@@ -5,7 +5,7 @@
 
 import type { AIMode, AIProvider, AIResponse, Message } from '../../types';
 
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_BASE = '/api';
 const CONTEXT_WINDOW_MAX_MESSAGES = 10;
 const CONTEXT_WINDOW_MAX_CHARS = 8_000;
 const RESPONSE_CACHE_TTL_MS = 60_000;
@@ -617,7 +617,7 @@ async function callBackendStream(
     show_thinking: config.showThinking ?? false,
   };
 
-  const response = await fetch(`${BACKEND_URL}/chat/stream`, {
+  const response = await fetch(`${BACKEND_BASE}/chat/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -640,6 +640,7 @@ async function callBackendStream(
   let finalModel = config.model || '';
   let finalLatency = 0;
   let thinking: string | undefined;
+  let conversationId: string | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -668,6 +669,7 @@ async function callBackendStream(
           if (event.model) finalModel = event.model;
           if (event.latency_ms) finalLatency = event.latency_ms;
           if (event.thinking) thinking = event.thinking;
+          if (event.conversation_id) conversationId = event.conversation_id;
         }
       } catch (e) {
         if (e instanceof Error && e.message.startsWith('Backend stream error:')) throw e;
@@ -683,6 +685,7 @@ async function callBackendStream(
     tokensUsed: 0,
     latencyMs: finalLatency || Date.now() - start,
     thinking,
+    conversationId,
   };
 }
 
@@ -704,6 +707,7 @@ export async function sendToOrchestra(
     apiKeys: Record<string, string>;
     ollamaHost: string;
     ollamaModel?: string;
+    conversationId?: string;
   },
   onToken?: (token: string) => void,
   signal?: AbortSignal,
@@ -765,6 +769,7 @@ export async function sendToOrchestra(
         mode: effectiveMode,
         provider: effectiveProvider,
         model: backendModel,
+        conversationId: config.conversationId,
         maxTokens: generationBudget,
         enableRag: config.ragEnabled,
         protocollo100x: config.protocollo100x,

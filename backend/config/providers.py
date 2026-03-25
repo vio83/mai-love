@@ -28,29 +28,17 @@ LOCAL_PROVRS = {
         "priority": 1,  # Massima priorità
         "cost": "free",
         "models": {
-            # === Modelli installati sul Mac ===
-            "llama3:latest": {
-                "name": "Llama 3 8B",
-                "ram_required_gb": 4.7,
-                "strengths": ["general", "conversation", "reasoning", "multilingual"],
+            # === Modelli installati sul Mac (8 GB RAM — solo ≤3B sicuri) ===
+            "qwen2.5-coder:3b": {
+                "name": "Qwen 2.5 Coder 3B",
+                "ram_required_gb": 1.9,
+                "strengths": ["code", "fast", "efficient"],
                 "installed": True,
             },
-            "mistral:latest": {
-                "name": "Mistral 7B",
-                "ram_required_gb": 4.4,
-                "strengths": ["reasoning", "multilingual", "code"],
-                "installed": True,
-            },
-            "codellama:latest": {
-                "name": "Code Llama 7B",
-                "ram_required_gb": 3.8,
-                "strengths": ["code", "debugging", "programming"],
-                "installed": True,
-            },
-            "gemma2:2b": {
-                "name": "Gemma 2 2B",
-                "ram_required_gb": 1.6,
-                "strengths": ["lightweight", "fast", "simple_tasks"],
+            "qwen2.5:3b": {
+                "name": "Qwen 2.5 3B",
+                "ram_required_gb": 1.9,
+                "strengths": ["general", "multilingual", "reasoning"],
                 "installed": True,
             },
             "llama3.2:3b": {
@@ -59,19 +47,25 @@ LOCAL_PROVRS = {
                 "strengths": ["general", "conversation", "fast"],
                 "installed": True,
             },
-            "qwen2.5-coder:3b": {
-                "name": "Qwen 2.5 Coder 3B",
-                "ram_required_gb": 1.9,
-                "strengths": ["code", "fast", "efficient"],
+            "gemma2:2b": {
+                "name": "Gemma 2 2B",
+                "ram_required_gb": 1.6,
+                "strengths": ["lightweight", "fast", "simple_tasks"],
                 "installed": True,
             },
-            # === Modelli scaricabili (non ancora installati) ===
-            "phi3:3.8b": {
-                "name": "Phi-3 3.8B",
-                "ram_required_gb": 3.0,
+            "phi3:mini": {
+                "name": "Phi-3 Mini 3.8B",
+                "ram_required_gb": 2.2,
                 "strengths": ["reasoning", "efficient"],
-                "installed": False,
+                "installed": True,
             },
+            "nomic-embed-text:latest": {
+                "name": "Nomic Embed Text",
+                "ram_required_gb": 0.3,
+                "strengths": ["embeddings", "search", "rag"],
+                "installed": True,
+            },
+            # === Modelli scaricabili (non installati — ATTENZIONE: ≥7B non safe su 8GB) ===
             "deepseek-coder-v2:lite": {
                 "name": "DeepSeek Coder V2 Lite",
                 "ram_required_gb": 3.5,
@@ -79,7 +73,7 @@ LOCAL_PROVRS = {
                 "installed": False,
             },
         },
-        "default_model": "llama3:latest",
+        "default_model": "qwen2.5-coder:3b",
     }
 }
 

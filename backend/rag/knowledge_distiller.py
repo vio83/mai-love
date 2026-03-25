@@ -537,7 +537,10 @@ class DistilledKnowledgeDB:
             conn.execute(f"DELETE FROM distilled_fts WHERE doc_id IN ({placeholders})", doc_ids)
             conn.execute(f"DELETE FROM l1_metadata WHERE doc_id IN ({placeholders})", doc_ids)
 
-            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            try:
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except sqlite3.OperationalError:
+                pass  # DB locked by another process — non-critical
 
         # VACUUM fuori transazione per compattare fisicamente il file
         try:

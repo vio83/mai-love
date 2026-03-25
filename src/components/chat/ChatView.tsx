@@ -19,6 +19,7 @@ export default function ChatView() {
   const addMessage = useAppStore((s) => s.addMessage);
   const setStreaming = useAppStore((s) => s.setStreaming);
   const setAbortController = useAppStore((s) => s.setAbortController);
+  const syncConversationId = useAppStore((s) => s.syncConversationId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamBufferRef = useRef('');
@@ -161,12 +162,19 @@ export default function ChatView() {
             apiKeys,
             ollamaHost: settings.ollamaHost,
             ollamaModel: settings.ollamaModel || 'qwen2.5-coder:3b',
+            conversationId: convId,
           },
           onToken,
           controller.signal,
         );
 
         flushBufferedStream();
+
+        // Sincronizza l'ID conversazione backend → frontend
+        if (response.conversationId && convId) {
+          syncConversationId(convId, response.conversationId);
+          convId = response.conversationId;
+        }
 
         // Aggiungi risposta finale
         const aiMessage: Message = {
@@ -227,6 +235,7 @@ export default function ChatView() {
       setAbortController,
       setStreaming,
       settings,
+      syncConversationId,
       t,
     ],
   );

@@ -104,6 +104,7 @@ export interface AIResponse {
   tokensUsed: number;
   latencyMs: number;
   thinking?: string;
+  conversationId?: string;
   crossCheckResult?: {
     concordance: boolean;
     concordanceScore?: number;

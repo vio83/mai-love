@@ -38,6 +38,7 @@ interface AppState {
   stopStreaming: () => void;
   setAbortController: (controller: AbortController | null) => void;
   deleteConversation: (id: string) => void;
+  syncConversationId: (localId: string, backendId: string) => void;
   loadConversationsFromBackend: () => Promise<void>;
   resetToLocal: () => void;
   setCurrentPage: (page: AppPage) => void;
@@ -210,7 +211,17 @@ export const useAppStore = create<AppState>()(
             activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
           }));
           // Best-effort: elimina anche nel backend
-          deleteBackendConversation(id).catch(() => {});
+          deleteBackendConversation(id).catch(() => { });
+        },
+
+        syncConversationId: (localId, backendId) => {
+          if (localId === backendId) return;
+          set(state => ({
+            conversations: state.conversations.map(c =>
+              c.id === localId ? { ...c, id: backendId } : c
+            ),
+            activeConversationId: state.activeConversationId === localId ? backendId : state.activeConversationId,
+          }));
         },
 
         loadConversationsFromBackend: async () => {

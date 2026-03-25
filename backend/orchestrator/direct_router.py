@@ -1150,6 +1150,7 @@ async def call_ollama(
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
+            "num_ctx": int(os.environ.get("VIO_OLLAMA_NUM_CTX", 2048)),
         }
     }
 
@@ -1194,6 +1195,7 @@ async def call_ollama_streaming(
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
+            "num_ctx": int(os.environ.get("VIO_OLLAMA_NUM_CTX", 2048)),
         }
     }
 
