@@ -20,7 +20,7 @@ from typing import Optional, AsyncGenerator
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-from backend.core.tracing import traced_span, record_ai_call
+from backend.core.tracing import traced_span
 from backend.config.providers import (
     CLOUD_PROVRS,
     FREE_CLOUD_PROVRS,
