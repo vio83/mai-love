@@ -32,4 +32,5 @@ Vedi cartella: vio-tasks/
 - Web: claude.ai Progetti (consultazione e pianificazione)
 
 ## Ultimo aggiornamento
+25/03/2026 05:38 — Setup unificato v4.0
 15/03/2026 06:47
