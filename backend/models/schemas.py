@@ -25,6 +25,12 @@ class ImageAttachment(BaseModel):
 
 # === Request Models ===
 
+class StructuredOutputFormat(BaseModel):
+    """Formato output strutturato (JSON mode)."""
+    type: Literal["json_object", "json_schema"] = "json_object"
+    json_schema: Optional[dict] = None  # JSON Schema da rispettare (solo con type=json_schema)
+
+
 class ChatRequest(BaseModel):
     """Richiesta chat dall'utente."""
     message: str = Field(..., min_length=1, max_length=50000)
@@ -40,6 +46,8 @@ class ChatRequest(BaseModel):
     images: Optional[List[ImageAttachment]] = None  # Vision / multimodal
     agent_mode: bool = False  # OpenClaw agent: multi-step tool calling
     enable_protocollo_100x: bool = True  # Protocollo di Aderenza Totale 100x
+    response_format: Optional[StructuredOutputFormat] = None  # G1: Structured output (JSON mode)
+    show_thinking: bool = False  # G3: Mostra reasoning/thinking blocks dell'AI
 
 
 class ClassifyRequest(BaseModel):
@@ -93,6 +101,7 @@ class ChatResponse(BaseModel):
     request_type: Optional[str] = None
     cross_check: Optional[dict] = None
     rag_verification: Optional[dict] = None
+    thinking: Optional[str] = None  # G3: Reasoning/thinking visibile dall'AI
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 

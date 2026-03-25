@@ -68,6 +68,7 @@ from backend.database.db import (
 )
 from backend.orchestrator.direct_router import (
     classify_request, orchestrate, call_ollama_streaming,
+    call_cloud_streaming,
     check_ollama_status,
 )
 from backend.automation.autonomous_runtime import AutonomousRuntime
@@ -2098,6 +2099,11 @@ async def chat(http_request: Request, request: ChatRequest):
             effective_max_tokens = max(effective_max_tokens, 1024)  # vision needs more tokens
 
         _orchestrate_timeout = float(os.environ.get("VIO_CHAT_TIMEOUT_SEC", "120"))
+        # G1: Structured output format
+        _response_format = None
+        if request.response_format:
+            _response_format = request.response_format.model_dump()
+
         try:
             result = await asyncio.wait_for(
                 orchestrate(
@@ -2110,6 +2116,8 @@ async def chat(http_request: Request, request: ChatRequest):
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
                     protocollo_100x=request.enable_protocollo_100x,
+                    response_format=_response_format,
+                    show_thinking=request.show_thinking,
                 ),
                 timeout=_orchestrate_timeout,
             )
@@ -2170,6 +2178,7 @@ async def chat(http_request: Request, request: ChatRequest):
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
             request_type=str(result.get("request_type", "general")),
+            thinking=result.get("thinking"),
         )
 
         # ✈️  JetEngine™: salva risposta nel TurboCache semantico
@@ -2273,22 +2282,35 @@ async def chat_stream(request: ChatRequest):
     model = request.model or "llama3.2:3b"
     effective_max_tokens = _cap_request_tokens(request.max_tokens)
     effective_temperature = _effective_temperature(request.temperature)
+    use_cloud = runtime_mode == "cloud" and request.provider and request.provider != "ollama"
+    effective_provider = request.provider or "ollama"
 
     async def event_generator():
         full_content = ""
         start = time.time()
         try:
-            async for token in call_ollama_streaming(
-                messages=messages,
-                model=model,
-                temperature=effective_temperature,
-                max_tokens=effective_max_tokens,
-            ):
+            if use_cloud:
+                stream_gen = call_cloud_streaming(
+                    messages=messages,
+                    provider=effective_provider,
+                    model=request.model,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                )
+            else:
+                stream_gen = call_ollama_streaming(
+                    messages=messages,
+                    model=model,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                )
+
+            async for token in stream_gen:
                 full_content += token
                 yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
 
             latency = int((time.time() - start) * 1000)
-            yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': full_content, 'latency_ms': latency, 'model': model, 'provider': 'ollama'})}\n\n"
+            yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': full_content, 'latency_ms': latency, 'model': model, 'provider': effective_provider})}\n\n"
 
             # Salva nel database
             conv_id = request.conversation_id
@@ -2299,14 +2321,14 @@ async def chat_stream(request: ChatRequest):
 
             add_message(conv_id, "user", request.message)
             add_message(conv_id, "assistant", full_content,
-                        provider="ollama", model=model,
+                        provider=effective_provider, model=model,
                         latency_ms=latency)
-            log_metric("ollama", model, tokens_used=0, latency_ms=latency)
+            log_metric(effective_provider, model, tokens_used=0, latency_ms=latency)
             AUTONOMOUS_RUNTIME.record_chat_turn(
                 conversation_id=conv_id,
                 user_message=request.message,
                 assistant_message=full_content,
-                provider="ollama",
+                provider=effective_provider,
                 model=model,
                 mode=runtime_mode,
             )

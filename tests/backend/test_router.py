@@ -56,5 +56,49 @@ class TestCloudProviderValidation(unittest.TestCase):
         self.assertIn("API key mancante", str(ctx.exception))
 
 
+class TestCloudStreamingSignature(unittest.TestCase):
+    """Verifica che call_cloud_streaming sia importabile e sia un async generator."""
+
+    def test_call_cloud_streaming_is_async_generator(self):
+        from backend.orchestrator.direct_router import call_cloud_streaming
+        import inspect
+        self.assertTrue(inspect.isasyncgenfunction(call_cloud_streaming))
+
+    def test_call_cloud_streaming_accepts_expected_params(self):
+        from backend.orchestrator.direct_router import call_cloud_streaming
+        import inspect
+        sig = inspect.signature(call_cloud_streaming)
+        param_names = list(sig.parameters.keys())
+        self.assertIn("messages", param_names)
+        self.assertIn("provider", param_names)
+        self.assertIn("model", param_names)
+
+
+class TestExtendedThinkingPayload(unittest.TestCase):
+    """Verifica che _call_cloud_claude costruisca il payload thinking corretto."""
+
+    def test_claude_thinking_payload(self):
+        import asyncio
+        mock_response = {
+            "content": [{"type": "text", "text": "risposta"}],
+            "usage": {"input_tokens": 10, "output_tokens": 20},
+        }
+        with patch("backend.orchestrator.direct_router._http_post_json", return_value=mock_response) as mock_http, \
+             patch("backend.orchestrator.direct_router._resolve_cloud_api_key", return_value="test-key"):
+            from backend.orchestrator.direct_router import _call_cloud_claude
+            result = asyncio.run(_call_cloud_claude(
+                model="claude-sonnet-4-20250514",
+                messages=[{"role": "user", "content": "test"}],
+                temperature=0.7,
+                max_tokens=1024,
+                show_thinking=True,
+            ))
+            payload = mock_http.call_args.kwargs.get("payload") or mock_http.call_args[1].get("payload")
+        self.assertIn("thinking", payload)
+        self.assertEqual(payload["thinking"]["type"], "enabled")
+        self.assertEqual(payload["temperature"], 1)
+        self.assertIn("content", result)
+
+
 if __name__ == "__main__":
     unittest.main()

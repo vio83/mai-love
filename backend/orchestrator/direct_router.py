@@ -817,19 +817,25 @@ async def _call_cloud_compatible_chat(
     messages: list[dict],
     temperature: float,
     max_tokens: int,
+    response_format: dict | None = None,
+    show_thinking: bool = False,
 ) -> dict:
     start = time.time()
     api_key = _resolve_cloud_api_key(provider)
     base_url = _cloud_base_url(provider)
     headers = _build_cloud_headers(provider, api_key)
 
-    payload = {
+    payload: dict = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
     }
+    # G1: Structured output — JSON mode per provider OpenAI-compatible
+    if response_format:
+        payload["response_format"] = response_format
+
     data = await _http_post_json(
         f"{base_url}/chat/completions",
         headers=headers,
@@ -839,16 +845,26 @@ async def _call_cloud_compatible_chat(
         model=model,
     )
 
-    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    choice = data.get("choices", [{}])[0]
+    msg = choice.get("message", {})
+    content = msg.get("content", "")
     tokens_used = data.get("usage", {}).get("total_tokens", 0) or 0
 
-    return {
+    # G3: Cattura reasoning_content da OpenAI o-series models
+    thinking = None
+    if show_thinking:
+        thinking = msg.get("reasoning_content") or msg.get("reasoning") or None
+
+    result: dict = {
         "content": content,
         "provider": provider,
         "model": model,
         "tokens_used": tokens_used,
         "latency_ms": int((time.time() - start) * 1000),
     }
+    if thinking:
+        result["thinking"] = thinking
+    return result
 
 
 async def _call_cloud_claude(
@@ -856,6 +872,8 @@ async def _call_cloud_claude(
     messages: list[dict],
     temperature: float,
     max_tokens: int,
+    response_format: dict | None = None,
+    show_thinking: bool = False,
 ) -> dict:
     start = time.time()
     provider = "claude"
@@ -864,13 +882,19 @@ async def _call_cloud_claude(
     headers = _build_cloud_headers(provider, api_key)
 
     system_text, anthropic_messages = _normalize_messages_for_claude(messages)
-    payload = {
+    payload: dict = {
         "model": model,
         "system": system_text,
         "messages": anthropic_messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+
+    # G3: Extended thinking per Claude (richiede modelli compatibili)
+    if show_thinking:
+        payload["thinking"] = {"type": "enabled", "budget_tokens": 10000}
+        # Anthropic richiede temperature=1 quando thinking è attivo
+        payload["temperature"] = 1
 
     data = await _http_post_json(
         f"{base_url}/messages",
@@ -883,23 +907,34 @@ async def _call_cloud_claude(
 
     content_chunks = data.get("content", [])
     text_parts: list[str] = []
+    thinking_parts: list[str] = []
     if isinstance(content_chunks, list):
         for chunk in content_chunks:
-            if isinstance(chunk, dict) and chunk.get("type") == "text":
-                text = chunk.get("text")
-                if isinstance(text, str):
-                    text_parts.append(text)
+            if isinstance(chunk, dict):
+                ctype = chunk.get("type", "")
+                if ctype == "text":
+                    text = chunk.get("text")
+                    if isinstance(text, str):
+                        text_parts.append(text)
+                elif ctype == "thinking" and show_thinking:
+                    # G3: Cattura thinking blocks da Claude extended thinking
+                    thinking_text = chunk.get("thinking", "")
+                    if isinstance(thinking_text, str) and thinking_text:
+                        thinking_parts.append(thinking_text)
 
     usage = data.get("usage", {}) if isinstance(data.get("usage"), dict) else {}
     tokens_used = int(usage.get("input_tokens", 0) or 0) + int(usage.get("output_tokens", 0) or 0)
 
-    return {
+    result: dict = {
         "content": "".join(text_parts).strip(),
         "provider": provider,
         "model": model,
         "tokens_used": tokens_used,
         "latency_ms": int((time.time() - start) * 1000),
     }
+    if thinking_parts:
+        result["thinking"] = "\n\n".join(thinking_parts)
+    return result
 
 
 async def _call_cloud_perplexity(
@@ -949,10 +984,14 @@ async def call_cloud(
     model: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: int = 4096,
+    response_format: dict | None = None,
+    show_thinking: bool = False,
 ) -> dict:
     """
     Chiamata cloud reale backend-s.
     Supporta provider OpenAI-compatible + endpoint specifici Anthropic/Perplexity.
+    G1: response_format per structured output (JSON mode).
+    G3: show_thinking per catturare reasoning/thinking blocks.
     """
     resolved_model = _resolve_cloud_model(provider, model)
 
@@ -962,6 +1001,8 @@ async def call_cloud(
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            response_format=response_format,
+            show_thinking=show_thinking,
         )
 
     if provider == "perplexity":
@@ -976,10 +1017,99 @@ async def call_cloud(
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
+        response_format=response_format,
+        show_thinking=show_thinking,
     )
 
 
 # === OLLAMA DIRETTO ===
+
+
+async def call_cloud_streaming(
+    messages: list[dict],
+    provider: str,
+    model: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 4096,
+) -> AsyncGenerator[str, None]:
+    """
+    Streaming SSE per provider cloud (OpenAI-compatible + Claude).
+    Genera token come stringhe, usabile dal /chat/stream endpoint.
+    """
+    resolved_model = _resolve_cloud_model(provider, model)
+    api_key = _resolve_cloud_api_key(provider)
+    base_url = _cloud_base_url(provider)
+    headers = _build_cloud_headers(provider, api_key)
+
+    if provider == "claude":
+        system_text, anthropic_messages = _normalize_messages_for_claude(messages)
+        payload = {
+            "model": resolved_model,
+            "system": system_text,
+            "messages": anthropic_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        url = f"{base_url}/messages"
+    else:
+        payload = {
+            "model": resolved_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        url = f"{base_url}/chat/completions"
+
+    cloud_timeout = float(_env_int("VIO_CLOUD_STREAM_TIMEOUT_SEC", 120))
+
+    if not HAS_HTTPX:
+        # Fallback: non-streaming
+        result = await call_cloud(messages, provider, model, temperature, max_tokens)
+        yield result.get("content", "")
+        return
+
+    try:
+        async with httpx.AsyncClient(timeout=cloud_timeout, trust_env=False) as client:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.startswith("data: "):
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
+                            return
+                        try:
+                            chunk = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+
+                        if provider == "claude":
+                            # Anthropic: event con content_block_delta
+                            ctype = chunk.get("type", "")
+                            if ctype == "content_block_delta":
+                                delta = chunk.get("delta", {})
+                                if delta.get("type") == "text_delta":
+                                    text = delta.get("text", "")
+                                    if text:
+                                        yield text
+                            elif ctype == "message_stop":
+                                return
+                        else:
+                            # OpenAI-compatible: choices[0].delta.content
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content")
+                            if content:
+                                yield content
+    except Exception as e:
+        logger.warning(f"Cloud streaming fallito per {provider}: {e}")
+        # Fallback: non-streaming
+        result = await call_cloud(messages, provider, model, temperature, max_tokens)
+        yield result.get("content", "")
+
 
 async def call_ollama(
     messages: list[dict],
@@ -1182,10 +1312,14 @@ async def orchestrate(
     max_tokens: int = 512,
     cross_check: bool = False,
     protocollo_100x: bool = True,
+    response_format: dict | None = None,
+    show_thinking: bool = False,
 ) -> dict:
     """
     Funzione orchestratore principale.
     Supporta sia locale (Ollama) sia cloud provider reali backend-s.
+    G1: response_format per structured JSON output.
+    G3: show_thinking per esporre reasoning/thinking blocks.
     """
     last_msg = messages[-1]["content"] if messages else ""
 
@@ -1306,6 +1440,8 @@ async def orchestrate(
             model=model,
             temperature=effective_temperature,
             max_tokens=effective_max_tokens,
+            response_format=response_format,
+            show_thinking=show_thinking,
         )
         result["request_type"] = request_type
         result["execution_profile"] = _execution_profile()
@@ -1328,6 +1464,8 @@ async def orchestrate(
                     model=None,
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
+                    response_format=response_format,
+                    show_thinking=show_thinking,
                 )
                 result["request_type"] = request_type
                 result["fallback_from"] = effective_provr
