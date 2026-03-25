@@ -207,6 +207,12 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
     ];
 
     updateSettings({ apiKeys: nextApiKeys });
+    // Sync al backend (best-effort — non blocca UI)
+    fetch(`/api/settings/api_key_${provider}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: key }),
+    }).catch(() => {});
     setSaved((prev) => ({ ...prev, [provider]: true }));
     setTimeout(() => setSaved((prev) => ({ ...prev, [provider]: false })), 2000);
   };
@@ -216,6 +222,11 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
     if (!/^https?:\/\//.test(normalizedHost)) return;
 
     updateSettings({ ollamaHost: normalizedHost });
+    fetch(`/api/settings/ollama_host`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: normalizedHost }),
+    }).catch(() => {});
     setHostSaved(true);
     setTimeout(() => setHostSaved(false), 2000);
   };

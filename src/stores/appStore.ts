@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type { BackendConversation } from '../services/conversationService';
-import { deleteBackendConversation, fetchConversations } from '../services/conversationService';
+import { deleteBackendConversation, fetchConversation, fetchConversations } from '../services/conversationService';
 import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
 
 interface AppState {
@@ -127,7 +127,33 @@ export const useAppStore = create<AppState>()(
           return id;
         },
 
-        setActiveConversation: (id) => set({ activeConversationId: id }),
+        setActiveConversation: (id) => {
+          set({ activeConversationId: id });
+          // Lazy-load messaggi dal backend se la conv è vuota (solo metadati)
+          const conv = get().conversations.find(c => c.id === id);
+          if (conv && conv.messages.length === 0) {
+            fetchConversation(id).then(bc => {
+              if (!bc.messages?.length) return;
+              const messages = bc.messages.map(m => ({
+                id: m.id,
+                role: m.role as 'user' | 'assistant',
+                content: m.content,
+                provider: (m.provider || undefined) as AIProvider | undefined,
+                model: m.model || undefined,
+                timestamp: m.timestamp * 1000,
+                latencyMs: m.latency_ms || undefined,
+                tokensUsed: m.tokens_used || undefined,
+                verified: m.verified === 1 ? true : m.verified === 0 ? false : undefined,
+                qualityScore: m.quality_score || undefined,
+              }));
+              set(state => ({
+                conversations: state.conversations.map(c =>
+                  c.id === id ? { ...c, messages } : c
+                ),
+              }));
+            }).catch(() => {});
+          }
+        },
 
         addMessage: (conversationId, message) => {
           set(state => ({
