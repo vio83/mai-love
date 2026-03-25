@@ -177,6 +177,7 @@ export default function ChatView() {
           timestamp: Date.now(),
           latencyMs: response.latencyMs,
           tokensUsed: response.tokensUsed,
+          thinking: response.thinking,
           verified: response.crossCheckResult?.concordance,
           qualityScore: response.crossCheckResult
             ? response.crossCheckResult.concordance

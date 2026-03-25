@@ -611,12 +611,14 @@ async function callCloud(
 
   // Non-streaming
   const data = await response.json();
+  const msg = data.choices?.[0]?.message;
   return {
-    content: data.choices?.[0]?.message?.content || '',
+    content: msg?.content || '',
     provider,
     model: extractProviderModelId(model),
     tokensUsed: data.usage?.total_tokens || 0,
     latencyMs: Date.now() - start,
+    thinking: msg?.reasoning_content || undefined,
   };
 }
 

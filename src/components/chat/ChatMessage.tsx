@@ -146,6 +146,38 @@ function ChatMessageInner({ message }: ChatMessageProps) {
           )}
         </div>
 
+        {/* G3: Thinking / reasoning block */}
+        {message.thinking && (
+          <details style={{
+            marginBottom: '10px',
+            borderRadius: '8px',
+            border: '1px solid var(--vio-border)',
+            backgroundColor: 'var(--vio-bg-secondary)',
+            padding: '0',
+          }}>
+            <summary style={{
+              cursor: 'pointer',
+              padding: '8px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--vio-text-secondary)',
+              userSelect: 'none',
+            }}>
+              💭 Reasoning
+            </summary>
+            <div style={{
+              padding: '8px 12px 12px',
+              fontSize: '12.5px',
+              lineHeight: '1.6',
+              color: 'var(--vio-text-secondary)',
+              fontStyle: 'italic',
+              whiteSpace: 'pre-wrap',
+            }}>
+              {message.thinking}
+            </div>
+          </details>
+        )}
+
         {/* Message body with Markdown */}
         <div style={{
           fontSize: '14px',

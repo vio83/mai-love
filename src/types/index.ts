@@ -103,6 +103,7 @@ export interface AIResponse {
   model: string;
   tokensUsed: number;
   latencyMs: number;
+  thinking?: string;
   crossCheckResult?: {
     concordance: boolean;
     concordanceScore?: number;
