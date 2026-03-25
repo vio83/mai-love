@@ -45,3 +45,4 @@ venv/
 venv.broken/
 logs/.logs/orchestra.pids
 .logs/
+automation/logs/.circuit-breaker-state
