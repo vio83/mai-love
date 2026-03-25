@@ -11,7 +11,7 @@ Esecuzione parallela e concorrente di task:
 - ParallelQuery: Query multiple sorgenti contemporaneamente
 - BatchProcessor: Processa batch di documenti in parallelo
 - PipelineExecutor: Pipeline di trasformazioni async
-- Cross-Check: Verifica incrociata parallela tra provr AI
+- Cross-Check: Verifica incrociata parallela tra provider AI
 
 Pattern: Semaphore-bounded async parallelism
 """
@@ -181,20 +181,20 @@ class ParallelQueryEngine:
     async def cross_check(
         self,
         question: str,
-        provrs: dict[str, Callable],
+        providers: dict[str, Callable],
         min_agreement: float = 0.6,
     ) -> dict:
         """
-        Verifica incrociata: invia la stessa domanda a N provr AI
+        Verifica incrociata: invia la stessa domanda a N provider AI
         e confronta le risposte per consistenza.
         """
-        results = await self.query_all_sources(question, provrs)
+        results = await self.query_all_sources(question, providers)
         successful = {k: v for k, v in results.items() if v.success}
 
         if len(successful) < 2:
             return {
                 "verified": False,
-                "reason": "Meno di 2 provr hanno risposto",
+                "reason": "Meno di 2 provider hanno risposto",
                 "results": {k: v.result for k, v in successful.items()},
             }
 

@@ -943,7 +943,7 @@ Esempio:
                                 "status", "run"],
                         help="Comando da eseguire")
     parser.add_argument("--dirs", nargs="*",
-                        help="Directory da monitorare (overr config)")
+                        help="Directory da monitorare (override config)")
 
     args = parser.parse_args()
 

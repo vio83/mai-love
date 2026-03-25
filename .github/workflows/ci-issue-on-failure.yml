@@ -7,6 +7,7 @@ name: CI - Issue on Permanent Failure
       - "Python Backend — Lint & Test"
       - "Snyk Security"
       - "Release — VIO 83 AI Orchestra"
+      - "Auto-Maintenance 100x"
     types:
       - completed
 

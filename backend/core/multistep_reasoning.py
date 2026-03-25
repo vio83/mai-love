@@ -41,7 +41,7 @@ class ReasoningStep:
     """Risultato di un singolo step di ragionamento."""
     step_name: str          # "analyze" | "solve" | "verify" | "refine"
     step_number: int
-    provr: str
+    provider: str
     model: str
     input_prompt: str
     output: str
@@ -136,7 +136,7 @@ class MultiStepReasoner:
 
         # Definisci la funzione di chiamata AI (dal tuo orchestratore)
         async def call_ai(messages, system_prompt, max_tokens, temperature):
-            # ... chiama il provr AI ...
+            # ... chiama il provider AI ...
             return {"content": "...", "tokens": 500, "latency_ms": 1200}
 
         # Esegui reasoning multi-step
@@ -355,13 +355,13 @@ class MultiStepReasoner:
             )
             output = result.get("content", "")
             tokens = result.get("tokens", 0)
-            provr = result.get("provr", "unknown")
+            provider = result.get("provider", "unknown")
             model = result.get("model", "unknown")
         except Exception as e:
             logger.error(f"[MultiStep.{step_name}] Errore: {e}")
             output = f"[Errore nello step {step_name}: {e}]"
             tokens = 0
-            provr = "error"
+            provider = "error"
             model = "error"
 
         latency = round((time.monotonic() - t0) * 1000, 1)
@@ -372,7 +372,7 @@ class MultiStepReasoner:
         return ReasoningStep(
             step_name=step_name,
             step_number=step_number,
-            provr=provr,
+            provider=provider,
             model=model,
             input_prompt=user_input[:200],
             output=output,

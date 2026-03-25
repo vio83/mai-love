@@ -418,7 +418,7 @@ class AutonomousRuntime:
         conversation_id: str,
         user_message: str,
         assistant_message: str,
-        provr: str,
+        provider: str,
         model: str,
         mode: str,
     ) -> str:
@@ -434,9 +434,9 @@ class AutonomousRuntime:
                 f"{user_message.strip()}\n\n"
                 "### Assistant\n"
                 f"{assistant_message.strip()}\n\n"
-                f"Provr: `{provr}` | Model: `{model}`"
+                f"Provider: `{provider}` | Model: `{model}`"
             ),
-            payload={"provr": provr, "model": model, "mode": mode},
+            payload={"provider": provider, "model": model, "mode": mode},
             background=False,
         )
         return self.route_trigger(trigger)

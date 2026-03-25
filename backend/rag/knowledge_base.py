@@ -832,7 +832,7 @@ class KnowledgeBase:
     ) -> dict:
         """
         Costruisce il contesto RAG da iniettare nel system prompt.
-        Ritorna: {context_text, sources, domain, confnce}
+        Ritorna: {context_text, sources, domain, confidence}
         """
         results = self.query(question, n_results=n_results)
 
@@ -841,7 +841,7 @@ class KnowledgeBase:
                 "context_text": "",
                 "sources": [],
                 "domain": "generale",
-                "confnce": 0.0,
+                "confidence": 0.0,
                 "has_context": False,
             }
 
@@ -868,14 +868,14 @@ class KnowledgeBase:
             total_tokens += tokens_est
 
         context_text = "\n\n---\n\n".join(context_parts)
-        avg_confnce = sum(r.get("final_score", r.get("similarity", 0)) for r in results[:len(sources)]) / max(len(sources), 1)
+        avg_confidence = sum(r.get("final_score", r.get("similarity", 0)) for r in results[:len(sources)]) / max(len(sources), 1)
         primary_domain = results[0].get("domain", "generale") if results else "generale"
 
         return {
             "context_text": context_text,
             "sources": sources,
             "domain": primary_domain,
-            "confnce": round(avg_confnce, 3),
+            "confidence": round(avg_confidence, 3),
             "has_context": True,
         }
 

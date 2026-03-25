@@ -19,11 +19,11 @@ MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "Initial schema — baseline",
      "SELECT 1"),  # Baseline: lo schema iniziale è creato da init_database
 
-    (2, "Add cost_usd to provr_metrics",
-     """ALTER TABLE provr_metrics ADD COLUMN cost_usd REAL DEFAULT 0.0"""),
+    (2, "Add cost_usd to provider_metrics",
+     """ALTER TABLE provider_metrics ADD COLUMN cost_usd REAL DEFAULT 0.0"""),
 
-    (3, "Add category column to provr_metrics",
-     """ALTER TABLE provr_metrics ADD COLUMN category TEXT DEFAULT ''"""),
+    (3, "Add category column to provider_metrics",
+     """ALTER TABLE provider_metrics ADD COLUMN category TEXT DEFAULT ''"""),
 
     (4, "Add cross_check_results table",
      """CREATE TABLE IF NOT EXISTS cross_check_results (

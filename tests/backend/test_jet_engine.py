@@ -241,29 +241,29 @@ class TestLocalFirstRouter:
     def test_explicit_provr_overrs_all(self):
         p = self._simple_profile()
         d = self.router.dec(p, "local", explicit_provr="claude", ollama_available=True)
-        assert d.provr == "claude"
-        assert "explicit_overr" in d.reason
+        assert d.provider == "claude"
+        assert "explicit_override" in d.reason
 
     def test_local_mode_uses_ollama(self):
         p = self._simple_profile()
         d = self.router.dec(p, "local", None, ollama_available=True)
-        assert d.provr == "ollama"
+        assert d.provider == "ollama"
 
     def test_local_mode_no_ollama_still_routes(self):
         p = self._simple_profile()
         # Con Ollama non disponibile in local mode, non deve crashare
         d = self.router.dec(p, "local", None, ollama_available=False)
-        assert d.provr != ""  # deve restituire qualcosa
+        assert d.provider != ""  # deve restituire qualcosa
 
     def test_cloud_mode_returns_cloud_provr(self):
         p = self._simple_profile()
         d = self.router.dec(p, "cloud", None, ollama_available=True)
-        assert d.provr not in ("ollama", "cache")
+        assert d.provider not in ("ollama", "cache")
 
     def test_hybrid_simple_uses_ollama(self):
         p = self._simple_profile()
         d = self.router.dec(p, "hybrid", None, ollama_available=True)
-        assert d.provr == "ollama"
+        assert d.provider == "ollama"
 
     def test_hybrid_complex_uses_race(self):
         p = self._complex_profile()
@@ -276,19 +276,19 @@ class TestLocalFirstRouter:
         p = self.scorer.score("ultime notizie oggi nel mondo")
         d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["groq","claude","gemini"])
-        assert d.provr == "groq"
+        assert d.provider == "groq"
 
     def test_code_routes_to_openai(self):
         p = self.scorer.score("def function(): import os class Foo")
         d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["openai","claude","groq"])
-        assert d.provr == "openai"
+        assert d.provider == "openai"
 
     def test_reasoning_routes_to_claude(self):
         p = self.scorer.score("ragiona e deduci la causa")
         d = self.router.dec(p, "cloud", None, ollama_available=False,
                                available_cloud=["claude","groq","gemini"])
-        assert d.provr == "claude"
+        assert d.provider == "claude"
 
     def test_stream_enabled_for_cloud(self):
         p = self._simple_profile()
@@ -301,8 +301,8 @@ class TestLocalFirstRouter:
         assert len(d.reason) > 0
 
     def test_default_model_for_known_provrs(self):
-        for provr in ["ollama","claude","openai","gemini","groq"]:
-            model = LocalFirstRouter._default_model(provr)
+        for provider in ["ollama","claude","openai","gemini","groq"]:
+            model = LocalFirstRouter._default_model(provider)
             assert isinstance(model, str) and len(model) > 2
 
 
@@ -319,19 +319,19 @@ class TestParallelSprint:
     async def test_empty_provrs_returns_error(self):
         result = await self.sprint.race(
             messages=[{"role":"user","content":"test"}],
-            provrs=[],
+            providers=[],
         )
         assert result.error is not None
 
     @pytest.mark.asyncio
     async def test_race_returns_sprint_result(self):
         async def mock_orchestrate(**kwargs):
-            return {"content": "risposta valida e completa", "model": "test-model", "provr": kwargs.get("provr", "test")}
+            return {"content": "risposta valida e completa", "model": "test-model", "provider": kwargs.get("provider", "test")}
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"ciao"}],
-                provrs=["groq","claude"],
+                providers=["groq","claude"],
             )
         assert isinstance(result, SprintResult)
         assert result.content != "" or result.error is not None
@@ -340,14 +340,14 @@ class TestParallelSprint:
     async def test_race_uses_first_valid_response(self):
         call_order = []
         async def mock_orchestrate(**kwargs):
-            call_order.append(kwargs.get("provr","?"))
+            call_order.append(kwargs.get("provider","?"))
             await asyncio.sleep(0.01)
-            return {"content": "risposta valida dal provr", "model": "m"}
+            return {"content": "risposta valida dal provider", "model": "m"}
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                provrs=["groq"],
+                providers=["groq"],
                 timeout=5.0,
             )
         assert len(call_order) == 1
@@ -355,12 +355,12 @@ class TestParallelSprint:
     @pytest.mark.asyncio
     async def test_race_handles_provr_error(self):
         async def mock_orchestrate_fail(**kwargs):
-            raise RuntimeError("provr error")
+            raise RuntimeError("provider error")
 
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_orchestrate_fail):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                provrs=["failing_provr"],
+                providers=["failing_provr"],
             )
         assert result.error is not None
 
@@ -372,7 +372,7 @@ class TestParallelSprint:
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_short):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                provrs=["p1"],
+                providers=["p1"],
             )
         # Risposta troppo corta → deve risultare in errore o winner vuoto
         assert result.error is not None or len(result.content) < ParallelSprint.MIN_LENGTH
@@ -386,7 +386,7 @@ class TestParallelSprint:
         with patch("backend.orchestrator.direct_router.orchestrate", new=mock_ok):
             result = await self.sprint.race(
                 messages=[{"role":"user","content":"test"}],
-                provrs=["p1"],
+                providers=["p1"],
             )
         if not result.error:
             assert result.latency_ms >= 10.0
@@ -417,7 +417,7 @@ class TestJetEngineFacade:
 
     def test_dec_cache_hit_second_time(self):
         msg = "domanda da cachare per test"
-        self.jet.cache_store(msg, "auto", {"content": "cached", "provr": "test",
+        self.jet.cache_store(msg, "auto", {"content": "cached", "provider": "test",
                                             "model":"m","tokens_used":0,"latency_ms":1})
         d = self.jet.dec(msg, model="auto")
         assert d.cache_hit is True
@@ -433,7 +433,7 @@ class TestJetEngineFacade:
 
     def test_routing_attached_to_decision(self):
         d = self.jet.dec("ciao", runtime_mode="local")
-        assert d.routing.provr != ""
+        assert d.routing.provider != ""
 
     def test_stats_returns_dict(self):
         stats = self.jet.stats()
@@ -482,7 +482,7 @@ class TestKnowledgeTaxonomy:
     def test_get_optimal_config_returns_dict(self):
         from backend.core.knowledge_taxonomy import get_optimal_config
         config = get_optimal_config("calcola l'integrale di x^2")
-        assert "provr" in config or "node_id" in config or isinstance(config, dict)
+        assert "provider" in config or "node_id" in config or isinstance(config, dict)
 
     def test_taxonomy_stats_structure(self):
         from backend.core.knowledge_taxonomy import taxonomy_stats

@@ -1,6 +1,6 @@
 """
 VIO 83 AI ORCHESTRA — Router / Orchestrator Tests
-Tests: classify_request intent detection, provr routing
+Tests: classify_request intent detection, provider routing
 """
 import unittest
 

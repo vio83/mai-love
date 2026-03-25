@@ -25,7 +25,7 @@ logger = logging.getLogger("vio83.errors")
 
 class ErrorCode(Enum):
     """Codici errore univoci per ogni tipo di problema."""
-    # Provr errors (1xxx)
+    # Provider errors (1xxx)
     PROVR_UNAVAILABLE = 1001
     PROVR_TIMEOUT = 1002
     PROVR_RATE_LIMITED = 1003
@@ -69,7 +69,7 @@ class OrchestraError:
     code: ErrorCode
     message: str
     details: Optional[str] = None
-    provr: Optional[str] = None
+    provider: Optional[str] = None
     model: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
     traceback_str: Optional[str] = None
@@ -82,7 +82,7 @@ class OrchestraError:
             "error_name": self.code.name,
             "message": self.message,
             "details": self.details,
-            "provr": self.provr,
+            "provider": self.provider,
             "model": self.model,
             "recoverable": self.recoverable,
             "suggestion": self.suggestion,
@@ -109,7 +109,7 @@ class OrchestraException(Exception):
 
 
 class ProvrException(OrchestraException):
-    """Errore da un provr AI."""
+    """Errore da un provider AI."""
 
 
 class NetworkException(OrchestraException):
@@ -163,9 +163,9 @@ class ErrorHandler:
         if isinstance(exc, (TimeoutError,)) or "timeout" in exc_type.lower():
             return OrchestraError(
                 code=ErrorCode.PROVR_TIMEOUT,
-                message=f"Timeout: {context.get('provr', 'unknown')}",
+                message=f"Timeout: {context.get('provider', 'unknown')}",
                 details=exc_msg,
-                provr=context.get("provr"),
+                provider=context.get("provider"),
                 suggestion="Prova con un modello più leggero o aumenta il timeout",
             )
 
@@ -174,16 +174,16 @@ class ErrorHandler:
             if "refused" in exc_msg.lower():
                 return OrchestraError(
                     code=ErrorCode.NETWORK_CONNECTION_FAILED,
-                    message=f"Connessione rifiutata: {context.get('provr', 'unknown')}",
+                    message=f"Connessione rifiutata: {context.get('provider', 'unknown')}",
                     details=exc_msg,
-                    provr=context.get("provr"),
+                    provider=context.get("provider"),
                     suggestion="Verifica che il servizio sia attivo e raggiungibile",
                 )
             return OrchestraError(
                 code=ErrorCode.NETWORK_CONNECTION_FAILED,
                 message=f"Errore di rete: {exc_msg}",
                 details=exc_msg,
-                provr=context.get("provr"),
+                provider=context.get("provider"),
             )
 
         # HTTP errors
@@ -191,17 +191,17 @@ class ErrorHandler:
             if "401" in exc_msg or "403" in exc_msg:
                 return OrchestraError(
                     code=ErrorCode.PROVR_AUTH_FAILED,
-                    message=f"Autenticazione fallita per {context.get('provr', 'unknown')}",
+                    message=f"Autenticazione fallita per {context.get('provider', 'unknown')}",
                     details=exc_msg,
-                    provr=context.get("provr"),
+                    provider=context.get("provider"),
                     suggestion="Verifica la API key nel file .env",
                 )
             if "429" in exc_msg:
                 return OrchestraError(
                     code=ErrorCode.PROVR_RATE_LIMITED,
-                    message=f"Rate limit raggiunto per {context.get('provr', 'unknown')}",
+                    message=f"Rate limit raggiunto per {context.get('provider', 'unknown')}",
                     details=exc_msg,
-                    provr=context.get("provr"),
+                    provider=context.get("provider"),
                     recoverable=True,
                     suggestion="Attendi qualche secondo prima di riprovare",
                 )
@@ -210,7 +210,7 @@ class ErrorHandler:
                     code=ErrorCode.PROVR_MODEL_NOT_FOUND,
                     message=f"Modello non trovato: {context.get('model', 'unknown')}",
                     details=exc_msg,
-                    provr=context.get("provr"),
+                    provider=context.get("provider"),
                     model=context.get("model"),
                     suggestion="Verifica il nome del modello o installalo con 'ollama pull'",
                 )
@@ -228,7 +228,7 @@ class ErrorHandler:
             code=ErrorCode.SYSTEM_UNKNOWN,
             message=f"Errore imprevisto: {exc_type}",
             details=exc_msg[:500],
-            provr=context.get("provr"),
+            provider=context.get("provider"),
             model=context.get("model"),
         )
 
@@ -257,7 +257,7 @@ class ErrorHandler:
 class FallbackChain:
     """
     Catena di fallback: prova A, se fallisce prova B, poi C...
-    Registra quale provr ha funzionato per ottimizzare future richieste.
+    Registra quale provider ha funzionato per ottimizzare future richieste.
     """
 
     def __init__(self, error_handler: Optional[ErrorHandler] = None):
@@ -265,9 +265,9 @@ class FallbackChain:
         self._success_history: dict[str, str] = {}
         self._error_handler = error_handler or ErrorHandler()
 
-    def register_chain(self, name: str, provrs: list[tuple[str, Callable]]):
+    def register_chain(self, name: str, providers: list[tuple[str, Callable]]):
         """Registra una catena di fallback."""
-        self._chains[name] = provrs
+        self._chains[name] = providers
 
     async def execute(self, chain_name: str, *args, **kwargs) -> Any:
         """Esegui la catena di fallback fino al primo successo."""
@@ -283,14 +283,14 @@ class FallbackChain:
                 return result
             except Exception as e:
                 last_error = self._error_handler.handle(
-                    e, context={"provr": provr_name, "chain": chain_name}
+                    e, context={"provider": provr_name, "chain": chain_name}
                 )
                 logger.info(f"[Fallback] {provr_name} fallito, provo il prossimo...")
                 continue
 
         raise OrchestraException(last_error or OrchestraError(
             code=ErrorCode.SYSTEM_UNKNOWN,
-            message=f"Tutti i provr nella catena '{chain_name}' hanno fallito",
+            message=f"Tutti i provider nella catena '{chain_name}' hanno fallito",
             recoverable=False,
         ))
 

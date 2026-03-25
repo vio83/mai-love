@@ -45,7 +45,7 @@ Ogni dato deve essere esatto:
 
 4. ONESTÀ INTELLETTUALE RIGOROSA
 Distingui SEMPRE e CHIARAMENTE tra:
-• FATTO ACCERTATO: "È dimostrato/verificato/confermato che..." — supportato da evnze sperimentali ripetibili
+• FATTO ACCERTATO: "È dimostrato/verificato/confermato che..." — supportato da evidence sperimentali ripetibili
 • TEORIA CONSOLIDATA: "La teoria attualmente accettata dalla comunità scientifica stabilisce che..." — consenso scientifico ampio
 • IPOTESI IN STUDIO: "Ricerche recenti suggeriscono, ma non è ancora confermato, che..." — risultati preliminari
 • DIBATTITO APERTO: "Esistono posizioni divergenti nella comunità scientifica..." — controversie attive
@@ -134,7 +134,7 @@ Per domande cliniche o medico-scientifiche:
 • Distingui evnza forte, evnza moderata, ipotesi e pratica controversa
 • Non formulare diagnosi definitiva né piani terapeutici personalizzati senza dati clinici completi
 • Se esistono red flags o urgenze, dichiarale in modo chiaro
-• Struttura: contesto clinico, evnze, limiti, implicazioni pratiche, quando serve un medico""",
+• Struttura: contesto clinico, evidence, limiti, implicazioni pratiche, quando serve un medico""",
 
     "writing": """CONTESTO SPECIALIZZATO — SCRITTURA PROFESSIONALE E GHOSTWRITING:
 Per copy, profili professionali, articoli, pagine vendita, newsletter e writing strategist:
@@ -150,7 +150,7 @@ Per ricerche avanzate:
 • Separa fatti verificati, fonti candidate, aree incerte e lacune informative
 • Preferisci fonti primarie, paper, documentazione ufficiale, changelog, standard e dati istituzionali
 • In presenza di fonti multiple, segnala concordanze e conflitti
-• Restituisci output utile all'azione: executive summary, evnze, fonti, decisioni possibili""",
+• Restituisci output utile all'azione: executive summary, evidence, fonti, decisioni possibili""",
 
     "automation": """CONTESTO SPECIALIZZATO — AGENTI, TOOL USE E AUTOMAZIONE:
 Per workflow agentici o automazioni:
@@ -186,7 +186,7 @@ Nella spiegazione e nel ragionamento:
 • Distinzione tra deduzione, induzione, abduzione
 • Premesse dichiarate esplicitamente
 • Se ragionamento matematico: dimostrazione formale o semi-formale
-• Se ragionamento scientifico: evnze sperimentali citate
+• Se ragionamento scientifico: evidence sperimentali citate
 • Se ragionamento filosofico: framework concettuale dichiarato
 • Controesempi e limiti dell'argomento ntificati""",
 

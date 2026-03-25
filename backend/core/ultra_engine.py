@@ -10,7 +10,7 @@ Trasformazione architetturale: da macchina 400kg → piuma 4g, stesse performanc
 Moduli:
   1. SemanticCompactCache   — cache semantica con fingerprinting adattivo
   2. ConversationCompressor — compressione token-aware delle conversazioni
-  3. AdaptiveProvrMemory — memoria adattiva per latenza/qualità provr
+  3. AdaptiveProvrMemory — memoria adattiva per latenza/qualità provider
   4. UltraTokenBudget       — gestione budget token ultra-precisa
   5. FeatherRouter          — router intent ultra-leggero (sub-microsecondo)
 
@@ -331,7 +331,7 @@ class ConversationCompressor:
 
 @dataclass
 class ProvrStats:
-    """Statistiche adattive per un singolo provr."""
+    """Statistiche adattive per un singolo provider."""
     provr_id: str
     latencies: List[float] = field(default_factory=list)
     quality_scores: List[float] = field(default_factory=list)
@@ -378,22 +378,22 @@ class ProvrStats:
 
 class AdaptiveProvrMemory:
     """
-    Memoria adattiva per provr AI.
+    Memoria adattiva per provider AI.
 
-    Impara automaticamente quale provr è:
+    Impara automaticamente quale provider è:
     - Più veloce per tipo di task
     - Più preciso per categoria semantica
     - Più affidabile nel tempo
 
-    Circuit breaker: se provr fallisce >3 volte in 60s → pausa 5min
+    Circuit breaker: se provider fallisce >3 volte in 60s → pausa 5min
 
     Questa è la "intelligenza della piuma" — sapere QUANDO essere leggeri
-    (provr locale Ollama) e QUANDO usare la forza (Claude Opus).
+    (provider locale Ollama) e QUANDO usare la forza (Claude Opus).
     """
 
     CIRCUIT_BREAKER_THRESHOLD = 3     # Errori prima di circuit break
     CIRCUIT_BREAK_DURATION = 300.0    # Secondi di pausa (5 min)
-    MAX_LATENCY_HISTORY = 50          # Campioni per provr
+    MAX_LATENCY_HISTORY = 50          # Campioni per provider
 
     def __init__(self):
         self._provrs: Dict[str, ProvrStats] = {}
@@ -459,7 +459,7 @@ class AdaptiveProvrMemory:
         prefer_speed: bool = False
     ) -> Optional[str]:
         """
-        Ritorna il provr migliore tra i candidati.
+        Ritorna il provider migliore tra i candidati.
 
         Consra: latenza storica, qualità, affidabilità, preferenza per intent.
         """
@@ -486,7 +486,7 @@ class AdaptiveProvrMemory:
             return max(available, key=score)
 
     def get_ranking(self, intent: Optional[str] = None) -> List[Tuple[str, float]]:
-        """Ritorna ranking provr per intent."""
+        """Ritorna ranking provider per intent."""
         with self._lock:
             ranking = []
             for pid, stats in self._provrs.items():
@@ -505,7 +505,7 @@ class AdaptiveProvrMemory:
                 "engine": "AdaptiveProvrMemory™",
                 "provrs_tracked": len(self._provrs),
                 "intents_learned": len(self._intent_preferences),
-                "provrs": {
+                "providers": {
                     pid: {
                         "avg_latency_ms": round(s.avg_latency_ms, 1),
                         "avg_quality": round(s.avg_quality, 3),
@@ -531,7 +531,7 @@ class UltraTokenBudget:
     Previene: context overflow, costi eccessivi, latenza alta.
     Ottimizza: distribuzione token tra system/history/risposta.
 
-    Modello: ogni provr ha un context window.
+    Modello: ogni provider ha un context window.
     Piuma: usa il minimo indispensabile, non sprecare token.
     """
 
@@ -576,7 +576,7 @@ class UltraTokenBudget:
     @classmethod
     def calculate_budget(
         cls,
-        provr: str,
+        provider: str,
         system_prompt: str,
         messages: List[Dict],
         desired_response_tokens: int = 2048
@@ -594,7 +594,7 @@ class UltraTokenBudget:
             "truncation_needed": bool,
         }
         """
-        limit = cls.PROVR_LIMITS.get(provr, 16_000)
+        limit = cls.PROVR_LIMITS.get(provider, 16_000)
         system_tokens = cls.estimate_tokens(system_prompt)
         history_tokens = cls.estimate_messages_tokens(messages)
         used = system_tokens + history_tokens
@@ -616,7 +616,7 @@ class UltraTokenBudget:
     def safe_truncate_messages(
         cls,
         messages: List[Dict],
-        provr: str,
+        provider: str,
         system_prompt: str = "",
         reserve_for_response: int = 2048
     ) -> List[Dict]:
@@ -624,11 +624,11 @@ class UltraTokenBudget:
         Tronca messaggi per stare nel budget.
         Mantiene sempre il PRIMO e gli ULTIMI N messaggi.
         """
-        budget = cls.calculate_budget(provr, system_prompt, messages, reserve_for_response)
+        budget = cls.calculate_budget(provider, system_prompt, messages, reserve_for_response)
         if not budget["truncation_needed"]:
             return messages
 
-        limit = cls.PROVR_LIMITS.get(provr, 16_000)
+        limit = cls.PROVR_LIMITS.get(provider, 16_000)
         system_tokens = budget["system_tokens"]
         target_history_tokens = limit - system_tokens - reserve_for_response - int(limit * 0.1)
 

@@ -6,7 +6,7 @@
 Gestione piani di abbonamento e accesso AI.
 
 Ogni piano definisce:
-- Quali AI provr l'utente può usare
+- Quali AI provider l'utente può usare
 - Quante richieste al giorno/mese
 - Quali funzionalità sono attive
 - Il prezzo corrispondente
@@ -37,7 +37,7 @@ class SubscriptionPlan:
     description_it: str
     price_monthly_eur: float
     price_yearly_eur: float
-    provrs: list[str]          # Provr AI inclusi
+    providers: list[str]          # Provider AI inclusi
     max_requests_day: int         # Limite giornaliero
     max_requests_month: int       # Limite mensile
     features: list[str]           # Funzionalità incluse
@@ -56,7 +56,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         description_it="Solo AI locale — modelli Ollama sulla tua macchina",
         price_monthly_eur=0.0,
         price_yearly_eur=0.0,
-        provrs=["ollama"],
+        providers=["ollama"],
         max_requests_day=100,
         max_requests_month=3000,
         features=["local_ai", "conversations", "history"],
@@ -69,11 +69,11 @@ PLANS: dict[str, SubscriptionPlan] = {
         plan_id="starter",
         name="Starter",
         name_it="Starter",
-        description="Local AI + free cloud provrs (Groq, OpenRouter)",
-        description_it="AI locale + provr cloud gratuiti (Groq, OpenRouter)",
+        description="Local AI + free cloud providers (Groq, OpenRouter)",
+        description_it="AI locale + provider cloud gratuiti (Groq, OpenRouter)",
         price_monthly_eur=4.99,
         price_yearly_eur=49.90,
-        provrs=["ollama", "groq", "together", "openrouter"],
+        providers=["ollama", "groq", "together", "openrouter"],
         max_requests_day=200,
         max_requests_month=6000,
         features=["local_ai", "cloud_free", "conversations", "history", "analytics"],
@@ -81,7 +81,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         priority=3,
     ),
 
-    # ── Pro: tutti i provr economici ──
+    # ── Pro: tutti i provider economici ──
     "pro": SubscriptionPlan(
         plan_id="pro",
         name="Pro",
@@ -90,7 +90,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         description_it="Tutte le AI locali + gratuite + cloud economiche (DeepSeek, Mistral)",
         price_monthly_eur=14.99,
         price_yearly_eur=149.90,
-        provrs=["ollama", "groq", "together", "openrouter", "deepseek", "mistral"],
+        providers=["ollama", "groq", "together", "openrouter", "deepseek", "mistral"],
         max_requests_day=500,
         max_requests_month=15000,
         features=[
@@ -101,16 +101,16 @@ PLANS: dict[str, SubscriptionPlan] = {
         priority=5,
     ),
 
-    # ── Premium: tutti i provr ──
+    # ── Premium: tutti i provider ──
     "premium": SubscriptionPlan(
         plan_id="premium",
         name="Premium",
         name_it="Premium",
-        description="ALL AI provrs — Claude, GPT-4, Gemini, Grok, Perplexity + everything",
-        description_it="TUTTI i provr AI — Claude, GPT-4, Gemini, Grok, Perplexity + tutto",
+        description="ALL AI providers — Claude, GPT-4, Gemini, Grok, Perplexity + everything",
+        description_it="TUTTI i provider AI — Claude, GPT-4, Gemini, Grok, Perplexity + tutto",
         price_monthly_eur=29.99,
         price_yearly_eur=299.90,
-        provrs=[
+        providers=[
             "ollama", "groq", "together", "openrouter",
             "deepseek", "mistral", "anthropic", "openai",
             "xai", "gemini", "perplexity",
@@ -136,7 +136,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         description_it="Illimitato — tutte le AI, massime prestazioni, supporto prioritario",
         price_monthly_eur=99.99,
         price_yearly_eur=999.90,
-        provrs=[
+        providers=[
             "ollama", "groq", "together", "openrouter",
             "deepseek", "mistral", "anthropic", "openai",
             "xai", "gemini", "perplexity",
@@ -164,7 +164,7 @@ class SubscriptionManager:
     Gestisce abbonamenti, limiti di utilizzo e accesso AI per utente.
 
     Controlla:
-    - L'utente può usare questo provr? (piano lo include?)
+    - L'utente può usare questo provider? (piano lo include?)
     - Ha superato il limite giornaliero/mensile?
     - Quale max_tokens può usare?
     - Quali funzionalità ha attive?
@@ -188,8 +188,8 @@ class SubscriptionManager:
                 "description_it": p.description_it,
                 "price_monthly_eur": p.price_monthly_eur,
                 "price_yearly_eur": p.price_yearly_eur,
-                "provrs": p.provrs,
-                "provr_count": len(p.provrs),
+                "providers": p.providers,
+                "provr_count": len(p.providers),
                 "max_requests_day": p.max_requests_day,
                 "max_requests_month": p.max_requests_month,
                 "features": p.features,
@@ -198,19 +198,19 @@ class SubscriptionManager:
             for p in PLANS.values()
         ]
 
-    def can_use_provr(self, plan_id: str, provr: str) -> bool:
-        """L'utente con questo piano può usare questo provr?"""
+    def can_use_provr(self, plan_id: str, provider: str) -> bool:
+        """L'utente con questo piano può usare questo provider?"""
         plan = PLANS.get(plan_id)
         if not plan:
             return False
-        return provr in plan.provrs
+        return provider in plan.providers
 
     def get_allowed_provrs(self, plan_id: str) -> list[str]:
-        """Lista provr consentiti per un piano."""
+        """Lista provider consentiti per un piano."""
         plan = PLANS.get(plan_id)
         if not plan:
             return ["ollama"]  # Fallback sempre locale
-        return list(plan.provrs)
+        return list(plan.providers)
 
     def check_rate_limit(self, user_id: str, plan_id: str) -> dict:
         """
@@ -266,10 +266,10 @@ class SubscriptionManager:
             return False
         return feature in plan.features
 
-    def get_plan_for_provr(self, provr: str) -> str:
-        """Quale piano minimo serve per questo provr?"""
+    def get_plan_for_provr(self, provider: str) -> str:
+        """Quale piano minimo serve per questo provider?"""
         for plan_id, plan in sorted(PLANS.items(), key=lambda x: x[1].priority):
-            if provr in plan.provrs:
+            if provider in plan.providers:
                 return plan_id
         return "enterprise"
 

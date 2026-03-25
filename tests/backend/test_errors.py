@@ -37,23 +37,23 @@ class TestOrchestraError(unittest.TestCase):
     def test_error_creation(self):
         err = OrchestraError(
             code=ErrorCode.PROVR_UNAVAILABLE,
-            message="Provr X is down"
+            message="Provider X is down"
         )
         self.assertEqual(err.code, ErrorCode.PROVR_UNAVAILABLE)
-        self.assertEqual(err.message, "Provr X is down")
+        self.assertEqual(err.message, "Provider X is down")
         self.assertTrue(err.recoverable)
 
     def test_error_to_dict(self):
         err = OrchestraError(
             code=ErrorCode.PROVR_TIMEOUT,
             message="Timed out",
-            provr="ollama",
+            provider="ollama",
             model="llama3"
         )
         d = err.to_dict()
         self.assertIsInstance(d, dict)
         self.assertEqual(d["error_code"], 1002)
-        self.assertEqual(d["provr"], "ollama")
+        self.assertEqual(d["provider"], "ollama")
         self.assertEqual(d["model"], "llama3")
 
     def test_non_recoverable_error(self):

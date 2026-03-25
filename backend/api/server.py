@@ -165,6 +165,8 @@ RUNTIME_ENV_DEFAULTS = {
     "VIO_EXECUTION_PROFILE": "real-max-local",
     "VIO_NO_HYBRID": "false",
     "VIO_LOCAL_MODEL_PREFERENCE": "qwen2.5-coder:3b",
+    "VIO_AUTOPILOT_INTERVAL_SEC": "1",
+    "VIO_AUTOPILOT_MIN_FREE_GB": "45",
 }
 
 AUTONOMOUS_RUNTIME = AutonomousRuntime(PROJECT_ROOT)
@@ -599,13 +601,237 @@ def _runtime_apps_snapshot() -> dict[str, Any]:
         },
         "dependencies": dependencies,
         "claude_desktop": _claude_desktop_snapshot(),
+        "autopilot": {
+            "enabled": OPS_AUTOPILOT_STATE["enabled"],
+            "interval_seconds": OPS_AUTOPILOT_STATE["interval_seconds"],
+            "min_free_gb": OPS_AUTOPILOT_STATE["min_free_gb"],
+            "last_tick_at": OPS_AUTOPILOT_STATE.get("last_tick_at"),
+            "last_free_gb": OPS_AUTOPILOT_STATE.get("last_free_gb"),
+            "last_harmony_score": OPS_AUTOPILOT_STATE.get("last_harmony_score"),
+        },
         "apps": apps,
         "honesty_notes": [
             "OpenClaw e LegalRoom non possono diventare verdi senza un comando reale di avvio.",
             "La policy di update controlla la configurazione approvata dall'utente, non aggiorna magicamente binari esterni.",
             "n8n risulta operativo solo se il runtime reale risponde sugli endpoint configurati.",
+            "L'autopilota applica solo recovery sicure e locali (cache/build/temp del progetto), non modifica dati utente sensibili.",
         ],
     }
+
+
+# ═══════════════════════════════════════════════
+# OPS AUTOPILOT — monitoraggio continuo Mac/dev environment
+# ═══════════════════════════════════════════════
+
+OPS_AUTOPILOT_STATE: dict[str, Any] = {
+    "enabled": True,
+    "interval_seconds": int(os.environ.get("VIO_AUTOPILOT_INTERVAL_SEC", "1") or "1"),
+    "min_free_gb": float(os.environ.get("VIO_AUTOPILOT_MIN_FREE_GB", "45") or "45"),
+    "last_tick_at": None,
+    "last_free_gb": None,
+    "last_harmony_score": 0.0,
+    "last_actions": [],
+    "signals": {
+        "vscode_running": False,
+        "claude_running": False,
+        "github_connected": False,
+        "runtime_launchagent_loaded": False,
+    },
+}
+
+_OPS_GITHUB_CHECK_CACHE: dict[str, Any] = {"ts": 0.0, "ok": False}
+
+
+def _safe_int(value: Any, fallback: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return fallback
+
+
+def _safe_float(value: Any, fallback: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return fallback
+
+
+def _process_running_contains(token: str) -> bool:
+    try:
+        result = subprocess.run(["pgrep", "-f", token], capture_output=True, text=True, timeout=3)
+        return result.returncode == 0 and bool((result.stdout or "").strip())
+    except Exception:
+        return False
+
+
+def _github_connected_cached(ttl_sec: int = 60) -> bool:
+    now = time.time()
+    if (now - float(_OPS_GITHUB_CHECK_CACHE.get("ts", 0.0))) < ttl_sec:
+        return bool(_OPS_GITHUB_CHECK_CACHE.get("ok", False))
+
+    ok = False
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin"],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+        ok = result.returncode == 0
+    except Exception:
+        ok = False
+
+    _OPS_GITHUB_CHECK_CACHE["ts"] = now
+    _OPS_GITHUB_CHECK_CACHE["ok"] = ok
+    return ok
+
+
+def _collect_cleanup_targets() -> list[Path]:
+    targets = [
+        PROJECT_ROOT / "dist",
+        PROJECT_ROOT / ".pytest_cache",
+        PROJECT_ROOT / ".mypy_cache",
+        PROJECT_ROOT / ".ruff_cache",
+        PROJECT_ROOT / ".cache",
+        PROJECT_ROOT / "backend" / "__pycache__",
+        PROJECT_ROOT / "src" / "__pycache__",
+        PROJECT_ROOT / "tests" / "__pycache__",
+    ]
+    return targets
+
+
+def _estimate_path_size(path: Path) -> int:
+    if not path.exists():
+        return 0
+    if path.is_file():
+        try:
+            return path.stat().st_size
+        except Exception:
+            return 0
+
+    total = 0
+    try:
+        for root, _, files in os.walk(path):
+            for name in files:
+                fp = Path(root) / name
+                try:
+                    total += fp.stat().st_size
+                except Exception:
+                    continue
+    except Exception:
+        return 0
+    return total
+
+
+def _safe_reclaim_dev_space() -> dict[str, Any]:
+    """Recovery sicura: pulisce artefatti build/cache nel progetto locale."""
+    reclaimed_bytes = 0
+    removed: list[str] = []
+
+    for target in _collect_cleanup_targets():
+        if not target.exists():
+            continue
+        size_before = _estimate_path_size(target)
+        try:
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink(missing_ok=True)
+            reclaimed_bytes += size_before
+            removed.append(str(target.relative_to(PROJECT_ROOT)))
+        except Exception:
+            continue
+
+    # Best-effort git gc per ottimizzare repository locale
+    try:
+        subprocess.run(["git", "gc", "--prune=now"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, timeout=15)
+    except Exception:
+        pass
+
+    return {
+        "reclaimed_bytes": reclaimed_bytes,
+        "reclaimed_gb": round(reclaimed_bytes / (1024 ** 3), 3),
+        "removed_targets": removed,
+    }
+
+
+def _append_ops_action(action: dict[str, Any]) -> None:
+    actions: list[dict[str, Any]] = OPS_AUTOPILOT_STATE.setdefault("last_actions", [])
+    actions.append(action)
+    if len(actions) > 120:
+        del actions[:-120]
+
+
+def _ops_autopilot_tick(force_reclaim: bool = False) -> dict[str, Any]:
+    usage = shutil.disk_usage(str(Path.home()))
+    free_gb = round(usage.free / (1024 ** 3), 2)
+    min_free_gb = _safe_float(OPS_AUTOPILOT_STATE.get("min_free_gb", 45.0), 45.0)
+    low_disk = free_gb < min_free_gb
+
+    signals = {
+        "vscode_running": _process_running_contains("Visual Studio Code") or _process_running_contains("Code Helper"),
+        "claude_running": _process_running_contains("Claude"),
+        "github_connected": _github_connected_cached(ttl_sec=60),
+        "runtime_launchagent_loaded": _launch_agent_loaded("com.vio83.runtime-services"),
+    }
+
+    reclaim_result = {"reclaimed_bytes": 0, "reclaimed_gb": 0.0, "removed_targets": []}
+    if force_reclaim or low_disk:
+        reclaim_result = _safe_reclaim_dev_space()
+        usage = shutil.disk_usage(str(Path.home()))
+        free_gb = round(usage.free / (1024 ** 3), 2)
+
+    harmony_parts = [
+        100.0 if signals["vscode_running"] else 70.0,
+        100.0 if signals["claude_running"] else 70.0,
+        100.0 if signals["github_connected"] else 60.0,
+        100.0 if signals["runtime_launchagent_loaded"] else 70.0,
+        100.0 if free_gb >= min_free_gb else max(30.0, (free_gb / max(min_free_gb, 1.0)) * 100.0),
+    ]
+    harmony_score = round(sum(harmony_parts) / len(harmony_parts), 1)
+
+    OPS_AUTOPILOT_STATE["last_tick_at"] = _now_iso()
+    OPS_AUTOPILOT_STATE["last_free_gb"] = free_gb
+    OPS_AUTOPILOT_STATE["last_harmony_score"] = harmony_score
+    OPS_AUTOPILOT_STATE["signals"] = signals
+
+    if force_reclaim or low_disk:
+        _append_ops_action({
+            "ts": _now_iso(),
+            "type": "auto-reclaim",
+            "trigger": "manual" if force_reclaim else f"low-disk<{min_free_gb}GB",
+            "reclaim": reclaim_result,
+            "free_gb_after": free_gb,
+        })
+
+    return {
+        "status": "ok",
+        "enabled": OPS_AUTOPILOT_STATE["enabled"],
+        "interval_seconds": OPS_AUTOPILOT_STATE["interval_seconds"],
+        "min_free_gb": min_free_gb,
+        "last_tick_at": OPS_AUTOPILOT_STATE["last_tick_at"],
+        "last_free_gb": free_gb,
+        "last_harmony_score": harmony_score,
+        "signals": signals,
+        "last_actions": OPS_AUTOPILOT_STATE.get("last_actions", [])[-20:],
+        "low_disk": free_gb < min_free_gb,
+        "storage": {
+            "total_gb": round(usage.total / (1024 ** 3), 2),
+            "used_gb": round(usage.used / (1024 ** 3), 2),
+            "free_gb": free_gb,
+        },
+    }
+
+
+async def _ops_autopilot_loop():
+    while True:
+        try:
+            if OPS_AUTOPILOT_STATE.get("enabled", True):
+                _ops_autopilot_tick(force_reclaim=False)
+        except Exception as exc:
+            _append_ops_action({"ts": _now_iso(), "type": "tick-error", "error": str(exc)[:300]})
+        await asyncio.sleep(max(1, _safe_int(OPS_AUTOPILOT_STATE.get("interval_seconds", 1), 1)))
 
 
 def _run_local_script(script_path: Path, timeout_s: int = 45) -> dict[str, Any]:
@@ -751,32 +977,32 @@ def _compute_domain_scores():
     reachable_count = int(KNOWLEDGE_REFRESH_STATE.get("reachable_count", 0) or 0)
 
     if source_count > 0:
-        watch_health_score = max(0.0, min(100.0, (reachable_count / source_count) * 100.0))
+        watch_health = max(0.0, min(100.0, (reachable_count / source_count) * 100.0))
     else:
-        watch_health_score = 60.0
+        watch_health = 60.0
 
     if last_refresh_iso:
         try:
             last_refresh_ts = time.mktime(time.strptime(last_refresh_iso, "%Y-%m-%dT%H:%M:%SZ"))
             age_h = max(0.0, (time.time() - last_refresh_ts) / 3600.0)
-            freshness_score = max(30.0, min(100.0, 100.0 - age_h * 8.0))
+            freshness = max(30.0, min(100.0, 100.0 - age_h * 8.0))
         except Exception:
-            freshness_score = 55.0
+            freshness = 55.0
     else:
-        freshness_score = 45.0
+        freshness = 45.0
 
     scored_domains = []
     for domain in GLOBAL_KNOWLEDGE_DOMAINS:
-        coverage_score = 100.0
-        reliability_score = 100.0
+        coverage = 100.0
+        reliability = 100.0
 
         scored_domains.append({
             "id": domain["id"],
             "name": domain["name"],
-            "coverage_score": 100.0,
-            "freshness_score": 100.0,
-            "watch_health_score": 100.0,
-            "reliability_score": 100.0,
+            "coverage_score": coverage,
+            "freshness_score": freshness,
+            "watch_health_score": watch_health,
+            "reliability_score": reliability,
             "status": "high",
         })
 
@@ -1002,6 +1228,11 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_auto_refresh_task = asyncio.create_task(_knowledge_auto_refresh_loop())
     print("🌍 Knowledge Watch: auto-refresh ogni 6h attivo")
 
+    # Autopilota operativo locale: monitor continuo + recovery sicura su soglia disco
+    _ops_autopilot_tick(force_reclaim=False)
+    app.state.ops_autopilot_task = asyncio.create_task(_ops_autopilot_loop())
+    print(f"🛰️ Ops Autopilot: attivo ogni {OPS_AUTOPILOT_STATE['interval_seconds']}s | soglia disco {OPS_AUTOPILOT_STATE['min_free_gb']}GB")
+
     await AUTONOMOUS_RUNTIME.start()
     app.state.autonomous_runtime = AUTONOMOUS_RUNTIME
     print("🧠 Autonomous Runtime: trigger→route→session namespace + memoria Markdown attivo")
@@ -1065,6 +1296,14 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
 
+    ops_task = getattr(app.state, "ops_autopilot_task", None)
+    if ops_task:
+        ops_task.cancel()
+        try:
+            await ops_task
+        except asyncio.CancelledError:
+            pass
+
     autonomous_runtime = getattr(app.state, "autonomous_runtime", None)
     if autonomous_runtime:
         await autonomous_runtime.stop()
@@ -1113,6 +1352,7 @@ _ADMIN_PIN_HEADER = "x-vio-admin-pin"
 
 _ADMIN_PROTECTED_PREFIXES: tuple[str, ...] = (
     "/runtime/apps/",
+    "/runtime/autopilot/",
     "/autonomy/config",
     "/openclaw/approvals/",
 )
@@ -3418,6 +3658,48 @@ async def api_runtime_apps_action(payload: dict[str, Any] = Body(...)):
         raise HTTPException(status_code=500, detail=result)
 
     return result
+
+
+@app.get("/runtime/autopilot/status")
+async def api_runtime_autopilot_status():
+    """Stato autopilota operativo: monitor continuo Mac/dev + armonia runtime."""
+    return _ops_autopilot_tick(force_reclaim=False)
+
+
+@app.put("/runtime/autopilot/config")
+async def api_runtime_autopilot_config(payload: dict[str, Any] = Body(...)):
+    """Configura autopilota runtime (enabled, interval_seconds, min_free_gb)."""
+    if "enabled" in payload:
+        OPS_AUTOPILOT_STATE["enabled"] = bool(payload.get("enabled"))
+
+    if "interval_seconds" in payload:
+        interval_val = _safe_int(payload.get("interval_seconds"), OPS_AUTOPILOT_STATE["interval_seconds"])
+        OPS_AUTOPILOT_STATE["interval_seconds"] = max(1, min(300, interval_val))
+
+    if "min_free_gb" in payload:
+        min_free_val = _safe_float(payload.get("min_free_gb"), OPS_AUTOPILOT_STATE["min_free_gb"])
+        OPS_AUTOPILOT_STATE["min_free_gb"] = max(5.0, min(512.0, min_free_val))
+
+    _write_project_env_updates({
+        "VIO_AUTOPILOT_INTERVAL_SEC": str(int(OPS_AUTOPILOT_STATE["interval_seconds"])),
+        "VIO_AUTOPILOT_MIN_FREE_GB": str(float(OPS_AUTOPILOT_STATE["min_free_gb"])),
+    })
+
+    return {
+        "status": "ok",
+        "config": {
+            "enabled": OPS_AUTOPILOT_STATE["enabled"],
+            "interval_seconds": OPS_AUTOPILOT_STATE["interval_seconds"],
+            "min_free_gb": OPS_AUTOPILOT_STATE["min_free_gb"],
+        },
+        "snapshot": _ops_autopilot_tick(force_reclaim=False),
+    }
+
+
+@app.post("/runtime/autopilot/tick")
+async def api_runtime_autopilot_tick(force_reclaim: bool = Query(False)):
+    """Esegue un tick immediato autopilota; opzionalmente forza recovery spazio."""
+    return _ops_autopilot_tick(force_reclaim=bool(force_reclaim))
 
 
 # ═══════════════════════════════════════════════

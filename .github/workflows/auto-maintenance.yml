@@ -35,7 +35,7 @@ permissions:
 env:
   PYTHONPATH: ${{ github.workspace }}
   NODE_VERSION: "20"
-  PYTHON_VERSION: "3.13"
+  PYTHON_VERSION: "3.12"
 
 jobs:
   # ─────────────────────────────────────────────

@@ -8,26 +8,26 @@ VIO 83 PARALLEL RACE ORCHESTRATOR — Piuma™ Speed Layer
 
 Il cuore della trasformazione Piuma™.
 
-Analogia: invece di usare UNA macchina (provr) → mandi in pista
+Analogia: invece di usare UNA macchina (provider) → mandi in pista
 TUTTE le macchine contemporaneamente. Vince la più veloce,
 oppure combini i risultati delle migliori.
 
 Modalità:
-  RACE_FIRST   — Ritorna SUBITO il primo provr che risponde (latenza minima)
+  RACE_FIRST   — Ritorna SUBITO il primo provider che risponde (latenza minima)
   RACE_BEST    — Aspetta K risposte, ritorna la migliore (qualità massima)
-  RACE_CROSS   — Verifica incrociata: ritorna solo se ≥2 provr concordano
+  RACE_CROSS   — Verifica incrociata: ritorna solo se ≥2 provider concordano
   RACE_STREAM  — Prima risposta in streaming, le altre come verifica asincrona
 
 Performance vs sequenziale:
-  - 3 provr sequenziali: 900ms + 1200ms + 800ms = 2900ms
-  - 3 provr paralleli (RACE_FIRST): max(900, 1200, 800) = 900ms → 3.2x più veloce
-  - Con circuit breaker: skip provr lenti → <500ms medi
+  - 3 provider sequenziali: 900ms + 1200ms + 800ms = 2900ms
+  - 3 provider paralleli (RACE_FIRST): max(900, 1200, 800) = 900ms → 3.2x più veloce
+  - Con circuit breaker: skip provider lenti → <500ms medi
 
 Features:
-  - asyncio.gather con timeout per provr
+  - asyncio.gather con timeout per provider
   - Circuit breaker integrato (usa AdaptiveProvrMemory)
   - Qualità scoring basato su lunghezza, coerenza, completezza
-  - Retry automatico su provr secondario se primario fallisce
+  - Retry automatico su provider secondario se primario fallisce
   - Telemetria completa per ogni race
 """
 
@@ -50,8 +50,8 @@ class RaceMode(str, Enum):
 
 @dataclass
 class RaceResult:
-    """Risultato di una gara tra provr."""
-    winner: str                          # Provr vincitore
+    """Risultato di una gara tra provider."""
+    winner: str                          # Provider vincitore
     response: str                        # Risposta finale
     latency_ms: float                    # Latenza in ms
     mode: RaceMode                       # Modalità usata
@@ -65,10 +65,10 @@ class RaceResult:
 
 @dataclass
 class ProvrCall:
-    """Configurazione di una singola chiamata provr."""
+    """Configurazione di una singola chiamata provider."""
     provr_id: str
     coro: Coroutine          # Coroutine async che ritorna stringa
-    timeout_s: float = 30.0  # Timeout per questo provr
+    timeout_s: float = 30.0  # Timeout per questo provider
     priority: int = 0         # Priorità (0=normale, 1=alta, 2=massima)
 
 
@@ -79,7 +79,7 @@ class ParallelRaceOrchestrator:
     Uso tipico:
         race = ParallelRaceOrchestrator()
         result = await race.run(
-            provrs=[
+            providers=[
                 ProvrCall("claude", call_claude(msg), timeout_s=20),
                 ProvrCall("ollama", call_ollama(msg), timeout_s=10),
             ],
@@ -186,24 +186,24 @@ class ParallelRaceOrchestrator:
 
     async def run(
         self,
-        provrs: List[ProvrCall],
+        providers: List[ProvrCall],
         mode: RaceMode = RaceMode.FIRST,
         intent: Optional[str] = None,
         min_responses_for_best: int = 2,
     ) -> RaceResult:
         """
-        Esegui la gara tra provr.
+        Esegui la gara tra provider.
 
         Args:
-            provrs: Lista di chiamate provr da eseguire in parallelo
+            providers: Lista di chiamate provider da eseguire in parallelo
             mode: Strategia di selezione risultato
             intent: Categoria semantica per scoring qualità
             min_responses_for_best: Per BEST mode, min risposte da aspettare
         """
-        if not provrs:
+        if not providers:
             return RaceResult(
                 winner="none", response="", latency_ms=0,
-                mode=mode, error="No provrs specified"
+                mode=mode, error="No providers specified"
             )
 
         self._races_run += 1
@@ -211,13 +211,13 @@ class ParallelRaceOrchestrator:
         engine = self._engine
 
         if mode == RaceMode.FIRST:
-            result = await self._race_first(provrs, intent, start)
+            result = await self._race_first(providers, intent, start)
         elif mode == RaceMode.BEST:
-            result = await self._race_best(provrs, intent, start, min_responses_for_best)
+            result = await self._race_best(providers, intent, start, min_responses_for_best)
         elif mode == RaceMode.CROSS:
-            result = await self._race_cross(provrs, intent, start)
+            result = await self._race_cross(providers, intent, start)
         else:  # STREAM — fallback a FIRST per ora
-            result = await self._race_first(provrs, intent, start)
+            result = await self._race_first(providers, intent, start)
 
         # Registra telemetria
         self._total_latency_ms += result.latency_ms
@@ -237,25 +237,25 @@ class ParallelRaceOrchestrator:
     async def _call_provr_safe(
         self, pc: ProvrCall
     ) -> Tuple[str, Any]:
-        """Chiama provr con timeout e error handling."""
+        """Chiama provider con timeout e error handling."""
         try:
             resp = await asyncio.wait_for(pc.coro, timeout=pc.timeout_s)
             if not resp or len(str(resp)) < self.MIN_VALID_RESPONSE_LEN:
                 return pc.provr_id, ValueError(f"Response too short: {len(str(resp))} chars")
             return pc.provr_id, str(resp)
         except asyncio.TimeoutError:
-            return pc.provr_id, TimeoutError(f"Provr {pc.provr_id} timeout after {pc.timeout_s}s")
+            return pc.provr_id, TimeoutError(f"Provider {pc.provr_id} timeout after {pc.timeout_s}s")
         except Exception as e:
             return pc.provr_id, e
 
     async def _race_first(
-        self, provrs: List[ProvrCall], intent: Optional[str], start: float
+        self, providers: List[ProvrCall], intent: Optional[str], start: float
     ) -> RaceResult:
-        """RACE_FIRST: ritorna subito il primo provr valido."""
+        """RACE_FIRST: ritorna subito il primo provider valido."""
         all_results: Dict[str, Any] = {}
 
         # Ordina per priority
-        sorted_provrs = sorted(provrs, key=lambda p: p.priority, reverse=True)
+        sorted_provrs = sorted(providers, key=lambda p: p.priority, reverse=True)
         tasks = {
             asyncio.create_task(self._call_provr_safe(pc)): pc
             for pc in sorted_provrs
@@ -296,18 +296,18 @@ class ParallelRaceOrchestrator:
         return RaceResult(
             winner="none", response="", latency_ms=latency_ms,
             mode=RaceMode.FIRST, all_results=all_results,
-            error=f"All provrs failed: {errors}"
+            error=f"All providers failed: {errors}"
         )
 
     async def _race_best(
-        self, provrs: List[ProvrCall], intent: Optional[str],
+        self, providers: List[ProvrCall], intent: Optional[str],
         start: float, min_k: int
     ) -> RaceResult:
         """RACE_BEST: aspetta K risposte, prendi la migliore per qualità."""
         all_results: Dict[str, Any] = {}
         valid_responses: List[Tuple[str, str, float]] = []  # (pid, resp, score)
 
-        tasks = [asyncio.create_task(self._call_provr_safe(pc)) for pc in provrs]
+        tasks = [asyncio.create_task(self._call_provr_safe(pc)) for pc in providers]
 
         for coro in asyncio.as_completed(tasks):
             pid, resp = await coro
@@ -343,13 +343,13 @@ class ParallelRaceOrchestrator:
         )
 
     async def _race_cross(
-        self, provrs: List[ProvrCall], intent: Optional[str], start: float
+        self, providers: List[ProvrCall], intent: Optional[str], start: float
     ) -> RaceResult:
         """RACE_CROSS: verifica incrociata — risposta solo se ≥2 concordano."""
         all_results: Dict[str, Any] = {}
         valid: List[Tuple[str, str]] = []
 
-        tasks = [asyncio.create_task(self._call_provr_safe(pc)) for pc in provrs]
+        tasks = [asyncio.create_task(self._call_provr_safe(pc)) for pc in providers]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for item in results:

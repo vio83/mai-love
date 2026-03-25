@@ -44,3 +44,4 @@ AI-LOVE/
 venv/
 venv.broken/
 logs/.logs/orchestra.pids
+.logs/

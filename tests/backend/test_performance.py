@@ -166,35 +166,35 @@ class TestSchemaPerformance:
         from backend.models.schemas import ClassifyResponse
         start = time.perf_counter()
         for _ in range(100):
-            ClassifyResponse(request_type="code", confnce=0.9, suggested_provr="claude")
+            ClassifyResponse(request_type="code", confidence=0.9, suggested_provr="claude")
         total = ms(start)
         assert total < 100, f"100 ClassifyResponse troppo lenti: {total:.1f}ms"
 
 
 # ═══════════════════════════════════════════════════════════════
-# PERFORMANCE: Provr Config (in-memory, no I/O)
+# PERFORMANCE: Provider Config (in-memory, no I/O)
 # ═══════════════════════════════════════════════════════════════
 
 class TestProvrConfigPerformance:
 
     def test_get_available_provrs_under_10ms(self):
-        from backend.config.provrs import get_available_cloud_provrs
+        from backend.config.providers import get_available_cloud_provrs
         start = time.perf_counter()
         get_available_cloud_provrs()
         elapsed = ms(start)
         assert elapsed < 10, f"get_available_cloud_provrs troppo lento: {elapsed:.2f}ms"
 
     def test_get_elite_stacks_under_10ms(self):
-        from backend.config.provrs import get_elite_task_stacks
+        from backend.config.providers import get_elite_task_stacks
         start = time.perf_counter()
         get_elite_task_stacks()
         elapsed = ms(start)
         assert elapsed < 10, f"get_elite_task_stacks troppo lento: {elapsed:.2f}ms"
 
     def test_100_provr_lookups_under_100ms(self):
-        from backend.config.provrs import get_available_cloud_provrs
+        from backend.config.providers import get_available_cloud_provrs
         start = time.perf_counter()
         for _ in range(100):
             get_available_cloud_provrs()
         total = ms(start)
-        assert total < 100, f"100 provr lookup troppo lenti: {total:.1f}ms"
+        assert total < 100, f"100 provider lookup troppo lenti: {total:.1f}ms"

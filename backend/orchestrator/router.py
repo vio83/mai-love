@@ -5,7 +5,7 @@
 # ============================================================
 """
 VIO 83 AI ORCHESTRA - Backend Orchestrator con LiteLLM
-Gestisce il routing intelligente tra provr AI cloud e locale.
+Gestisce il routing intelligente tra provider AI cloud e locale.
 """
 
 import time
@@ -17,7 +17,7 @@ load_dotenv()
 # Configurazione LiteLLM - silenzio log verbosi
 litellm.set_verbose = False
 
-# Mapping modelli per provr
+# Mapping modelli per provider
 CLOUD_MODELS = {
     "claude": "anthropic/claude-sonnet-4-20250514",
     "gpt4": "openai/gpt-4o",
@@ -40,7 +40,7 @@ KEYWORDS = {
                   "how does", "ragion", "logic", "matematica", "math"],
 }
 
-# Mapping tipo richiesta -> provr ottimale
+# Mapping tipo richiesta -> provider ottimale
 ROUTING_MAP = {
     "code": "claude",
     "creative": "gpt4",
@@ -61,7 +61,7 @@ def classify_request(message: str) -> str:
 
 
 def route_to_provr(request_type: str, mode: str = "cloud") -> str:
-    """Determina il provr ottimale basato sul tipo di richiesta."""
+    """Determina il provider ottimale basato sul tipo di richiesta."""
     if mode == "local":
         return "ollama"
     return ROUTING_MAP.get(request_type, "claude")
@@ -69,7 +69,7 @@ def route_to_provr(request_type: str, mode: str = "cloud") -> str:
 
 async def call_ai(
     messages: list[dict],
-    provr: str = "claude",
+    provider: str = "claude",
     mode: str = "cloud",
     ollama_model: str = "qwen2.5-coder:3b",
     ollama_host: str = "http://localhost:11434",
@@ -81,7 +81,7 @@ async def call_ai(
     Funzione principale: invia messaggio all'orchestra AI.
 
     Returns:
-        dict con: content, provr, model, tokens_used, latency_ms, cross_check_result
+        dict con: content, provider, model, tokens_used, latency_ms, cross_check_result
     """
     if fallback_provrs is None:
         fallback_provrs = ["gpt4", "ollama"]
@@ -90,18 +90,18 @@ async def call_ai(
     if auto_routing and mode == "cloud":
         last_msg = messages[-1]["content"] if messages else ""
         request_type = classify_request(last_msg)
-        provr = route_to_provr(request_type, mode)
-        print(f"[Orchestra] Tipo: {request_type} → Provr: {provr}")
+        provider = route_to_provr(request_type, mode)
+        print(f"[Orchestra] Tipo: {request_type} → Provider: {provider}")
 
     # Determina il modello
-    if mode == "local" or provr == "ollama":
+    if mode == "local" or provider == "ollama":
         model = f"ollama/{ollama_model}"
         litellm.api_base = ollama_host
     else:
-        model = CLOUD_MODELS.get(provr, CLOUD_MODELS["claude"])
+        model = CLOUD_MODELS.get(provider, CLOUD_MODELS["claude"])
 
     start = time.time()
-    result = {"provr": provr, "model": model}
+    result = {"provider": provider, "model": model}
 
     try:
         # Chiamata principale via LiteLLM
@@ -124,7 +124,7 @@ async def call_ai(
         return result
 
     except Exception as e:
-        print(f"[Orchestra] Provr {provr} fallito: {e}")
+        print(f"[Orchestra] Provider {provider} fallito: {e}")
 
         # Fallback
         for fb_provr in fallback_provrs:
@@ -144,7 +144,7 @@ async def call_ai(
 
                 return {
                     "content": response.choices[0].message.content,
-                    "provr": fb_provr,
+                    "provider": fb_provr,
                     "model": fb_model,
                     "tokens_used": response.usage.total_tokens if response.usage else 0,
                     "latency_ms": int((time.time() - start) * 1000),
@@ -153,7 +153,7 @@ async def call_ai(
                 print(f"[Orchestra] Fallback {fb_provr} fallito: {fb_error}")
                 continue
 
-        raise Exception(f"Tutti i provr hanno fallito. Ultimo errore: {e}")
+        raise Exception(f"Tutti i provider hanno fallito. Ultimo errore: {e}")
 
 
 async def _cross_check(
@@ -161,11 +161,11 @@ async def _cross_check(
     first_response: str,
     check_provr: str,
 ) -> dict:
-    """Verifica incrociata della risposta con un secondo provr."""
+    """Verifica incrociata della risposta con un secondo provider."""
     try:
         check_model = CLOUD_MODELS.get(check_provr)
         if not check_model:
-            return {"concordance": None, "error": "Provr non disponibile"}
+            return {"concordance": None, "error": "Provider non disponibile"}
 
         check_messages = original_messages + [
             {"role": "assistant", "content": first_response},

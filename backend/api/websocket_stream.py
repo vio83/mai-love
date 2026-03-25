@@ -20,9 +20,9 @@ Protocolli supportati:
   3. Chunked    — POST /chat/stream              (compatibile con tutto)
 
 Formato messaggi WebSocket:
-  Client → Server: {"type": "chat", "message": "...", "provr": "auto", "session_id": "..."}
+  Client → Server: {"type": "chat", "message": "...", "provider": "auto", "session_id": "..."}
   Server → Client: {"type": "token", "content": "...", "done": false}
-  Server → Client: {"type": "done", "content": "", "done": true, "latency_ms": 234, "provr": "claude"}
+  Server → Client: {"type": "done", "content": "", "done": true, "latency_ms": 234, "provider": "claude"}
   Server → Client: {"type": "error", "content": "...", "done": true}
   Client → Server: {"type": "stop"} → interrompe streaming
 """
@@ -120,7 +120,7 @@ async def sse_stream_generator(
     include_metadata: bool = True,
 ) -> AsyncGenerator[str, None]:
     """
-    Genera eventi SSE da uno stream provr.
+    Genera eventi SSE da uno stream provider.
 
     Formato SSE:
         data: {"type": "token", "content": "Ciao"}\n\n
@@ -208,7 +208,7 @@ async def chunked_response_generator(
 
 async def mock_streaming_provr(message: str) -> AsyncGenerator[str, None]:
     """
-    Provr streaming mock per testing.
+    Provider streaming mock per testing.
     Simula risposta token-per-token con latenza realistica.
     """
     response = f"Risposta simulata per: '{message[:50]}'. " * 3
@@ -224,7 +224,7 @@ async def mock_streaming_provr(message: str) -> AsyncGenerator[str, None]:
 
 async def websocket_chat_handler(
     ws: WebSocket,
-    process_message_fn,  # async callable(message, provr, session_id) -> AsyncGen
+    process_message_fn,  # async callable(message, provider, session_id) -> AsyncGen
 ):
     """
     Handler WebSocket per chat streaming.
@@ -237,7 +237,7 @@ async def websocket_chat_handler(
     Protocollo:
       1. Client si connette
       2. Server invia {"type": "connected", "session_id": "abc123"}
-      3. Client invia {"type": "chat", "message": "...", "provr": "auto"}
+      3. Client invia {"type": "chat", "message": "...", "provider": "auto"}
       4. Server invia stream di token {"type": "token", "content": "..."}
       5. Server invia {"type": "done", ...} quando finisce
       6. Client può inviare {"type": "stop"} per interrompere
@@ -284,10 +284,10 @@ async def websocket_chat_handler(
                     await manager.send_error(session_id, "Empty message")
                     continue
 
-                provr = data.get("provr", "auto")
+                provider = data.get("provider", "auto")
                 start = time.monotonic()
 
-                # Check cache semantica prima di chiamare provr
+                # Check cache semantica prima di chiamare provider
                 cache_key = engine.cache.make_key(message) if hasattr(engine.cache, 'make_key') else message[:50]
                 cached = engine.cache.get(cache_key, semantic_key=message)
                 if cached:
@@ -302,7 +302,7 @@ async def websocket_chat_handler(
                     await manager.send_token(
                         session_id, "", done=True,
                         latency_ms=round((time.monotonic() - start) * 1000, 1),
-                        provr="cache",
+                        provider="cache",
                         from_cache=True,
                     )
                     continue
@@ -313,7 +313,7 @@ async def websocket_chat_handler(
                 # Stream effettivo
                 full_chunks = []
                 try:
-                    async for chunk in process_message_fn(message, provr, session_id, intent):
+                    async for chunk in process_message_fn(message, provider, session_id, intent):
                         if manager.should_stop(session_id):
                             break
                         full_chunks.append(chunk)
@@ -328,7 +328,7 @@ async def websocket_chat_handler(
                     await manager.send_token(
                         session_id, "", done=True,
                         latency_ms=round((time.monotonic() - start) * 1000, 1),
-                        provr=provr,
+                        provider=provider,
                         intent=intent,
                         from_cache=False,
                     )

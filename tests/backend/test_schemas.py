@@ -47,7 +47,7 @@ class TestClassifyResponse(unittest.TestCase):
     def test_response_creation(self):
         resp = ClassifyResponse(
             request_type="code",
-            confnce=0.95,
+            confidence=0.95,
             suggested_provr="ollama"
         )
         self.assertEqual(resp.request_type, "code")

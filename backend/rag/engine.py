@@ -44,7 +44,7 @@ class RAGResult:
     query: str
     matches: list = field(default_factory=list)
     verified: bool = False
-    confnce: float = 0.0
+    confidence: float = 0.0
     sources_used: int = 0
 
 
@@ -148,13 +148,13 @@ class RAGEngine:
                         })
 
             verified = len(matches) > 0 and matches[0]["similarity"] > 0.8
-            confnce = matches[0]["similarity"] if matches else 0.0
+            confidence = matches[0]["similarity"] if matches else 0.0
 
             return RAGResult(
                 query=query,
                 matches=matches,
                 verified=verified,
-                confnce=round(confnce, 3),
+                confidence=round(confidence, 3),
                 sources_used=len(matches)
             )
         except Exception as e:
@@ -173,26 +173,26 @@ class RAGEngine:
                 "badge": "unverified",
                 "icon": "⚪",
                 "label": "Non Verificato",
-                "confnce": 0.0,
+                "confidence": 0.0,
                 "sources": [],
                 "note": "Nessuna fonte certificata trovata per questa query"
             }
 
-        if search_result.verified and search_result.confnce > 0.85:
+        if search_result.verified and search_result.confidence > 0.85:
             return {
                 "badge": "gold",
                 "icon": "🥇",
                 "label": "Verificato — Alta Affidabilità",
-                "confnce": search_result.confnce,
+                "confidence": search_result.confidence,
                 "sources": [m["title"] for m in search_result.matches[:3]],
                 "note": f"Confermato da {search_result.sources_used} fonti certificate"
             }
-        elif search_result.confnce > 0.7:
+        elif search_result.confidence > 0.7:
             return {
                 "badge": "silver",
                 "icon": "🥈",
                 "label": "Parzialmente Verificato",
-                "confnce": search_result.confnce,
+                "confidence": search_result.confidence,
                 "sources": [m["title"] for m in search_result.matches[:2]],
                 "note": "Trovate fonti correlate ma non perfettamente corrispondenti"
             }
@@ -201,7 +201,7 @@ class RAGEngine:
                 "badge": "bronze",
                 "icon": "🥉",
                 "label": "Bassa Corrispondenza",
-                "confnce": search_result.confnce,
+                "confidence": search_result.confidence,
                 "sources": [m["title"] for m in search_result.matches[:1]],
                 "note": "Le fonti trovate hanno bassa correlazione"
             }

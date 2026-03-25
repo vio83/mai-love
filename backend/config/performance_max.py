@@ -34,7 +34,7 @@ PERFORMANCE_CONFIG = {
         "enable_auto_fallback": True,
         "max_fallback_retries": 3,
         "fallback_backoff_ms": 500,
-        "enable_parallel_calls": True,  # Chiama più provr in parallelo e usa il più veloce
+        "enable_parallel_calls": True,  # Chiama più provider in parallelo e usa il più veloce
         "parallel_timeout_ms": 5000,
     },
 
@@ -162,7 +162,7 @@ TASK_OPTIMIZATIONS = {
 AUTO_SCALING = {
     "enable": True,
 
-    "cpu_threshold_percent": 80,  # Se CPU > 80%, scalea a provr più leggero
+    "cpu_threshold_percent": 80,  # Se CPU > 80%, scalea a provider più leggero
     "memory_threshold_percent": 75,
     "latency_threshold_ms": 5000,
 
@@ -243,7 +243,7 @@ BATCH_PROCESSING = {
 
 MONITORING_ENDPOINTS = {
     "health": "/api/v2/health",
-    "provrs": "/api/v2/provrs",
+    "providers": "/api/v2/providers",
     "models": "/api/v2/models",
     "costs": "/api/v2/costs",
     "performance": "/api/v2/performance",

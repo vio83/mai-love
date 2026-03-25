@@ -11,7 +11,7 @@ sessione AI a qualità mondiale automaticamente, senza intervento umano.
 Integra:
   → WorldDataIntegrator™  (dati mondiali freschi nel contesto)
   → ReasoningAmplifier™   (intent decode + CoT + quality verify)
-  → AdvancedOrchestrator  (selezione provr ottimale)
+  → AdvancedOrchestrator  (selezione provider ottimale)
   → UltraEngine™          (cache semantica Piuma™)
   → AutoOptimizer™        (auto-calibrazione sistema)
 
@@ -19,7 +19,7 @@ Pipeline completa per ogni request:
   1. DECODE    — IntentDecoder (0.5ms)
   2. ENRICH    — WorldDataIntegrator context injection (<50ms)
   3. ENHANCE   — System prompt enhancement con CoT (<0.5ms)
-  4. ROUTE     — Provr selection ottimale (<1ms)
+  4. ROUTE     — Provider selection ottimale (<1ms)
   5. EXECUTE   — AI call con fallback chain
   6. VERIFY    — QualityVerifier certificazione (<2ms)
   7. AMPLIFY   — OutputAmplifier post-processing (<10ms)
@@ -50,7 +50,7 @@ class OmegaRequest:
     """Request per OmegaOrchestrator™."""
     user_input: str
     conversation_id: str = ""
-    provr_hint: Optional[str] = None          # suggerimento provr
+    provr_hint: Optional[str] = None          # suggerimento provider
     use_world_context: bool = True               # inietta dati mondiali
     stream: bool = False                         # streaming response
     max_tokens: Optional[int] = None
@@ -196,7 +196,7 @@ class OmegaOrchestrator:
             system_prompt += f"\n\n[CONTESTO MONDIALE AGGIORNATO]\n{world_context}"
 
         # ── STEP 4-5: ROUTE + EXECUTE ──────────────────────────────
-        # Costruisci messages per provr
+        # Costruisci messages per provider
         messages = [{"role": "user", "content": request.user_input}]
 
         # Determina max_tokens
@@ -259,7 +259,7 @@ class OmegaOrchestrator:
         # ── STEP 9: RESPOND ───────────────────────────────────────
         total_ms = round((time.monotonic() - t0) * 1000, 1)
         logger.info(
-            f"[OmegaOrchestrator™] ✓ provr={provr_used} "
+            f"[OmegaOrchestrator™] ✓ provider={provr_used} "
             f"quality={quality_score:.2f} ms={total_ms} "
             f"cache={'HIT' if cache_hit else 'MISS'} "
             f"world={world_articles_count}art"
@@ -290,8 +290,8 @@ class OmegaOrchestrator:
         intent,
     ) -> Tuple[str, str, str, bool]:
         """
-        Esegui chiamata AI tramite provr disponibili.
-        Returns: (output, provr, model, cache_hit)
+        Esegui chiamata AI tramite provider disponibili.
+        Returns: (output, provider, model, cache_hit)
         Prova nell'ordine: advanced_orchestrator → direct call
         """
         # Tenta import advanced_orchestrator
@@ -310,7 +310,7 @@ class OmegaOrchestrator:
             if result and result.get("content"):
                 return (
                     result["content"],
-                    result.get("provr", "advanced"),
+                    result.get("provider", "advanced"),
                     result.get("model", "auto"),
                     result.get("cache_hit", False),
                 )
@@ -319,7 +319,7 @@ class OmegaOrchestrator:
 
         # Fallback: ritorna placeholder (in produzione qui ci sarebbe direct HTTP call)
         return (
-            "[OmegaOrchestrator™: provr non disponibile in questo ambiente. "
+            "[OmegaOrchestrator™: provider non disponibile in questo ambiente. "
             "Configura le API keys in .env per attivare il routing AI completo.]",
             "fallback",
             "none",

@@ -30,7 +30,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=50000)
     conversation_id: Optional[str] = None
     mode: Literal["cloud", "local"] = "local"
-    provr: Optional[str] = None
+    provider: Optional[str] = None
     model: Optional[str] = None
     enable_cross_check: bool = False
     enable_rag: bool = True
@@ -67,13 +67,13 @@ class RAGSearchRequest(BaseModel):
 
 class APIKeyUpdate(BaseModel):
     """Aggiornamento chiave API."""
-    provr: str
+    provider: str
     api_key: str = Field(..., min_length=5)
 
 
 class ProvrConfig(BaseModel):
-    """Configurazione provr AI."""
-    provr: str
+    """Configurazione provider AI."""
+    provider: str
     enabled: bool = True
     model: Optional[str] = None
     priority: int = Field(1, ge=1, le=10)
@@ -86,7 +86,7 @@ class ProvrConfig(BaseModel):
 class ChatResponse(BaseModel):
     """Risposta chat dalla AI."""
     content: str
-    provr: str
+    provider: str
     model: str
     tokens_used: int = 0
     latency_ms: int = 0
@@ -100,20 +100,20 @@ class ClassifyResponse(BaseModel):
     """Risposta classificazione."""
     request_type: str
     suggested_provr: str
-    confnce: float
+    confidence: float
 
 
 class HealthResponse(BaseModel):
     """Stato di salute del sistema."""
     status: str = "ok"
     version: str = "0.9.0"
-    provrs: dict = {}
+    providers: dict = {}
     rag_stats: dict = {}
     uptime_seconds: float = 0.0
 
 
 class ProvrStatus(BaseModel):
-    """Stato di un provr AI."""
+    """Stato di un provider AI."""
     name: str
     available: bool
     model: str

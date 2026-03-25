@@ -80,7 +80,7 @@ class Entity:
     label: str  # PERSON, ORG, GPE, DATE, etc.
     start: int = 0
     end: int = 0
-    confnce: float = 1.0
+    confidence: float = 1.0
 
 
 @dataclass
@@ -95,7 +95,7 @@ class NLPResult:
     """Risultato completo dell'analisi NLP."""
     text_cleaned: str = ""
     language: str = ""
-    language_confnce: float = 0.0
+    language_confidence: float = 0.0
     entities: List[Entity] = field(default_factory=list)
     keywords: List[Keyword] = field(default_factory=list)
     summary: str = ""
@@ -242,8 +242,8 @@ class RegexNLP:
                 best_score = score
                 best_lang = lang
 
-        confnce = min(1.0, max(0.0, best_score / 5.0))
-        return best_lang, round(confnce, 3)
+        confidence = min(1.0, max(0.0, best_score / 5.0))
+        return best_lang, round(confidence, 3)
 
     def extract_entities(self, text: str) -> List[Entity]:
         entities: List[Entity] = []
@@ -258,12 +258,12 @@ class RegexNLP:
             entities.append(Entity(text=match.group(), label="URL", start=match.start(), end=match.end()))
 
         for match in self._ORG_RE.finditer(text):
-            entities.append(Entity(text=match.group(), label="ORG", start=match.start(), end=match.end(), confnce=0.7))
+            entities.append(Entity(text=match.group(), label="ORG", start=match.start(), end=match.end(), confidence=0.7))
 
         for match in self._PERSON_RE.finditer(text):
             name = match.group()
             if not any(e.start <= match.start() <= e.end for e in entities):
-                entities.append(Entity(text=name, label="PERSON", start=match.start(), end=match.end(), confnce=0.5))
+                entities.append(Entity(text=name, label="PERSON", start=match.start(), end=match.end(), confidence=0.5))
 
         return entities
 
@@ -380,7 +380,7 @@ class RegexNLP:
         return NLPResult(
             text_cleaned=cleaned,
             language=lang,
-            language_confnce=lang_conf,
+            language_confidence=lang_conf,
             entities=entities,
             keywords=keywords,
             summary=summary,
@@ -435,7 +435,7 @@ class NLTKNLP:
                 if isinstance(chunk, Tree):
                     entity_text = " ".join(c[0] for c in chunk)
                     entity_label = chunk.label()
-                    entities.append(Entity(text=entity_text, label=entity_label, confnce=0.75))
+                    entities.append(Entity(text=entity_text, label=entity_label, confidence=0.75))
         except Exception as e:
             logger.warning(f"NLTK NER fallback a regex: {e}")
             return self._regex_nlp.extract_entities(text)
@@ -511,7 +511,7 @@ class NLTKNLP:
         return NLPResult(
             text_cleaned=cleaned,
             language=lang,
-            language_confnce=lang_conf,
+            language_confidence=lang_conf,
             entities=entities,
             keywords=keywords,
             summary=summary,
@@ -597,7 +597,7 @@ class SpacyNLP:
                 label=ent.label_,
                 start=ent.start_char,
                 end=ent.end_char,
-                confnce=0.9,
+                confidence=0.9,
             ))
         return entities
 
@@ -648,7 +648,7 @@ class SpacyNLP:
         return NLPResult(
             text_cleaned=cleaned,
             language=lang,
-            language_confnce=lang_conf,
+            language_confidence=lang_conf,
             entities=entities,
             keywords=keywords,
             summary=summary,

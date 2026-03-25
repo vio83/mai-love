@@ -22,3 +22,9 @@ repos:
         entry: python3 -m py_compile
         language: system
         types: [python]
+      - id: api-key-guardian
+        name: API Key Guardian
+        entry: bash scripts/security/api_key_guardian.sh pre-commit
+        language: system
+        pass_filenames: false
+        always_run: true

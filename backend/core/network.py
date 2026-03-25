@@ -11,7 +11,7 @@ Gestione avanzata delle connessioni di rete:
 - Retry con Exponential Backoff: Riprova automaticamente su errori transitori
 - Circuit Breaker: Protegge da cascade failure quando un servizio è down
 - Rate Limiter: Rispetta i limiti delle API esterne
-- Health Monitor: Monitora latenza e disponibilità dei provr
+- Health Monitor: Monitora latenza e disponibilità dei provider
 
 Pattern: Circuit Breaker (Martin Fowler)
 States: CLOSED → OPEN → HALF_OPEN → CLOSED
@@ -268,7 +268,7 @@ class ConnectionPoolManager:
         circuit_threshold: int = 5,
         headers: Optional[dict] = None,
     ):
-        """Registra un provr con pool dedicato."""
+        """Registra un provider con pool dedicato."""
         if HAS_HTTPX:
             try:
                 limits = httpx.Limits(
@@ -291,11 +291,11 @@ class ConnectionPoolManager:
         )
         self._rate_limiters[name] = RateLimiter(max_requests=rate_limit)
         self._latency_history[name] = []
-        logger.info(f"[Pool] Provr registrato: {name} (max_conn={max_connections})")
+        logger.info(f"[Pool] Provider registrato: {name} (max_conn={max_connections})")
 
     async def request(
         self,
-        provr: str,
+        provider: str,
         method: str,
         url: str,
         **kwargs,
@@ -308,14 +308,14 @@ class ConnectionPoolManager:
         4. Retry automatico
         5. Latency tracking
         """
-        cb = self._circuit_breakers.get(provr)
-        rl = self._rate_limiters.get(provr)
-        client = self._clients.get(provr)
+        cb = self._circuit_breakers.get(provider)
+        rl = self._rate_limiters.get(provider)
+        client = self._clients.get(provider)
 
         if cb and not cb.can_execute():
             cb.record_rejected()
             raise ConnectionError(
-                f"Circuit breaker OPEN per {provr}. "
+                f"Circuit breaker OPEN per {provider}. "
                 f"Servizio non disponibile. Riprova tra {cb.reset_timeout}s."
             )
 
@@ -329,12 +329,12 @@ class ConnectionPoolManager:
                     response = await client.request(method, url, **kwargs)
                     response.raise_for_status()
                     latency = time.time() - start
-                    self._record_latency(provr, latency)
+                    self._record_latency(provider, latency)
                     if cb:
                         cb.record_success()
                     return response
                 else:
-                    raise ConnectionError(f"Client non registrato per {provr}")
+                    raise ConnectionError(f"Client non registrato per {provider}")
             except Exception:
                 if cb:
                     cb.record_failure()
@@ -342,22 +342,22 @@ class ConnectionPoolManager:
 
         return await self._retry_engine.execute(_do_request)
 
-    def _record_latency(self, provr: str, latency: float):
-        history = self._latency_history.get(provr, [])
+    def _record_latency(self, provider: str, latency: float):
+        history = self._latency_history.get(provider, [])
         history.append(latency)
         if len(history) > 100:
             history = history[-100:]
-        self._latency_history[provr] = history
+        self._latency_history[provider] = history
 
-    def get_provr_health(self, provr: str) -> dict:
-        """Ottieni metriche di salute per un provr."""
-        cb = self._circuit_breakers.get(provr)
-        history = self._latency_history.get(provr, [])
+    def get_provr_health(self, provider: str) -> dict:
+        """Ottieni metriche di salute per un provider."""
+        cb = self._circuit_breakers.get(provider)
+        history = self._latency_history.get(provider, [])
         avg_latency = sum(history) / len(history) if history else 0
         p95_latency = sorted(history)[int(len(history) * 0.95)] if len(history) > 5 else 0
 
         return {
-            "provr": provr,
+            "provider": provider,
             "circuit_breaker": cb.stats if cb else None,
             "avg_latency_ms": round(avg_latency * 1000, 1),
             "p95_latency_ms": round(p95_latency * 1000, 1),
@@ -374,7 +374,7 @@ class ConnectionPoolManager:
     @property
     def stats(self) -> dict:
         return {
-            "provrs": {
+            "providers": {
                 name: self.get_provr_health(name)
                 for name in self._circuit_breakers
             },

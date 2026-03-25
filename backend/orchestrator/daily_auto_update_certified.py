@@ -3,7 +3,7 @@ VIO 83 AI ORCHESTRA — Daily Auto-Update System with Certification
 Versione: 3.0 (16 Marzo 2026)
 
 Sistema di AUTO-AGGIORNAMENTO GIORNALIERO PERMANENTE:
-✅ Scarica nuovi modelli, provr, dipendenze OGNI GIORNO
+✅ Scarica nuovi modelli, provider, dipendenze OGNI GIORNO
 ✅ Verifica + Certifica ogni aggiornamento
 ✅ Auto-installa e auto-applica tutto
 ✅ Auto-rollback se qualcosa fallisce
@@ -44,7 +44,7 @@ class UpdateArtifact:
     version: str
     source_url: str
     checksum_sha256: str
-    category: str  # "model", "provr", "dependency", "config"
+    category: str  # "model", "provider", "dependency", "config"
     timestamp: float
     verified: bool = False
     installed: bool = False
@@ -176,7 +176,7 @@ class DailyAutoUpdateEngine:
         return hashlib.sha256(data).hexdigest()
 
     async def discover_new_models(self) -> List[UpdateArtifact]:
-        """Scopri nuovi modelli disponibili da provr cloud"""
+        """Scopri nuovi modelli disponibili da provider cloud"""
         logger.info("\n🔍 STEP 1: Scoperta Nuovi Modelli")
         logger.info("="*60)
 
@@ -237,18 +237,18 @@ class DailyAutoUpdateEngine:
         return artifacts
 
     async def discover_new_provrs(self) -> List[UpdateArtifact]:
-        """Scopri nuovi provr AI disponibili"""
-        logger.info("\n🔍 STEP 2: Scoperta Nuovi Provr")
+        """Scopri nuovi provider AI disponibili"""
+        logger.info("\n🔍 STEP 2: Scoperta Nuovi Provider")
         logger.info("="*60)
 
-        # Fatto: verifica se nuovi provr sono aggiunti a provrs.json
-        provrs_config = self.project_root / "backend" / "config" / "provrs.py"
+        # Fatto: verifica se nuovi provider sono aggiunti a providers.json
+        provrs_config = self.project_root / "backend" / "config" / "providers.py"
         if not provrs_config.exists():
-            logger.warning("   ⚠️  Provr config non trovato")
+            logger.warning("   ⚠️  Provider config non trovato")
             return []
 
-        logger.info("   ✅ Provr config trovato")
-        logger.info("\n✅ Provr discovery completato\n")
+        logger.info("   ✅ Provider config trovato")
+        logger.info("\n✅ Provider discovery completato\n")
         return []
 
     async def discover_new_dependencies(self) -> List[UpdateArtifact]:
@@ -505,9 +505,9 @@ class DailyAutoUpdateEngine:
         try:
             # 1. Scoperta
             models = await self.discover_new_models()
-            provrs = await self.discover_new_provrs()
+            providers = await self.discover_new_provrs()
             dependencies = await self.discover_new_dependencies()
-            all_artifacts = models + provrs + dependencies
+            all_artifacts = models + providers + dependencies
 
             if not all_artifacts:
                 logger.info("ℹ️   Nessun nuovo artefatto da aggiornare")

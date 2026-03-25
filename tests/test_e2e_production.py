@@ -84,12 +84,12 @@ def test_known_message():
         })
         ts_after = time.time()
         content = resp.get("content", "")
-        provr = resp.get("provr", "")
+        provider = resp.get("provider", "")
         model = resp.get("model", "")
         latency = resp.get("latency_ms", 0)
 
         check("Chat risponde", bool(content), f"len={len(content)}")
-        check("Provr = ollama", provr == "ollama", f"got={provr}")
+        check("Provider = ollama", provider == "ollama", f"got={provider}")
         check("Modello usato", bool(model), f"model={model}")
         check("Latenza ragionevole", 0 < latency < 60000, f"latency_ms={latency}")
         check("Round-trip < 60s", (ts_after - ts_before) < 60, f"wall={ts_after - ts_before:.1f}s")
@@ -103,13 +103,13 @@ def test_known_message():
 # TEST 2: Forza fallimento — errore chiaro
 # ═══════════════════════════════════════════════
 def test_forced_failure():
-    print("\n═══ TEST 2: Fallimento forzato (provr inesistente) ═══")
+    print("\n═══ TEST 2: Fallimento forzato (provider inesistente) ═══")
     try:
-        # Tenta cloud con provr senza API key → errore chiaro
+        # Tenta cloud con provider senza API key → errore chiaro
         code, body = _post_raw("/chat", {
             "message": "test failure",
             "mode": "cloud",
-            "provr": "claude",
+            "provider": "claude",
             "model": "nonexistent-model-xyz",
             "max_tokens": 32,
         })
@@ -124,18 +124,18 @@ def test_forced_failure():
             code >= 400
             or "API key" in detail_msg
             or "mancante" in detail_msg
-            or "provr" in detail_msg.lower()
+            or "provider" in detail_msg.lower()
             or "ollama" in detail_msg.lower()  # fallback locale avvenuto
         )
         # Se la risposta arriva con content, il fallback locale ha funzionato
         if isinstance(body, dict) and body.get("content"):
-            check("Fallback locale attivo", True, f"provr={body.get('provr')}")
+            check("Fallback locale attivo", True, f"provider={body.get('provider')}")
         else:
             check("Errore chiaro con contesto", has_error_context, f"code={code}, detail={detail_msg[:200]}")
     except Exception as e:
         # Un'eccezione stessa con messaggio chiaro è accettabile
         msg = str(e)
-        check("Errore con contesto", "API key" in msg or "provr" in msg.lower() or "mancante" in msg, msg[:200])
+        check("Errore con contesto", "API key" in msg or "provider" in msg.lower() or "mancante" in msg, msg[:200])
 
     # Test endpoint inesistente → 404
     print("\n  --- Sub-test: endpoint inesistente ---")
@@ -166,11 +166,11 @@ def test_state_recovery():
         check("Health status=ok", health.get("status") == "ok")
         check("Version presente", bool(health.get("version")))
 
-        provrs = health.get("provrs", {})
-        ollama_info = provrs.get("ollama", {})
+        providers = health.get("providers", {})
+        ollama_info = providers.get("ollama", {})
         check("Ollama disponibile", ollama_info.get("available") is True)
 
-        policy = provrs.get("policy", {})
+        policy = providers.get("policy", {})
         check("Policy presente", bool(policy.get("mode")), f"mode={policy.get('mode')}")
         check("Uptime > 0", health.get("uptime_seconds", 0) > 0, f"uptime={health.get('uptime_seconds'):.0f}s")
     except Exception as e:
@@ -198,14 +198,14 @@ def test_state_recovery():
     except Exception as e:
         check("Profile endpoint", False, str(e))
 
-    # 3d. Provrs
-    print("\n  --- Provrs ---")
+    # 3d. Providers
+    print("\n  --- Providers ---")
     try:
-        provrs = _get("/provrs")
-        has_local = "local" in provrs or "ollama" in str(provrs).lower()
-        check("Provr locali presenti", has_local, str(provrs)[:160])
+        providers = _get("/providers")
+        has_local = "local" in providers or "ollama" in str(providers).lower()
+        check("Provider locali presenti", has_local, str(providers)[:160])
     except Exception as e:
-        check("Provrs endpoint", False, str(e))
+        check("Providers endpoint", False, str(e))
 
     # 3e. Core status
     print("\n  --- Core Status ---")

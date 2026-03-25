@@ -4,8 +4,8 @@
 # ALL RIGHTS RESERVED — https://github.com/vio83/vio83-ai-orchestra
 # ============================================================
 """
-VIO 83 AI ORCHESTRA - Configurazione Provr AI
-Mappa completa dei provr supportati con modelli e endpoint.
+VIO 83 AI ORCHESTRA - Configurazione Provider AI
+Mappa completa dei provider supportati con modelli e endpoint.
 
 ORDINE PRIORITÀ:
 1. LOCALI (Ollama) — Gratis, nessuna API key, sempre disponibili
@@ -504,7 +504,7 @@ ELITE_TASK_STACKS = {
         "local": ["mistral:latest", "llama3:latest"],
         "best_for": ["analisi norme", "comparazione giurisdizioni", "memo legali", "due diligence documentale"],
     },
-    "medicine_evnce_max": {
+    "medicine_evidence_max": {
         "primary": ["claude-opus-4-20250514", "gemini-2.5-pro-preview-06-05", "deep-research"],
         "secondary": ["deepseek-reasoner", "gpt-4o"],
         "local": ["mistral:latest"],
@@ -535,38 +535,38 @@ def get_elite_task_stacks() -> dict:
 # ═══════════════════════════════════════════════════════════
 
 def get_available_cloud_provrs() -> dict:
-    """Ritorna solo i provr cloud con API key configurata."""
+    """Ritorna solo i provider cloud con API key configurata."""
     available = {}
-    for key, provr in ALL_CLOUD_PROVRS.items():
-        env_key = provr["env_key"]
+    for key, provider in ALL_CLOUD_PROVRS.items():
+        env_key = provider["env_key"]
         if os.environ.get(env_key):
-            available[key] = provr
+            available[key] = provider
     return available
 
 
 def get_free_cloud_provrs() -> dict:
-    """Ritorna i provr cloud gratuiti con API key configurata."""
+    """Ritorna i provider cloud gratuiti con API key configurata."""
     available = {}
-    for key, provr in FREE_CLOUD_PROVRS.items():
-        env_key = provr["env_key"]
+    for key, provider in FREE_CLOUD_PROVRS.items():
+        env_key = provider["env_key"]
         if os.environ.get(env_key):
-            available[key] = provr
+            available[key] = provider
     return available
 
 
 def get_all_provrs_ordered() -> list[dict]:
     """
-    Ritorna TUTTI i provr ordinati per priorità:
+    Ritorna TUTTI i provider ordinati per priorità:
     1. Locali (Ollama) — gratis, sempre disponibili
     2. Cloud gratuiti (Groq, Together, OpenRouter) — gratis con API key
     3. Cloud economici (DeepSeek, Mistral) — pochi centesimi
     4. Cloud standard (Claude, GPT-4, Grok, Gemini) — dollari
     """
-    provrs = []
+    providers = []
 
     # 1. Locali
     for key, prov in LOCAL_PROVRS.items():
-        provrs.append({
+        providers.append({
             "id": key,
             "tier": "local",
             "priority": prov.get("priority", 1),
@@ -576,7 +576,7 @@ def get_all_provrs_ordered() -> list[dict]:
     # 2. Cloud gratuiti
     for key, prov in FREE_CLOUD_PROVRS.items():
         env_key = prov["env_key"]
-        provrs.append({
+        providers.append({
             "id": key,
             "tier": "free_cloud",
             "priority": prov.get("priority", 2),
@@ -587,7 +587,7 @@ def get_all_provrs_ordered() -> list[dict]:
     # 3. Cloud a pagamento
     for key, prov in CLOUD_PROVRS.items():
         env_key = prov["env_key"]
-        provrs.append({
+        providers.append({
             "id": key,
             "tier": "paid_cloud",
             "priority": prov.get("priority", 3),
@@ -595,16 +595,16 @@ def get_all_provrs_ordered() -> list[dict]:
             **prov,
         })
 
-    return sorted(provrs, key=lambda p: p["priority"])
+    return sorted(providers, key=lambda p: p["priority"])
 
 
-def get_litellm_model_string(provr: str, model: Optional[str] = None) -> str:
+def get_litellm_model_string(provider: str, model: Optional[str] = None) -> str:
     """Costruisci la stringa modello per LiteLLM."""
-    # Check in tutti i provr cloud
+    # Check in tutti i provider cloud
     for provrs_dict in [FREE_CLOUD_PROVRS, CLOUD_PROVRS]:
-        if provr in provrs_dict:
-            prefix = provrs_dict[provr]["litellm_prefix"]
-            model_name = model or provrs_dict[provr]["default_model"]
+        if provider in provrs_dict:
+            prefix = provrs_dict[provider]["litellm_prefix"]
+            model_name = model or provrs_dict[provider]["default_model"]
             return f"{prefix}/{model_name}"
     return model or "ollama/llama3:latest"
 

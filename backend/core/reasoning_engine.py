@@ -29,7 +29,7 @@ class ReasoningStep:
     """Un singolo passo di ragionamento."""
     step_type: str  # "decompose", "analyze", "synthesize", "verify", "conclude"
     content: str
-    confnce: float  # 0.0 → 1.0
+    confidence: float  # 0.0 → 1.0
     domain: str = "general"
 
 
@@ -71,7 +71,7 @@ _BASE_STRATEGIES: dict[str, list[str]] = {
     "explanation": ["ntify_core_concept", "break_down", "add_examples", "verify_accuracy", "conclude"],
     "problem_solving": ["understand_problem", "ntify_constraints", "generate_approaches", "evaluate_best", "conclude"],
     "creative": ["understand_intent", "brainstorm_angles", "develop_best", "refine", "conclude"],
-    "verification": ["extract_claim", "ntify_evnce", "check_consistency", "assess_confnce", "conclude"],
+    "verification": ["extract_claim", "identify_evidence", "check_consistency", "assess_confidence", "conclude"],
     "default": ["understand", "analyze", "respond", "verify"],
 }
 
@@ -270,9 +270,9 @@ class ReasoningEngine:
             "develop_best": "Sviluppa l'a migliore",
             "refine": "Rifinisci e perfeziona",
             "extract_claim": "Isola l'affermazione da verificare",
-            "ntify_evnce": "Cerca evnze",
+            "identify_evidence": "Cerca evidence",
             "check_consistency": "Verifica coerenza logica",
-            "assess_confnce": "Valuta livello di certezza",
+            "assess_confidence": "Valuta livello di certezza",
             "understand": "Comprendi la richiesta",
             "respond": "Rispondi con precisione",
             "verify": "Verifica la risposta",

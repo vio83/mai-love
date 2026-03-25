@@ -102,18 +102,18 @@ class TestMigrations:
             ]
             assert "rag_sources" in tables
 
-    def test_provr_metrics_has_cost_column(self):
-        """La migrazione v2 aggiunge cost_usd a provr_metrics."""
+    def test_provider_metrics_has_cost_column(self):
+        """La migrazione v2 aggiunge cost_usd a provider_metrics."""
         run_migrations()
         with get_connection() as conn:
-            info = conn.execute("PRAGMA table_info(provr_metrics)").fetchall()
+            info = conn.execute("PRAGMA table_info(provider_metrics)").fetchall()
             columns = [r["name"] for r in info]
             assert "cost_usd" in columns
 
-    def test_provr_metrics_has_category_column(self):
-        """La migrazione v3 aggiunge category a provr_metrics."""
+    def test_provider_metrics_has_category_column(self):
+        """La migrazione v3 aggiunge category a provider_metrics."""
         run_migrations()
         with get_connection() as conn:
-            info = conn.execute("PRAGMA table_info(provr_metrics)").fetchall()
+            info = conn.execute("PRAGMA table_info(provider_metrics)").fetchall()
             columns = [r["name"] for r in info]
             assert "category" in columns

@@ -876,7 +876,7 @@ class TranslatorPlugin(BasePlugin):
                     "translated": translated,
                     "from": from_lang,
                     "to": to_lang,
-                    "confnce": match_score,
+                    "confidence": match_score,
                 }
         except Exception as e:
             return {"error": str(e)}

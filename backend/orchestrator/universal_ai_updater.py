@@ -5,7 +5,7 @@ Versione: 4.0 (16 Marzo 2026)
 MOTORE UNIVERSALE DI AUTO-AGGIORNAMENTO PERMANENTE:
 ✅ TUTTE le AI (locali Ollama + cloud API) — da nano a mega globale
 ✅ Python AI packages → ultima versione
-✅ Provr cloud → nuovi modelli scoperti e aggiunti al routing
+✅ Provider cloud → nuovi modelli scoperti e aggiunti al routing
 ✅ Parità locale=cloud: stesse info, strumenti, funzionalità, potenza
 ✅ Certificazione SHA256 di ogni aggiornamento
 ✅ Audit trail permanente su SQLite
@@ -162,11 +162,11 @@ class UniversalAIUpdater:
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS known_models (
-                provr TEXT    NOT NULL,
+                provider TEXT    NOT NULL,
                 model_id TEXT    NOT NULL,
                 added_at REAL    NOT NULL,
                 status   TEXT    DEFAULT 'active',
-                PRIMARY KEY (provr, model_id)
+                PRIMARY KEY (provider, model_id)
             )
         """)
         conn.commit()
@@ -288,10 +288,10 @@ class UniversalAIUpdater:
 
         cloud = self.registry.get("cloud_provrs", {})
 
-        for provr, config in cloud.items():
+        for provider, config in cloud.items():
             api_key = self._get_api_key(config.get("env_key", ""))
             if not api_key:
-                logger.info(f"   ⏭️  {provr}: nessuna API key")
+                logger.info(f"   ⏭️  {provider}: nessuna API key")
                 continue
 
             check_url = config.get("check_url", "")
@@ -300,15 +300,15 @@ class UniversalAIUpdater:
 
             headers = {"Authorization": f"Bearer {api_key}"}
             # Google usa query param
-            if provr == "google":
+            if provider == "google":
                 check_url = f"{check_url}?key={api_key}"
                 headers = {}
 
-            logger.info(f"   🔍 {provr}: checking {check_url}")
+            logger.info(f"   🔍 {provider}: checking {check_url}")
             data = self._http_get(check_url, headers=headers, timeout=10)
 
             if not data:
-                logger.warning(f"   ⚠️  {provr}: non raggiungibile")
+                logger.warning(f"   ⚠️  {provider}: non raggiungibile")
                 continue
 
             try:
@@ -320,7 +320,7 @@ class UniversalAIUpdater:
                 elif "models" in parsed:
                     models_list = [m.get("id") for m in parsed["models"] if m.get("id")]
                 else:
-                    logger.debug(f"   {provr}: struttura risposta non standard")
+                    logger.debug(f"   {provider}: struttura risposta non standard")
                     continue
 
                 # Confronta con modelli nel registry
@@ -328,14 +328,14 @@ class UniversalAIUpdater:
                 api_new = [m for m in models_list if m not in registry_models]
 
                 if api_new:
-                    new_models[provr] = api_new
-                    logger.info(f"   🆕 {provr}: {len(api_new)} nuovi modelli")
+                    new_models[provider] = api_new
+                    logger.info(f"   🆕 {provider}: {len(api_new)} nuovi modelli")
                     for m in api_new[:5]:
                         logger.info(f"      + {m}")
                     if len(api_new) > 5:
                         logger.info(f"      ... +{len(api_new)-5} altri")
                 else:
-                    logger.info(f"   ✅ {provr}: {len(models_list)} modelli — nessuna novità")
+                    logger.info(f"   ✅ {provider}: {len(models_list)} modelli — nessuna novità")
 
                 # Salva nel DB
                 conn = sqlite3.connect(DB_PATH)
@@ -343,14 +343,14 @@ class UniversalAIUpdater:
                 for m_id in models_list:
                     c.execute("""
                         INSERT OR IGNORE INTO known_models
-                            (provr, model_id, added_at)
+                            (provider, model_id, added_at)
                         VALUES (?, ?, ?)
-                    """, (provr, m_id, time.time()))
+                    """, (provider, m_id, time.time()))
                 conn.commit()
                 conn.close()
 
             except Exception as e:
-                logger.warning(f"   ⚠️  {provr}: parse failed — {e}")
+                logger.warning(f"   ⚠️  {provider}: parse failed — {e}")
 
         # Aggiorna registry con nuovi modelli trovati
         if new_models:
@@ -377,8 +377,8 @@ class UniversalAIUpdater:
             cloud = registry.setdefault("cloud_provrs", {})
             updated = False
 
-            for provr, models in new_models.items():
-                prov_config = cloud.get(provr, {})
+            for provider, models in new_models.items():
+                prov_config = cloud.get(provider, {})
                 existing_ids = {m["id"] for m in prov_config.get("models", [])}
                 added = 0
                 for m_id in models:
@@ -392,7 +392,7 @@ class UniversalAIUpdater:
                         added += 1
                         updated = True
                 if added:
-                    logger.info(f"   📝 Registry: +{added} modelli aggiunti per {provr}")
+                    logger.info(f"   📝 Registry: +{added} modelli aggiunti per {provider}")
 
             if updated:
                 registry["_meta"]["updated"] = time.strftime("%Y-%m-%d")
@@ -485,31 +485,31 @@ class UniversalAIUpdater:
             # Leggi tutti i modelli noti dal DB
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute("SELECT provr, model_id FROM known_models WHERE status='active'")
+            c.execute("SELECT provider, model_id FROM known_models WHERE status='active'")
             known = {}
-            for provr, model_id in c.fetchall():
-                known.setdefault(provr, set()).add(model_id)
+            for provider, model_id in c.fetchall():
+                known.setdefault(provider, set()).add(model_id)
             conn.close()
 
-            # Salva snapshot provr config
+            # Salva snapshot provider config
             snapshot = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "session": self.session_id,
-                "provrs": {}
+                "providers": {}
             }
 
             cloud = self.registry.get("cloud_provrs", {})
-            for provr, config in cloud.items():
+            for provider, config in cloud.items():
                 api_key = self._get_api_key(config.get("env_key", ""))
-                snapshot["provrs"][provr] = {
+                snapshot["providers"][provider] = {
                     "has_key": bool(api_key),
                     "registry_models": len(config.get("models", [])),
-                    "discovered_models": len(known.get(provr, set()))
+                    "discovered_models": len(known.get(provider, set()))
                 }
                 status = "✅ ATTIVO" if api_key else "⚠️  NO KEY"
-                logger.info(f"   {status} {provr:15s}: "
+                logger.info(f"   {status} {provider:15s}: "
                             f"{len(config.get('models', []))} modelli registry, "
-                            f"{len(known.get(provr, set()))} scoperti")
+                            f"{len(known.get(provider, set()))} scoperti")
 
             snapshot_path = DATA_DIR / "provr_snapshot_latest.json"
             with open(snapshot_path, "w") as f:
@@ -816,7 +816,7 @@ DETTAGLIO FASI:
         report += f"""
 SISTEMA AI ATTIVO:
   🖥️  Locale  (Ollama): modelli aggiornati e sincronizzati
-  ☁️  Cloud   (API):    {sum(1 for _, cfg in self.registry.get('cloud_provrs', {}).items() if self._get_api_key(cfg.get('env_key', '')))} provr con chiave attiva
+  ☁️  Cloud   (API):    {sum(1 for _, cfg in self.registry.get('cloud_provrs', {}).items() if self._get_api_key(cfg.get('env_key', '')))} provider con chiave attiva
 
 PROSSIMO AGGIORNAMENTO:
   ⏰ Automatico ogni giorno alle 03:00 UTC via LaunchAgent macOS

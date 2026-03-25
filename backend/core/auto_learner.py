@@ -34,7 +34,7 @@ class LearnedPattern:
     domain: str
     pattern_type: str  # "correction", "preference", "fact", "technique"
     content: str
-    confnce: float  # 0.0 → 1.0
+    confidence: float  # 0.0 → 1.0
     source_hash: str
     timestamp: float = field(default_factory=time.time)
 
@@ -44,7 +44,7 @@ class QualitySignal:
     """Segnale di qualità per auto-tuning."""
     conversation_id: str
     request_type: str
-    provr: str
+    provider: str
     model: str
     latency_ms: float
     tokens_used: int
@@ -124,7 +124,7 @@ class AutoLearner:
                 domain TEXT NOT NULL,
                 pattern_type TEXT NOT NULL,
                 content TEXT NOT NULL,
-                confnce REAL DEFAULT 0.5,
+                confidence REAL DEFAULT 0.5,
                 source_hash TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 access_count INTEGER DEFAULT 0,
@@ -141,7 +141,7 @@ class AutoLearner:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 conversation_id TEXT,
                 request_type TEXT,
-                provr TEXT,
+                provider TEXT,
                 model TEXT,
                 latency_ms REAL,
                 tokens_used INTEGER,
@@ -200,7 +200,7 @@ class AutoLearner:
                         domain=domain,
                         pattern_type="correction",
                         content=f"ERRORE: {prev_assistant[:200]} → CORREZIONE: {content[:300]}",
-                        confnce=0.8,
+                        confidence=0.8,
                         source_hash=conv_hash,
                     ))
 
@@ -214,7 +214,7 @@ class AutoLearner:
                     domain=domain,
                     pattern_type="preference",
                     content=content[:500],
-                    confnce=0.7,
+                    confidence=0.7,
                     source_hash=conv_hash,
                 ))
 
@@ -230,7 +230,7 @@ class AutoLearner:
                         domain=domain,
                         pattern_type="fact",
                         content=fact,
-                        confnce=0.5,
+                        confidence=0.5,
                         source_hash=conv_hash,
                     ))
 
@@ -247,7 +247,7 @@ class AutoLearner:
                             domain=domain,
                             pattern_type="technique",
                             content=messages[j].get("content", "")[:500],
-                            confnce=0.6,
+                            confidence=0.6,
                             source_hash=conv_hash,
                         ))
                         break
@@ -281,9 +281,9 @@ class AutoLearner:
                 continue
 
             self._conn.execute(
-                "INSERT INTO learned_patterns (domain, pattern_type, content, confnce, source_hash, created_at) "
+                "INSERT INTO learned_patterns (domain, pattern_type, content, confidence, source_hash, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (p.domain, p.pattern_type, p.content, p.confnce, p.source_hash, p.timestamp)
+                (p.domain, p.pattern_type, p.content, p.confidence, p.source_hash, p.timestamp)
             )
             # Aggiorna FTS
             row_id = self._conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -316,7 +316,7 @@ class AutoLearner:
         # Cerca nei pattern appresi
         try:
             results = self._conn.execute(
-                """SELECT lp.id, lp.domain, lp.pattern_type, lp.content, lp.confnce
+                """SELECT lp.id, lp.domain, lp.pattern_type, lp.content, lp.confidence
                 FROM patterns_fts pf
                 JOIN learned_patterns lp ON pf.rowid = lp.id
                 WHERE patterns_fts MATCH ?
@@ -334,7 +334,7 @@ class AutoLearner:
                 "domain": row[1],
                 "type": row[2],
                 "content": row[3],
-                "confnce": row[4],
+                "confidence": row[4],
             })
             # Aggiorna accesso
             self._conn.execute(
@@ -383,10 +383,10 @@ class AutoLearner:
             return
 
         self._conn.execute(
-            "INSERT INTO quality_log (conversation_id, request_type, provr, model, "
+            "INSERT INTO quality_log (conversation_id, request_type, provider, model, "
             "latency_ms, tokens_used, user_continued, correction_detected, timestamp) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (signal.conversation_id, signal.request_type, signal.provr,
+            (signal.conversation_id, signal.request_type, signal.provider,
              signal.model, signal.latency_ms, signal.tokens_used,
              int(signal.user_continued), int(signal.correction_detected), signal.timestamp)
         )
@@ -470,7 +470,7 @@ class AutoLearner:
         if self._pattern_count > self.MAX_PATTERNS:
             self._conn.execute(
                 "DELETE FROM learned_patterns WHERE id IN "
-                "(SELECT id FROM learned_patterns ORDER BY confnce ASC, access_count ASC LIMIT ?)",
+                "(SELECT id FROM learned_patterns ORDER BY confidence ASC, access_count ASC LIMIT ?)",
                 (self._pattern_count - self.MAX_PATTERNS + 1000,)
             )
 

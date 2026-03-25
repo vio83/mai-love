@@ -230,12 +230,12 @@ class EnterpriseStrategy:
             "health", "medical", "patient", "diagnosi", "sanitario", "iban", "passport", "ssn", "fiscale",
             "credito", "payment", "password", "token", "chiave api", "api key",
         ]
-        confntial_keywords = ["contract", "nda", "bilancio", "invoice", "stipendio", "employee", "cliente", "customer"]
+        confidential_keywords = ["contract", "nda", "bilancio", "invoice", "stipendio", "employee", "cliente", "customer"]
 
         if any(k in payload for k in restricted_keywords):
             return "restricted"
-        if any(k in payload for k in confntial_keywords):
-            return "confntial"
+        if any(k in payload for k in confidential_keywords):
+            return "confidential"
         if has_images:
             return "internal"
         return "public"
@@ -243,14 +243,14 @@ class EnterpriseStrategy:
     def route_request(
         self,
         mode: str,
-        provr: str | None,
+        provider: str | None,
         classification: str,
         jurisdiction: str = "eu",
         policy_preset: str = "generic_eu",
         tenant_policy: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         requested_mode = mode or "local"
-        requested_provr = provr or ("ollama" if requested_mode == "local" else "claude")
+        requested_provr = provider or ("ollama" if requested_mode == "local" else "claude")
 
         reason = "allowed"
         effective_mode = requested_mode
@@ -265,7 +265,7 @@ class EnterpriseStrategy:
             effective_provr = "ollama"
             reason = "tenant-data-resncy-forced-local"
 
-        if classification in {"restricted", "confntial"}:
+        if classification in {"restricted", "confidential"}:
             cloud_allowed = False
             effective_mode = "local"
             effective_provr = "ollama"
@@ -277,14 +277,14 @@ class EnterpriseStrategy:
         if classification == "public" and cloud_allowed and effective_mode == "cloud":
             if allowed_cloud_for_public and effective_provr not in allowed_cloud_for_public:
                 effective_provr = next(iter(allowed_cloud_for_public))
-                reason = "preset-adjusted-provr"
+                reason = "preset-adjusted-provider"
 
         return {
             "classification": classification,
             "jurisdiction": jurisdiction,
             "policy_preset": policy_preset,
-            "requested": {"mode": requested_mode, "provr": requested_provr},
-            "effective": {"mode": effective_mode, "provr": effective_provr},
+            "requested": {"mode": requested_mode, "provider": requested_provr},
+            "effective": {"mode": effective_mode, "provider": effective_provr},
             "cloud_allowed": cloud_allowed,
             "reason": reason,
         }

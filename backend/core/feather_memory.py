@@ -272,12 +272,12 @@ class SemanticDigest:
 
 
 # ─────────────────────────────────────────────────────────────
-# FM4 — TokenAllocator™  (budget token dinamico per provr)
+# FM4 — TokenAllocator™  (budget token dinamico per provider)
 # ─────────────────────────────────────────────────────────────
 
 class TokenAllocator:
     """
-    Alloca budget token in modo ottimale per ogni provr.
+    Alloca budget token in modo ottimale per ogni provider.
 
     Come la macchina-piuma: usa esattamente il carburante necessario,
     zero spreco, massima efficienza.
@@ -289,7 +289,7 @@ class TokenAllocator:
       - Se contesto eccede → comprime con ContextWindow
     """
 
-    # Limiti reali per provr (Marzo 2026)
+    # Limiti reali per provider (Marzo 2026)
     LIMITS = {
         "claude":     200_000,
         "openai":     128_000,
@@ -308,7 +308,7 @@ class TokenAllocator:
 
     def allocate(
         self,
-        provr:        str,
+        provider:        str,
         system_tokens:   int,
         context_tokens:  int,
         desired_output:  int = 1024,
@@ -326,7 +326,7 @@ class TokenAllocator:
           "compression_target": int,    # token da rimuovere se necessario
         }
         """
-        total = self.LIMITS.get(provr, 8192)
+        total = self.LIMITS.get(provider, 8192)
         sys_budget = int(total * self.SYSTEM_RESERVE)
         out_budget = max(desired_output, int(total * self.RESPONSE_RESERVE))
         ctx_budget = total - sys_budget - out_budget
@@ -350,8 +350,8 @@ class TokenAllocator:
             "compression_target": compression_target,
         }
 
-    def optimal_output_tokens(self, provr: str, intent: str) -> int:
-        """Stima token output ottimali per intent e provr."""
+    def optimal_output_tokens(self, provider: str, intent: str) -> int:
+        """Stima token output ottimali per intent e provider."""
         base = {
             "simple":    128,
             "news":      512,
@@ -362,7 +362,7 @@ class TokenAllocator:
             "deep":     1536,
         }.get(intent, 256)
         # Groq e Ollama hanno budget limitato → riduci output
-        limit = self.LIMITS.get(provr, 8192)
+        limit = self.LIMITS.get(provider, 8192)
         if limit < 16_000:
             base = min(base, limit // 4)
         return base
@@ -446,7 +446,7 @@ class AcceleratorConfig:
     prefetch:        bool  = True    # pre-calcola system prompt
     compress_input:  bool  = True    # comprimi messaggi prima di inviare
     use_cache:       bool  = True    # cerca in TurboCache
-    parallel_sprint: bool  = False   # lancia gara multi-provr
+    parallel_sprint: bool  = False   # lancia gara multi-provider
     max_output_tok:  int   = 1024
     temperature:     float = 0.7
 
@@ -460,7 +460,7 @@ class ResponseAccelerator:
       2. MessageCompactor  (<0.1ms)  → comprime input
       3. ContextWindow     (<0.1ms)  → finestra scorrevole
       4. TokenAllocator    (<0.01ms) → budget ottimale
-      5. JetEngine routing (<0.1ms)  → scelta provr
+      5. JetEngine routing (<0.1ms)  → scelta provider
       6. Stream/Sprint     (→→→)     → primo token <200ms
 
     Tempo totale overhead FeatherMemory: <2.5ms
@@ -479,7 +479,7 @@ class ResponseAccelerator:
         conversation_id:  Optional[str] = None,
         history:          Optional[List[Dict]] = None,
         system_prompt:    str = "",
-        provr:         str = "ollama",
+        provider:         str = "ollama",
         intent:           str = "simple",
     ) -> Dict:
         """
@@ -529,8 +529,8 @@ class ResponseAccelerator:
         # 3. Token allocation
         sys_tok = len(system_prompt) // 4 + 1 if system_prompt else 0
         ctx_tok = sum(len(m.get("content","")) // 4 + 1 for m in api_messages)
-        desired_out = self.allocator.optimal_output_tokens(provr, intent)
-        allocation = self.allocator.allocate(provr, sys_tok, ctx_tok, desired_out)
+        desired_out = self.allocator.optimal_output_tokens(provider, intent)
+        allocation = self.allocator.allocate(provider, sys_tok, ctx_tok, desired_out)
 
         # 4. Se serve compressione → applica digest
         if allocation["needs_compression"] and conversation_id:
@@ -560,8 +560,8 @@ class ResponseAccelerator:
         savings = (1.0 - compact_tokens / max(1, original_tokens)) * 100
 
         logger.debug(
-            "FeatherMemory prepare: %.2fms | %d→%d tok (%.0f%% saved) | provr=%s",
-            elapsed_ms, original_tokens, compact_tokens, savings, provr,
+            "FeatherMemory prepare: %.2fms | %d→%d tok (%.0f%% saved) | provider=%s",
+            elapsed_ms, original_tokens, compact_tokens, savings, provider,
         )
 
         return {
@@ -594,7 +594,7 @@ class FeatherMemory:
 
     Uso in server.py:
         fm = get_feather_memory()
-        prepared = fm.prepare(message, conv_id, history, system_prompt, provr, intent)
+        prepared = fm.prepare(message, conv_id, history, system_prompt, provider, intent)
         # prepared["messages"] → messaggi compressi API-ready
         # prepared["max_tokens"] → budget ottimale calcolato
         # prepared["compression"]["savings_percent"] → % risparmiato
@@ -614,7 +614,7 @@ class FeatherMemory:
         conversation_id: Optional[str]       = None,
         history:         Optional[List[Dict]] = None,
         system_prompt:   str                  = "",
-        provr:        str                  = "ollama",
+        provider:        str                  = "ollama",
         intent:          str                  = "simple",
     ) -> Dict:
         """Prepara richiesta ultra-ottimizzata (facade su ResponseAccelerator)."""
@@ -623,7 +623,7 @@ class FeatherMemory:
             conversation_id=conversation_id,
             history=history,
             system_prompt=system_prompt,
-            provr=provr,
+            provider=provider,
             intent=intent,
         )
 
@@ -636,10 +636,10 @@ class FeatherMemory:
         compacted = self.compactor.compact_batch(messages)
         return self.digest.digest(compacted)
 
-    def get_allocation(self, provr: str, system_tokens: int,
+    def get_allocation(self, provider: str, system_tokens: int,
                        context_tokens: int, desired_output: int = 1024) -> Dict:
-        """Calcola allocazione token per provr."""
-        return self.allocator.allocate(provr, system_tokens, context_tokens, desired_output)
+        """Calcola allocazione token per provider."""
+        return self.allocator.allocate(provider, system_tokens, context_tokens, desired_output)
 
     @property
     def stats(self) -> Dict:

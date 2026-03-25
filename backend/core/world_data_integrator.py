@@ -439,7 +439,7 @@ class UpdateScheduler:
                     if v.get("interval_hours", 24) <= 6
                 }
                 await self._integrator.run_update_cycle(
-                    mode="fast", sources_overr=fast_sources
+                    mode="fast", sources_override=fast_sources
                 )
                 self._last_fast = time.time()
             # Full cycle: tutte le sorgenti ogni 24h
@@ -504,7 +504,7 @@ class WorldDataIntegrator:
     async def run_update_cycle(
         self,
         mode: str = "full",
-        sources_overr: Optional[Dict] = None,
+        sources_override: Optional[Dict] = None,
     ) -> Dict:
         """
         Esegui ciclo di aggiornamento.
@@ -512,7 +512,7 @@ class WorldDataIntegrator:
         Returns: statistiche del ciclo
         """
         t0 = time.time()
-        sources = sources_overr or WORLD_SOURCES
+        sources = sources_override or WORLD_SOURCES
 
         logger.info(f"[WorldDataIntegrator™] Ciclo {mode.upper()} — {len(sources)} sorgenti")
 

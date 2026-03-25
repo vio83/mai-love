@@ -1,5 +1,5 @@
 """
-VIO 83 AI ORCHESTRA — Advanced Provr Orchestration Engine
+VIO 83 AI ORCHESTRA — Advanced Provider Orchestration Engine
 Versione: 2.1 (16 Marzo 2026)
 Massima Potenza Mondiale — Intelligenza Distribuita Completa
 
@@ -44,7 +44,7 @@ class TaskType(Enum):
 
 
 class ProvrTier(Enum):
-    """Tier di provr"""
+    """Tier di provider"""
     LOCAL = "local"  # Ollama
     FREE_CLOUD = "free_cloud"  # Groq, Together, OpenRouter
     CHEAP_CLOUD = "cheap_cloud"  # DeepSeek, Mistral
@@ -271,7 +271,7 @@ class AdvancedOrchestrator:
         c = conn.cursor()
         c.execute("""
             CREATE TABLE IF NOT EXISTS provr_health (
-                provr TEXT PRIMARY KEY,
+                provider TEXT PRIMARY KEY,
                 last_check REAL,
                 status TEXT,
                 latency_ms REAL
@@ -281,7 +281,7 @@ class AdvancedOrchestrator:
             CREATE TABLE IF NOT EXISTS cost_tracking (
                 id INTEGER PRIMARY KEY,
                 timestamp REAL,
-                provr TEXT,
+                provider TEXT,
                 model TEXT,
                 input_tokens INTEGER,
                 output_tokens INTEGER,
@@ -291,19 +291,19 @@ class AdvancedOrchestrator:
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS performance_metrics (
-                provr TEXT,
+                provider TEXT,
                 model TEXT,
                 metric_name TEXT,
                 value REAL,
                 timestamp REAL,
-                PRIMARY KEY (provr, model, metric_name)
+                PRIMARY KEY (provider, model, metric_name)
             )
         """)
         conn.commit()
         conn.close()
 
     def get_available_provrs(self) -> Dict[str, Dict]:
-        """Ritorna solo i provr con API key configurata"""
+        """Ritorna solo i provider con API key configurata"""
         available = {}
         for name, config in self.provr_registry.items():
             if name == "ollama":  # Always available
@@ -320,13 +320,13 @@ class AdvancedOrchestrator:
         max_budget_usd: Optional[float] = None,
     ) -> Tuple[str, str]:
         """
-        Seleziona il miglior provr + modello per il task.
+        Seleziona il miglior provider + modello per il task.
 
-        Returns: (provr, model)
+        Returns: (provider, model)
         """
         available = self.get_available_provrs()
         if not available:
-            raise ValueError("❌ Nessun provr disponibile!")
+            raise ValueError("❌ Nessun provider disponibile!")
 
         preferred_models = self.task_routing[task_type]["preferred"]
         weights = self.task_routing[task_type]["performance_weights"]
@@ -354,23 +354,23 @@ class AdvancedOrchestrator:
                         score *= 0.7
 
                     candidates.append({
-                        "provr": prov_id,
+                        "provider": prov_id,
                         "model": provr_name,
                         "score": score,
                         "tier": prov_config["tier"].value,
                     })
 
         if not candidates:
-            raise ValueError(f"❌ Nessun provr adatto per {task_type.value}")
+            raise ValueError(f"❌ Nessun provider adatto per {task_type.value}")
 
         # Ordina per score decrescente
         candidates.sort(key=lambda x: x["score"], reverse=True)
         logger.info(f"✅ Top 3 candidati per {task_type.value}:")
         for i, c in enumerate(candidates[:3], 1):
-            logger.info(f"  {i}. {c['provr']}/{c['model']} (score: {c['score']:.1f})")
+            logger.info(f"  {i}. {c['provider']}/{c['model']} (score: {c['score']:.1f})")
 
         best = candidates[0]
-        return best["provr"], best["model"]
+        return best["provider"], best["model"]
 
     async def call_with_fallback(
         self,
@@ -383,15 +383,15 @@ class AdvancedOrchestrator:
         """
         for attempt in range(max_retries):
             try:
-                provr, model = await self.select_best_provr(task_type)
-                logger.info(f"🚀 [Attempt {attempt + 1}] {provr}/{model}")
+                provider, model = await self.select_best_provr(task_type)
+                logger.info(f"🚀 [Attempt {attempt + 1}] {provider}/{model}")
 
-                # TODO: Implementa la chiamata reale al provr
-                # result = await call_provr(provr, model, prompt)
+                # TODO: Implementa la chiamata reale al provider
+                # result = await call_provr(provider, model, prompt)
 
                 # Simulazione per ora
                 return {
-                    "provr": provr,
+                    "provider": provider,
                     "model": model,
                     "response": "✅ Response simulato",
                     "cost_usd": 0.01,
@@ -404,22 +404,22 @@ class AdvancedOrchestrator:
 
     def track_cost(
         self,
-        provr: str,
+        provider: str,
         model: str,
         input_tokens: int,
         output_tokens: int,
         task_type: TaskType,
     ) -> float:
         """Traccia il costo e ritorna il totale in USD"""
-        cost_per_1m = self.provr_registry.get(provr, {}).get("cost_per_1m_tokens", 0)
+        cost_per_1m = self.provr_registry.get(provider, {}).get("cost_per_1m_tokens", 0)
         total_tokens = input_tokens + output_tokens
         cost_usd = (total_tokens / 1_000_000) * cost_per_1m
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute(
-            "INSERT INTO cost_tracking (timestamp, provr, model, input_tokens, output_tokens, cost_usd, task_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (time.time(), provr, model, input_tokens, output_tokens, cost_usd, task_type.value),
+            "INSERT INTO cost_tracking (timestamp, provider, model, input_tokens, output_tokens, cost_usd, task_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (time.time(), provider, model, input_tokens, output_tokens, cost_usd, task_type.value),
         )
         conn.commit()
         conn.close()
@@ -433,7 +433,7 @@ class AdvancedOrchestrator:
         c = conn.cursor()
 
         c.execute(
-            "SELECT provr, SUM(cost_usd) as total FROM cost_tracking WHERE timestamp > ? GROUP BY provr",
+            "SELECT provider, SUM(cost_usd) as total FROM cost_tracking WHERE timestamp > ? GROUP BY provider",
             (cutoff_time,),
         )
         by_provr = {row[0]: row[1] for row in c.fetchall()}
@@ -466,11 +466,11 @@ if __name__ == "__main__":
         print("\n🔥 VIO AI Orchestra — Advanced Orchestrator Test\n")
 
         # Test selezione
-        provr, model = await orchestrator.select_best_provr(TaskType.CODE)
-        print(f"✅ Scelto per CODE: {provr}/{model}")
+        provider, model = await orchestrator.select_best_provr(TaskType.CODE)
+        print(f"✅ Scelto per CODE: {provider}/{model}")
 
-        provr, model = await orchestrator.select_best_provr(TaskType.REASONING)
-        print(f"✅ Scelto per REASONING: {provr}/{model}")
+        provider, model = await orchestrator.select_best_provr(TaskType.REASONING)
+        print(f"✅ Scelto per REASONING: {provider}/{model}")
 
         # Test cost tracking
         orchestrator.track_cost("groq", "llama-3.3-70b-versatile", 2000, 500, TaskType.CODE)

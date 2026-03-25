@@ -5,7 +5,7 @@
 # ============================================================
 """
 VIO 83 AI ORCHESTRA - Database SQLite per Conversazioni
-Gestisce persistenza conversazioni, messaggi, metriche provr.
+Gestisce persistenza conversazioni, messaggi, metriche provider.
 Funziona interamente in locale — zero dati trasmessi.
 """
 
@@ -56,7 +56,7 @@ def init_database():
                 created_at REAL NOT NULL,
                 updated_at REAL NOT NULL,
                 mode TEXT NOT NULL DEFAULT 'local',
-                primary_provr TEXT DEFAULT 'ollama',
+                primary_provider TEXT DEFAULT 'ollama',
                 message_count INTEGER DEFAULT 0,
                 total_tokens INTEGER DEFAULT 0,
                 archived INTEGER DEFAULT 0
@@ -68,7 +68,7 @@ def init_database():
                 conversation_id TEXT NOT NULL,
                 role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
                 content TEXT NOT NULL,
-                provr TEXT,
+                provider TEXT,
                 model TEXT,
                 tokens_used INTEGER DEFAULT 0,
                 latency_ms INTEGER DEFAULT 0,
@@ -78,10 +78,10 @@ def init_database():
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
             );
 
-            -- Metriche provr (per analytics)
-            CREATE TABLE IF NOT EXISTS provr_metrics (
+            -- Metriche provider (per analytics)
+            CREATE TABLE IF NOT EXISTS provider_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                provr TEXT NOT NULL,
+                provider TEXT NOT NULL,
                 model TEXT NOT NULL,
                 request_type TEXT,
                 tokens_used INTEGER DEFAULT 0,
@@ -93,7 +93,7 @@ def init_database():
 
             -- API Keys criptate (solo per backend, non esposte)
             CREATE TABLE IF NOT EXISTS api_keys (
-                provr TEXT PRIMARY KEY,
+                provider TEXT PRIMARY KEY,
                 encrypted_key TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 last_used REAL
@@ -109,8 +109,8 @@ def init_database():
             -- Indici per performance
             CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
             CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_metrics_provr ON provr_metrics(provr);
-            CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON provr_metrics(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_metrics_provider ON provider_metrics(provider);
+            CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON provider_metrics(timestamp);
             CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC);
         """)
     print(f"📦 Database inizializzato: {get_db_path()}")
@@ -119,14 +119,14 @@ def init_database():
 # === CONVERSAZIONI ===
 
 def create_conversation(title: str = "Nuova conversazione", mode: str = "local",
-                        provr: str = "ollama") -> dict:
+                        provider: str = "ollama") -> dict:
     """Crea una nuova conversazione."""
     conv_id = str(uuid.uuid4())
     now = time.time()
     with get_connection() as conn:
         conn.execute(
-            "INSERT INTO conversations (id, title, created_at, updated_at, mode, primary_provr) VALUES (?, ?, ?, ?, ?, ?)",
-            (conv_id, title, now, now, mode, provr)
+            "INSERT INTO conversations (id, title, created_at, updated_at, mode, primary_provider) VALUES (?, ?, ?, ?, ?, ?)",
+            (conv_id, title, now, now, mode, provider)
         )
     return {"id": conv_id, "title": title, "created_at": now, "mode": mode}
 
@@ -147,8 +147,8 @@ def get_conversation(conv_id: str) -> Optional[dict]:
     with get_connection() as conn:
         rows = conn.execute(
             """SELECT c.id, c.title, c.created_at, c.updated_at, c.mode,
-                      c.primary_provr, c.message_count, c.total_tokens, c.archived,
-                      m.id AS msg_id, m.role, m.content, m.provr AS msg_provr,
+                      c.primary_provider, c.message_count, c.total_tokens, c.archived,
+                      m.id AS msg_id, m.role, m.content, m.provider AS msg_provider,
                       m.model, m.tokens_used, m.latency_ms, m.verified,
                       m.quality_score, m.timestamp AS msg_timestamp
                FROM conversations c
@@ -163,7 +163,7 @@ def get_conversation(conv_id: str) -> Optional[dict]:
         result = {
             "id": first["id"], "title": first["title"],
             "created_at": first["created_at"], "updated_at": first["updated_at"],
-            "mode": first["mode"], "primary_provr": first["primary_provr"],
+            "mode": first["mode"], "primary_provider": first["primary_provider"],
             "message_count": first["message_count"], "total_tokens": first["total_tokens"],
             "archived": first["archived"], "messages": [],
         }
@@ -172,7 +172,7 @@ def get_conversation(conv_id: str) -> Optional[dict]:
                 result["messages"].append({
                     "id": r["msg_id"], "conversation_id": conv_id,
                     "role": r["role"], "content": r["content"],
-                    "provr": r["msg_provr"], "model": r["model"],
+                    "provider": r["msg_provider"], "model": r["model"],
                     "tokens_used": r["tokens_used"], "latency_ms": r["latency_ms"],
                     "verified": r["verified"], "quality_score": r["quality_score"],
                     "timestamp": r["msg_timestamp"],
@@ -207,7 +207,7 @@ def archive_conversation(conv_id: str):
 # === MESSAGGI ===
 
 def add_message(conversation_id: str, role: str, content: str,
-                provr: Optional[str] = None, model: Optional[str] = None,
+                provider: Optional[str] = None, model: Optional[str] = None,
                 tokens_used: int = 0, latency_ms: int = 0,
                 verified: Optional[bool] = None, quality_score: Optional[float] = None) -> dict:
     """Aggiungi un messaggio a una conversazione."""
@@ -215,10 +215,10 @@ def add_message(conversation_id: str, role: str, content: str,
     now = time.time()
     with get_connection() as conn:
         conn.execute(
-            """INSERT INTO messages (id, conversation_id, role, content, provr, model,
+            """INSERT INTO messages (id, conversation_id, role, content, provider, model,
                tokens_used, latency_ms, verified, quality_score, timestamp)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (msg_id, conversation_id, role, content, provr, model,
+            (msg_id, conversation_id, role, content, provider, model,
              tokens_used, latency_ms, 1 if verified else (0 if verified is not None else None),
              quality_score, now)
         )
@@ -236,16 +236,16 @@ def add_message(conversation_id: str, role: str, content: str,
 
 # === METRICHE ===
 
-def log_metric(provr: str, model: str, request_type: Optional[str] = None,
+def log_metric(provider: str, model: str, request_type: Optional[str] = None,
                tokens_used: int = 0, latency_ms: int = 0,
                success: bool = True, error_message: Optional[str] = None):
     """Registra una metrica per analytics."""
     with get_connection() as conn:
         conn.execute(
-            """INSERT INTO provr_metrics (provr, model, request_type,
+            """INSERT INTO provider_metrics (provider, model, request_type,
                tokens_used, latency_ms, success, error_message, timestamp)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (provr, model, request_type, tokens_used, latency_ms,
+            (provider, model, request_type, tokens_used, latency_ms,
              1 if success else 0, error_message, time.time())
         )
 
@@ -254,39 +254,39 @@ def get_metrics_summary(days: int = 30) -> dict:
     """Ottieni un sommario delle metriche degli ultimi N giorni."""
     since = time.time() - (days * 86400)
     with get_connection() as conn:
-        # Totali per provr
+        # Totali per provider
         rows = conn.execute("""
-            SELECT provr,
+            SELECT provider,
                    COUNT(*) as total_calls,
                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
                    SUM(tokens_used) as total_tokens,
                    AVG(latency_ms) as avg_latency,
                    MIN(latency_ms) as min_latency,
                    MAX(latency_ms) as max_latency
-            FROM provr_metrics
+            FROM provider_metrics
             WHERE timestamp > ?
-            GROUP BY provr
+            GROUP BY provider
             ORDER BY total_calls DESC
         """, (since,)).fetchall()
 
-        provrs = {}
+        providers = {}
         for r in rows:
             d = dict(r)
             d["success_rate"] = round(d["successful"] / d["total_calls"] * 100, 1) if d["total_calls"] > 0 else 0
             d["avg_latency"] = round(d["avg_latency"] or 0)
-            provrs[d["provr"]] = d
+            providers[d["provider"]] = d
 
         # Totali generali
         total = conn.execute("""
             SELECT COUNT(*) as total_calls,
                    SUM(tokens_used) as total_tokens,
                    AVG(latency_ms) as avg_latency
-            FROM provr_metrics WHERE timestamp > ?
+            FROM provider_metrics WHERE timestamp > ?
         """, (since,)).fetchone()
 
         return {
             "period_days": days,
-            "provrs": provrs,
+            "providers": providers,
             "totals": dict(total) if total else {},
             "conversation_count": conn.execute(
                 "SELECT COUNT(*) FROM conversations WHERE created_at > ?", (since,)

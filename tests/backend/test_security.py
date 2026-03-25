@@ -52,8 +52,8 @@ class TestAPIKeyVault(unittest.TestCase):
         self.assertIn("total_keys", stats)
 
     def test_available_provrs_returns_list(self):
-        provrs = self.vault.available_provrs
-        self.assertIsInstance(provrs, list)
+        providers = self.vault.available_provrs
+        self.assertIsInstance(providers, list)
 
     def test_empty_env_yields_zero_valid_keys(self):
         # With no real API keys set, should have 0 valid
@@ -64,11 +64,11 @@ class TestAPIKeyInfo(unittest.TestCase):
 
     def test_dataclass_fields(self):
         info = APIKeyInfo(
-            provr="test", env_var="TEST_KEY",
+            provider="test", env_var="TEST_KEY",
             masked_key="sk-...xxxx", is_valid=True,
             key_length=40, prefix="sk-"
         )
-        self.assertEqual(info.provr, "test")
+        self.assertEqual(info.provider, "test")
         self.assertTrue(info.is_valid)
         self.assertEqual(info.use_count, 0)
         self.assertIsNone(info.last_error)

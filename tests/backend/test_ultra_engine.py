@@ -237,20 +237,20 @@ class TestAdaptiveProvrMemory:
     def test_record_success_updates_latency(self):
         self.mem.record_success("claude", 500.0, 0.9)
         stats = self.mem.stats
-        assert "claude" in stats["provrs"]
-        assert stats["provrs"]["claude"]["avg_latency_ms"] == pytest.approx(500.0, abs=1)
+        assert "claude" in stats["providers"]
+        assert stats["providers"]["claude"]["avg_latency_ms"] == pytest.approx(500.0, abs=1)
 
     def test_record_multiple_successes_averages(self):
         self.mem.record_success("gpt", 200.0, 0.8)
         self.mem.record_success("gpt", 400.0, 0.8)
         stats = self.mem.stats
-        avg = stats["provrs"]["gpt"]["avg_latency_ms"]
+        avg = stats["providers"]["gpt"]["avg_latency_ms"]
         assert 200 <= avg <= 400
 
     def test_record_error_increments_errors(self):
         self.mem.record_error("ollama")
         stats = self.mem.stats
-        assert stats["provrs"]["ollama"]["errors"] == 1
+        assert stats["providers"]["ollama"]["errors"] == 1
 
     def test_get_best_provr_prefers_fast(self):
         self.mem.record_success("fast", 100.0, 0.8)
@@ -479,7 +479,7 @@ class TestParallelRaceOrchestrator:
         async def _fn():
             await asyncio.sleep(delay)
             if response == "ERROR":
-                raise Exception("Provr error")
+                raise Exception("Provider error")
             return response
         return ProvrCall(pid, _fn())
 
@@ -494,7 +494,7 @@ class TestParallelRaceOrchestrator:
         p1 = await self._make_provr("ok_p", "Short.", delay=0.01)
         p2 = await self._make_provr("good_p", "This is a much better and longer response with details " * 3, delay=0.02)
         result = await self.orch.run([p1, p2], mode=RaceMode.BEST, min_responses_for_best=2)
-        # Il provr con risposta più lunga/strutturata dovrebbe vincere
+        # Il provider con risposta più lunga/strutturata dovrebbe vincere
         assert result.winner in ["ok_p", "good_p"]
         assert result.response != ""
 

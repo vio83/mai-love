@@ -14,7 +14,7 @@ Struttura gerarchica a 4 livelli:
   L3: Micro-niche        (2000+ specificazioni)
 
 Ogni nodo include:
-  - provr_optimal: migliore AI provr per questo dominio
+  - provr_optimal: migliore AI provider per questo dominio
   - temperature: temperatura ottimale per il task
   - max_tokens: risposta ottimale in token
   - system_fragment: frammento system prompt specializzato
@@ -380,7 +380,7 @@ _add(TaxonomyNode(
 _add(TaxonomyNode(
     id="MED.NUTR", name_it="Nutrizione & Dietetica", name_en="Nutrition & Dietetics",
     parent_id="MED", level=1, provr_optimal="claude", provr_fallback="openai",
-    temperature=0.2, max_tokens=3072, system_fragment="Sei un nutrizionista e dietologo. Basa consigli su evnze scientifiche. Consra patologie e intolleranze.",
+    temperature=0.2, max_tokens=3072, system_fragment="Sei un nutrizionista e dietologo. Basa consigli su evidence scientifiche. Consra patologie e intolleranze.",
     keywords_it=("nutrizione","dieta","calorie","macronutrienti","vitamine","minerali","intolleranza","allergia","dimagrimento","metabolismo"),
     keywords_en=("nutrition","diet","calories","macronutrients","vitamins","minerals","intolerance","allergy","weight loss","metabolism"),
     complexity=3, requires_reasoning=True, requires_web=False, citation_needed=True,
@@ -742,7 +742,7 @@ _add(TaxonomyNode(
     parent_id="SOC", level=1, provr_optimal="claude", provr_fallback="openai",
     temperature=0.4, max_tokens=3072, system_fragment="Sei un sociologo e antropologo. Analizza fenomeni sociali con rigore metodologico, teoria sociale, dati empirici.",
     keywords_it=("sociologia","antropologia","cultura","ntità","classe sociale","disuguaglianza","migrazione","urbanizzazione","globalizzazione"),
-    keywords_en=("sociology","anthropology","culture","ntity","social class","inequality","migration","urbanization","globalization"),
+    keywords_en=("sociology","anthropology","culture","identity","social class","inequality","migration","urbanization","globalization"),
     complexity=4, requires_reasoning=True, requires_web=False, citation_needed=True,
 ))
 
@@ -777,7 +777,7 @@ for spec_id, name_it, name_en, kw_it, kw_en in [
     ))
 
 # TECH.DEV → specializzazioni
-for spec_id, name_it, name_en, kw_it, kw_en, provr in [
+for spec_id, name_it, name_en, kw_it, kw_en, provider in [
     ("TECH.DEV.PY", "Python", "Python",
      ("python","pip","venv","asyncio","FastAPI","Django","Flask","pytest","numpy","pandas"),
      ("python","pip","venv","asyncio","FastAPI","Django","Flask","pytest","numpy","pandas"), "openai"),
@@ -796,7 +796,7 @@ for spec_id, name_it, name_en, kw_it, kw_en, provr in [
 ]:
     _add(TaxonomyNode(
         id=spec_id, name_it=name_it, name_en=name_en, parent_id="TECH.DEV", level=2,
-        provr_optimal=provr, provr_fallback="claude",
+        provr_optimal=provider, provr_fallback="claude",
         temperature=0.1, max_tokens=6144, system_fragment=f"Sei un esperto {name_en}. Scrivi codice pulito, testato, idiomatico.",
         keywords_it=kw_it, keywords_en=kw_en,
         complexity=4, requires_reasoning=True, requires_web=False, citation_needed=False,
@@ -925,7 +925,7 @@ def get_optimal_config(text: str) -> Dict:
     """
     Ritorna configurazione ottimale per una query.
 
-    Usato dal server per selezionare provr, temperature, system prompt.
+    Usato dal server per selezionare provider, temperature, system prompt.
     """
     results = classify_text(text, max_results=1)
 
@@ -933,7 +933,7 @@ def get_optimal_config(text: str) -> Dict:
         # Default: conversazione generale
         return {
             "node_id": "CRE",
-            "provr": "claude",
+            "provider": "claude",
             "temperature": 0.5,
             "max_tokens": 2048,
             "system_fragment": "Sei un assistente intelligente e disponibile.",
@@ -947,7 +947,7 @@ def get_optimal_config(text: str) -> Dict:
         "node_id": node_id,
         "name_it": node.name_it,
         "name_en": node.name_en,
-        "provr": node.provr_optimal,
+        "provider": node.provr_optimal,
         "provr_fallback": node.provr_fallback,
         "temperature": node.temperature,
         "max_tokens": node.max_tokens,

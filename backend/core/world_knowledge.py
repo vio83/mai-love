@@ -33,7 +33,7 @@ class KnowledgeFact:
     topic: str
     content: str
     source: str  # "conversation", "web", "document", "user_correction"
-    confnce: float
+    confidence: float
     timestamp: float = field(default_factory=time.time)
     content_hash: str = ""
 
@@ -120,7 +120,7 @@ class WorldKnowledgeUpdater:
                 topic TEXT NOT NULL,
                 content TEXT NOT NULL,
                 source TEXT NOT NULL DEFAULT 'conversation',
-                confnce REAL DEFAULT 0.5,
+                confidence REAL DEFAULT 0.5,
                 content_hash TEXT UNIQUE NOT NULL,
                 created_at REAL NOT NULL,
                 updated_at REAL,
@@ -152,7 +152,7 @@ class WorldKnowledgeUpdater:
 
             CREATE INDEX IF NOT EXISTS idx_facts_domain ON world_facts(domain);
             CREATE INDEX IF NOT EXISTS idx_facts_topic ON world_facts(topic);
-            CREATE INDEX IF NOT EXISTS idx_facts_confnce ON world_facts(confnce);
+            CREATE INDEX IF NOT EXISTS idx_facts_confidence ON world_facts(confidence);
             CREATE INDEX IF NOT EXISTS idx_facts_hash ON world_facts(content_hash);
         """)
 
@@ -200,7 +200,7 @@ class WorldKnowledgeUpdater:
                     topic=term[:100],
                     content=f"{term}: {definition}",
                     source="conversation",
-                    confnce=0.6 if role == "assistant" else 0.4,
+                    confidence=0.6 if role == "assistant" else 0.4,
                 ))
 
             # Estrai fatti con date
@@ -213,7 +213,7 @@ class WorldKnowledgeUpdater:
                     topic=f"event_{year}",
                     content=f"[{year}] {fact_text}",
                     source="conversation",
-                    confnce=0.5 if role == "assistant" else 0.3,
+                    confidence=0.5 if role == "assistant" else 0.3,
                 ))
 
             # Estrai fatti numerici
@@ -226,7 +226,7 @@ class WorldKnowledgeUpdater:
                     topic=subject[:100],
                     content=f"{subject}: {value}",
                     source="conversation",
-                    confnce=0.55 if role == "assistant" else 0.35,
+                    confidence=0.55 if role == "assistant" else 0.35,
                 ))
 
             # Rileva segnali di aggiornamento (novità dal mondo)
@@ -240,7 +240,7 @@ class WorldKnowledgeUpdater:
                             topic="world_update",
                             content=sentence[:500],
                             source="user_correction",
-                            confnce=0.7,  # L'utente che informa = alta confnza
+                            confidence=0.7,  # L'utente che informa = alta confnza
                         ))
 
         return self._store_facts(facts)
@@ -267,10 +267,10 @@ class WorldKnowledgeUpdater:
             try:
                 self._conn.execute(
                     "INSERT OR IGNORE INTO world_facts "
-                    "(domain, topic, content, source, confnce, content_hash, created_at) "
+                    "(domain, topic, content, source, confidence, content_hash, created_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (fact.domain, fact.topic, fact.content, fact.source,
-                     fact.confnce, fact.content_hash, fact.timestamp)
+                     fact.confidence, fact.content_hash, fact.timestamp)
                 )
                 if self._conn.execute("SELECT changes()").fetchone()[0] > 0:
                     row_id = self._conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -282,9 +282,9 @@ class WorldKnowledgeUpdater:
             except sqlite3.IntegrityError:
                 # Duplicato — aggiorna confnza se maggiore
                 self._conn.execute(
-                    "UPDATE world_facts SET confnce = MAX(confnce, ?), updated_at = ? "
+                    "UPDATE world_facts SET confidence = MAX(confidence, ?), updated_at = ? "
                     "WHERE content_hash = ?",
-                    (fact.confnce, time.time(), fact.content_hash)
+                    (fact.confidence, time.time(), fact.content_hash)
                 )
 
         if added > 0:
@@ -318,7 +318,7 @@ class WorldKnowledgeUpdater:
         try:
             if domain:
                 results = self._conn.execute(
-                    """SELECT wf.id, wf.domain, wf.topic, wf.content, wf.confnce, wf.source
+                    """SELECT wf.id, wf.domain, wf.topic, wf.content, wf.confidence, wf.source
                     FROM facts_fts ff
                     JOIN world_facts wf ON ff.rowid = wf.id
                     WHERE facts_fts MATCH ? AND wf.domain = ?
@@ -328,7 +328,7 @@ class WorldKnowledgeUpdater:
                 ).fetchall()
             else:
                 results = self._conn.execute(
-                    """SELECT wf.id, wf.domain, wf.topic, wf.content, wf.confnce, wf.source
+                    """SELECT wf.id, wf.domain, wf.topic, wf.content, wf.confidence, wf.source
                     FROM facts_fts ff
                     JOIN world_facts wf ON ff.rowid = wf.id
                     WHERE facts_fts MATCH ?
@@ -346,7 +346,7 @@ class WorldKnowledgeUpdater:
                 "domain": row[1],
                 "topic": row[2],
                 "content": row[3],
-                "confnce": row[4],
+                "confidence": row[4],
                 "source": row[5],
             })
             self._conn.execute(
@@ -375,7 +375,7 @@ class WorldKnowledgeUpdater:
             if chars_left < 30:
                 break
             snippet = fact["content"][:min(120, chars_left)]
-            conf_tag = "✓" if fact["confnce"] > 0.6 else "~"
+            conf_tag = "✓" if fact["confidence"] > 0.6 else "~"
             line = f"{conf_tag} {snippet}"
             lines.append(line)
             chars_left -= len(line) + 5
@@ -410,7 +410,7 @@ class WorldKnowledgeUpdater:
             excess = count - self.MAX_FACTS + 5000
             self._conn.execute(
                 "DELETE FROM world_facts WHERE id IN "
-                "(SELECT id FROM world_facts ORDER BY confnce ASC, access_count ASC LIMIT ?)",
+                "(SELECT id FROM world_facts ORDER BY confidence ASC, access_count ASC LIMIT ?)",
                 (excess,)
             )
 

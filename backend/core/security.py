@@ -27,7 +27,7 @@ logger = logging.getLogger("vio83.security")
 @dataclass
 class APIKeyInfo:
     """Informazioni su una chiave API."""
-    provr: str
+    provider: str
     env_var: str
     masked_key: str
     is_valid: bool
@@ -47,16 +47,16 @@ class APIKeyVault:
     - Audit trail di ogni accesso
     """
 
-    # Pattern di validazione per ogni provr
+    # Pattern di validazione per ogni provider
     KEY_PATTERNS = {
-        # --- Provr Gratuiti ---
+        # --- Provider Gratuiti ---
         "GROQ_API_KEY": r"^gsk_[a-zA-Z0-9]{30,}$",
         "TOGETHER_API_KEY": r"^[a-fA-F0-9]{64}$",
         "OPENROUTER_API_KEY": r"^sk-or-v1-[a-zA-Z0-9]{40,}$",
-        # --- Provr Economici ---
+        # --- Provider Economici ---
         "DEEPSEEK_API_KEY": r"^sk-[a-zA-Z0-9]{30,}$",
         "MISTRAL_API_KEY": r"^[a-zA-Z0-9]{30,}$",
-        # --- Provr Standard ---
+        # --- Provider Standard ---
         "ANTHROPIC_API_KEY": r"^sk-ant-[a-zA-Z0-9\-_]{40,}$",
         "OPENAI_API_KEY": r"^sk-[a-zA-Z0-9\-_]{30,}$",
         "XAI_API_KEY": r"^xai-[a-zA-Z0-9\-_]{30,}$",
@@ -64,14 +64,14 @@ class APIKeyVault:
     }
 
     PROVR_MAP = {
-        # --- Provr Gratuiti ---
+        # --- Provider Gratuiti ---
         "GROQ_API_KEY": "groq",
         "TOGETHER_API_KEY": "together",
         "OPENROUTER_API_KEY": "openrouter",
-        # --- Provr Economici ---
+        # --- Provider Economici ---
         "DEEPSEEK_API_KEY": "deepseek",
         "MISTRAL_API_KEY": "mistral",
-        # --- Provr Standard ---
+        # --- Provider Standard ---
         "ANTHROPIC_API_KEY": "claude",
         "OPENAI_API_KEY": "gpt4",
         "XAI_API_KEY": "grok",
@@ -87,13 +87,13 @@ class APIKeyVault:
         """Scansiona l'ambiente e valida tutte le chiavi."""
         logger.info("[Security] Inizializzazione API Key Vault...")
 
-        for env_var, provr in self.PROVR_MAP.items():
+        for env_var, provider in self.PROVR_MAP.items():
             key = os.environ.get(env_var, "")
             if key:
                 is_valid = self._validate_key(env_var, key)
                 masked = self._mask_key(key)
                 self._key_info[env_var] = APIKeyInfo(
-                    provr=provr,
+                    provider=provider,
                     env_var=env_var,
                     masked_key=masked,
                     is_valid=is_valid,
@@ -101,10 +101,10 @@ class APIKeyVault:
                     prefix=key[:8] + "..." if len(key) > 8 else "***",
                 )
                 status = "✓ valida" if is_valid else "⚠ formato sospetto"
-                logger.info(f"  [{provr}] {masked} ({status})")
+                logger.info(f"  [{provider}] {masked} ({status})")
             else:
                 self._key_info[env_var] = APIKeyInfo(
-                    provr=provr,
+                    provider=provider,
                     env_var=env_var,
                     masked_key="(non configurata)",
                     is_valid=False,
@@ -129,15 +129,15 @@ class APIKeyVault:
             self._audit_log.append({
                 "action": "key_access",
                 "env_var": env_var,
-                "provr": self._key_info[env_var].provr,
+                "provider": self._key_info[env_var].provider,
                 "timestamp": time.time(),
             })
         return key
 
-    def get_key_for_provr(self, provr: str) -> Optional[str]:
-        """Recupera la chiave per un provr specifico."""
+    def get_key_for_provr(self, provider: str) -> Optional[str]:
+        """Recupera la chiave per un provider specifico."""
         for env_var, info in self._key_info.items():
-            if info.provr == provr and info.is_valid:
+            if info.provider == provider and info.is_valid:
                 return self.get_key(env_var)
         return None
 
@@ -157,8 +157,8 @@ class APIKeyVault:
 
     @property
     def available_provrs(self) -> list[str]:
-        """Lista provr con chiave valida."""
-        return [info.provr for info in self._key_info.values() if info.is_valid]
+        """Lista provider con chiave valida."""
+        return [info.provider for info in self._key_info.values() if info.is_valid]
 
     @property
     def stats(self) -> dict:
@@ -166,8 +166,8 @@ class APIKeyVault:
             "initialized": self._initialized,
             "total_keys": len(self._key_info),
             "valid_keys": sum(1 for k in self._key_info.values() if k.is_valid),
-            "provrs": {
-                info.provr: {
+            "providers": {
+                info.provider: {
                     "masked_key": info.masked_key,
                     "is_valid": info.is_valid,
                     "use_count": info.use_count,
@@ -223,7 +223,7 @@ class EnvironmentValidator:
         env_path = os.path.join(self.project_dir, ".env")
         if not os.path.isfile(env_path):
             self._warnings.append(
-                ".env non trovato. I provr cloud non saranno disponibili. "
+                ".env non trovato. I provider cloud non saranno disponibili. "
                 "Crea il file con: cp .env.example .env"
             )
 
