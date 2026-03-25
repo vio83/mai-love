@@ -27,14 +27,14 @@ const OpenClawPage = lazy(() => import('./pages/OpenClawPage'));
 const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
-  const sidebarOpen = useAppStore(s => s.sidebarOpen);
-  const toggleSidebar = useAppStore(s => s.toggleSidebar);
-  const settings = useAppStore(s => s.settings);
-  const settingsOpen = useAppStore(s => s.settingsOpen);
-  const currentPage = useAppStore(s => s.currentPage);
-  const updateSettings = useAppStore(s => s.updateSettings);
-  const authToken = useAppStore(s => s.authToken);
-  const loadConversationsFromBackend = useAppStore(s => s.loadConversationsFromBackend);
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const settings = useAppStore((s) => s.settings);
+  const settingsOpen = useAppStore((s) => s.settingsOpen);
+  const currentPage = useAppStore((s) => s.currentPage);
+  const updateSettings = useAppStore((s) => s.updateSettings);
+  const authToken = useAppStore((s) => s.authToken);
+  const loadConversationsFromBackend = useAppStore((s) => s.loadConversationsFromBackend);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -54,34 +54,40 @@ export default function App() {
   const showOnboarding = !settings.onboardingCompleted;
 
   const loadingFallback = (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--vio-text-dim)',
-      fontSize: '13px',
-      background: 'var(--vio-bg-primary)',
-    }}>
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--vio-text-dim)',
+        fontSize: '13px',
+        background: 'var(--vio-bg-primary)',
+      }}
+    >
       {t('app.loading')}
     </div>
   );
 
   const notFoundFallback = (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px',
-      color: 'var(--vio-text-secondary)',
-      background: 'var(--vio-bg-primary)',
-      padding: '24px',
-      textAlign: 'center',
-    }}>
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '10px',
+        color: 'var(--vio-text-secondary)',
+        background: 'var(--vio-bg-primary)',
+        padding: '24px',
+        textAlign: 'center',
+      }}
+    >
       <div style={{ fontSize: '28px' }}>🧭</div>
-      <div style={{ fontWeight: 700, color: 'var(--vio-text-primary)' }}>{t('app.notFoundTitle')}</div>
+      <div style={{ fontWeight: 700, color: 'var(--vio-text-primary)' }}>
+        {t('app.notFoundTitle')}
+      </div>
       <div style={{ fontSize: '13px' }}>{t('app.notFoundDescription')}</div>
     </div>
   );
@@ -98,19 +104,32 @@ export default function App() {
   // Render the active page
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard': return <DashboardPage />;
-      case 'chat': return <ChatView />;
-      case 'workflow': return <WorkflowPage />;
-      case 'crosscheck': return <CrossCheckPage />;
-      case 'analytics': return <AnalyticsPage />;
-      case 'rag': return <RagPage />;
-      case 'models': return <ModelsPage />;
-      case 'runtime': return <OrchestraRuntimePage />;
-      case 'privacy': return <PrivacyPage />;
-      case 'plugins': return <PluginsPage />;
-      case 'openclaw': return <OpenClawPage />;
-      case 'settings': return <SettingsPanel variant="page" />;
-      default: return notFoundFallback;
+      case 'dashboard':
+        return <DashboardPage />;
+      case 'chat':
+        return <ChatView />;
+      case 'workflow':
+        return <WorkflowPage />;
+      case 'crosscheck':
+        return <CrossCheckPage />;
+      case 'analytics':
+        return <AnalyticsPage />;
+      case 'rag':
+        return <RagPage />;
+      case 'models':
+        return <ModelsPage />;
+      case 'runtime':
+        return <OrchestraRuntimePage />;
+      case 'privacy':
+        return <PrivacyPage />;
+      case 'plugins':
+        return <PluginsPage />;
+      case 'openclaw':
+        return <OpenClawPage />;
+      case 'settings':
+        return <SettingsPanel variant="page" />;
+      default:
+        return notFoundFallback;
     }
   };
 
@@ -130,15 +149,17 @@ export default function App() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      width: '100vw',
-      overflow: 'hidden',
-      backgroundColor: 'var(--vio-bg-primary)',
-      color: 'var(--vio-text-primary)',
-      position: 'relative',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden',
+        backgroundColor: 'var(--vio-bg-primary)',
+        color: 'var(--vio-text-primary)',
+        position: 'relative',
+      }}
+    >
       <Suspense fallback={null}>
         <ParticleBackground />
       </Suspense>
@@ -147,27 +168,34 @@ export default function App() {
       <Sidebar />
 
       {/* Main content */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 0,
-      }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}
+      >
         {/* Top bar */}
         {!sidebarOpen && (
-          <div style={{
-            padding: '8px 16px',
-            borderBottom: '1px solid var(--vio-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            backgroundColor: 'var(--vio-bg-secondary)',
-          }}>
+          <div
+            style={{
+              padding: '8px 16px',
+              borderBottom: '1px solid var(--vio-border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              backgroundColor: 'var(--vio-bg-secondary)',
+            }}
+          >
             <button
               onClick={toggleSidebar}
               style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--vio-text-secondary)', padding: '4px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--vio-text-secondary)',
+                padding: '4px',
               }}
             >
               <Menu size={20} />
@@ -178,14 +206,17 @@ export default function App() {
             <span style={{ fontSize: '12px', color: 'var(--vio-text-dim)' }}>
               — {pageTitle[currentPage] || t('nav.chat')}
             </span>
-            <span style={{
-              fontSize: '11px',
-              marginLeft: 'auto',
-              padding: '2px 8px',
-              borderRadius: '10px',
-              border: `1px solid ${settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)'}`,
-              color: settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)',
-            }}>
+            <span
+              style={{
+                fontSize: '11px',
+                marginLeft: 'auto',
+                padding: '2px 8px',
+                borderRadius: '10px',
+                border: `1px solid ${settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)'}`,
+                color:
+                  settings.orchestrator.mode === 'cloud' ? 'var(--vio-cyan)' : 'var(--vio-green)',
+              }}
+            >
               {settings.orchestrator.mode === 'cloud' ? t('mode.cloud') : t('mode.local')}
             </span>
           </div>
@@ -193,9 +224,7 @@ export default function App() {
 
         {/* Page content */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          <Suspense fallback={loadingFallback}>
-            {renderPage()}
-          </Suspense>
+          <Suspense fallback={loadingFallback}>{renderPage()}</Suspense>
         </div>
       </div>
 

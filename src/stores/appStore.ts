@@ -1,9 +1,9 @@
 // VIO 83 AI ORCHESTRA - Global State Management (Zustand)
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
-import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
-import { deleteBackendConversation, fetchConversations } from '../services/conversationService';
 import type { BackendConversation } from '../services/conversationService';
+import { deleteBackendConversation, fetchConversations } from '../services/conversationService';
+import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
 
 interface AppState {
   // Current conversation
