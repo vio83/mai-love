@@ -9,11 +9,11 @@
 ## Architettura
 
 ```
-Frontend:  React 18 + TypeScript + Vite 7 → porta 5173
-Backend:   FastAPI (Python 3.14) + Uvicorn  → porta 4000
-Local AI:  Ollama                           → porta 11434
-Desktop:   Tauri 2.0 (Rust) — per build desktop
-DB:        SQLite (conversazioni), ChromaDB (vettori, opzionale)
+Frontend:  React 18 + TypeScript + Vite 6 → porta 5173
+Backend:   FastAPI (Python >=3.12) + Uvicorn  → porta 4000
+Local AI:  Ollama (6 modelli)               → porta 11434
+Desktop:   Tauri 2.0 (Rust) — build nativo macOS
+DB:        SQLite (conversazioni + FTS5 + VectorEngine custom)
 ```
 
 ### Struttura directory chiave
@@ -77,8 +77,8 @@ npx tauri build
 
 ## Note critiche
 
-- **RAG disabilitato**: ChromaDB non compatibile con Python 3.14. Usare SQLite FTS5 come fallback.
-- **Ollama**: 7 modelli locali installati (deepseek-r1, llama3, codellama, mistral, gemma2, llama3.2, qwen2.5-coder)
+- **RAG**: ChromaDB non compatibile con Python 3.14. VectorEngine custom (SQLite + NumPy) come sostituto.
+- **Ollama**: 6 modelli locali installati (qwen2.5-coder:3b, llama3.2:3b, qwen2.5:3b, gemma2:2b, phi3:mini, nomic-embed-text)
 - **Cloud providers**: richiedono API keys nel file `.env` (non committare!)
 - **CORS**: configurato per localhost:5173 e localhost:4000
 - **Database**: SQLite in `data/` — non eliminare mai

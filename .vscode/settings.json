@@ -112,7 +112,8 @@
   "terminal.integrated.fontSize": 13,
   "terminal.integrated.defaultProfile.osx": "zsh",
   "terminal.integrated.env.osx": {
-    "OLLAMA_HOST": "http://localhost:11434"
+    "OLLAMA_HOST": "http://localhost:11434",
+    "PYTHONPATH": "${workspaceFolder}"
   },
   "workbench.colorTheme": "One Dark Pro",
   "workbench.iconTheme": "material-icon-theme",
@@ -814,10 +815,21 @@
     }
   ],
   "twinny.fimModelName": "qwen2.5-coder:3b",
-  "twinny.chatModelName": "codellama",
+  "twinny.chatModelName": "qwen2.5:3b",
   "twinny.apiHostname": "localhost",
   "twinny.apiPort": 11434,
   "twinny.apiProvider": "ollama",
   "twinny.enabled": true,
-  "twinny.autoSuggestEnabled": true
+  "twinny.autoSuggestEnabled": true,
+  "editor.inlineSuggest.enabled": true,
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": true,
+    "plaintext": true,
+    "markdown": true,
+    "python": true,
+    "typescript": true,
+    "typescriptreact": true,
+    "rust": true
+  }
 }
