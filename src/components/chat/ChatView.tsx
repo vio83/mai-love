@@ -7,6 +7,7 @@ import { useAppStore } from '../../stores/appStore';
 import type { AIProvider, Attachment, Message } from '../../types';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
+import ModelBar from './ModelBar';
 
 export default function ChatView() {
   const { t } = useI18n();
@@ -241,6 +242,7 @@ export default function ChatView() {
           backgroundColor: 'var(--vio-bg-primary)',
         }}
       >
+        <ModelBar />
         <div
           style={{
             flex: 1,
@@ -351,6 +353,7 @@ export default function ChatView() {
         backgroundColor: 'var(--vio-bg-primary)',
       }}
     >
+      <ModelBar />
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
         {activeConversation.messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />
