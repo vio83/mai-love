@@ -3,8 +3,10 @@ VIO 83 AI ORCHESTRA — Router / Orchestrator Tests
 Tests: classify_request intent detection, provider routing
 """
 import unittest
+from unittest.mock import patch
 
-from backend.orchestrator.direct_router import classify_request
+from backend.core.errors import ProvrException
+from backend.orchestrator.direct_router import classify_request, _resolve_cloud_api_key
 
 
 class TestClassifyRequest(unittest.TestCase):
@@ -42,6 +44,16 @@ class TestClassifyRequest(unittest.TestCase):
     def test_empty_message_does_not_crash(self):
         result = classify_request("")
         self.assertIsInstance(result, str)
+
+
+class TestCloudProviderValidation(unittest.TestCase):
+
+    def test_missing_cloud_api_key_raises_typed_exception(self):
+        with patch.dict("os.environ", {}, clear=True):
+            with self.assertRaises(ProvrException) as ctx:
+                _resolve_cloud_api_key("claude")
+
+        self.assertIn("API key mancante", str(ctx.exception))
 
 
 if __name__ == "__main__":

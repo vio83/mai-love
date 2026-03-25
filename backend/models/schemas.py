@@ -30,13 +30,13 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=50000)
     conversation_id: Optional[str] = None
     mode: Literal["cloud", "local"] = "local"
-    provider: Optional[str] = None
-    model: Optional[str] = None
+    provider: Optional[str] = Field(None, max_length=64)
+    model: Optional[str] = Field(None, max_length=128)
     enable_cross_check: bool = False
     enable_rag: bool = True
     temperature: float = Field(0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(512, ge=1, le=128000)
-    system_prompt: Optional[str] = None
+    system_prompt: Optional[str] = Field(None, max_length=12000)
     images: Optional[List[ImageAttachment]] = None  # Vision / multimodal
     agent_mode: bool = False  # OpenClaw agent: multi-step tool calling
     enable_protocollo_100x: bool = True  # Protocollo di Aderenza Totale 100x

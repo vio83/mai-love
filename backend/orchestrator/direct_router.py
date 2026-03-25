@@ -15,8 +15,10 @@ import time
 import json
 import asyncio
 import logging
+import random
 from typing import Optional, AsyncGenerator
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from backend.config.providers import (
     CLOUD_PROVRS,
@@ -55,9 +57,17 @@ from backend.core.auto_learner import get_auto_learner
 from backend.core.self_optimizer import get_self_optimizer
 from backend.core.world_knowledge import get_world_knowledge
 from backend.core.reasoning_engine import get_reasoning_engine
+from backend.core.errors import (
+    ErrorCode,
+    OrchestraError,
+    ProvrException,
+    NetworkException,
+)
+from backend.core.network import get_connection_pool
 
 # Alias per retrocompatibilità (server.py lo importa come VIO83_SYSTEM_PROMPT)
 VIO83_SYSTEM_PROMPT = VIO83_MASTER_PROMPT
+logger = logging.getLogger(__name__)
 
 
 # === CLASSIFICAZIONE RICHIESTE ===
@@ -408,7 +418,13 @@ def route_to_provr(request_type: str, mode: str = "cloud") -> str:
 def _resolve_cloud_provr_entry(provider: str) -> dict:
     entry = ALL_CLOUD_ROUTER_PROVRS.get(provider)
     if not entry:
-        raise Exception(f"Provider cloud non supportato nel backend: {provider}")
+        raise ProvrException(OrchestraError(
+            code=ErrorCode.PROVR_UNAVAILABLE,
+            message=f"Provider cloud non supportato: {provider}",
+            provider=provider,
+            recoverable=False,
+            suggestion="Usa un provider configurato in backend/config/providers.py",
+        ))
     return entry
 
 
@@ -429,20 +445,36 @@ def _resolve_cloud_model(provider: str, requested_model: Optional[str] = None) -
     if models:
         return next(iter(models.keys()))
 
-    raise Exception(f"Nessun modello disponibile per provider {provider}")
+    raise ProvrException(OrchestraError(
+        code=ErrorCode.PROVR_MODEL_NOT_FOUND,
+        message=f"Nessun modello disponibile per provider {provider}",
+        provider=provider,
+        recoverable=False,
+        suggestion="Imposta default_model o aggiungi almeno un modello al registry del provider",
+    ))
 
 
 def _resolve_cloud_api_key(provider: str) -> str:
     entry = _resolve_cloud_provr_entry(provider)
     env_key = entry.get("env_key")
     if not env_key:
-        raise Exception(f"env_key mancante per provider {provider}")
+        raise ProvrException(OrchestraError(
+            code=ErrorCode.CONFIG_INVALID_VALUE,
+            message=f"env_key mancante per provider {provider}",
+            provider=provider,
+            recoverable=False,
+        ))
 
     api_key = os.environ.get(env_key, "").strip()
     if not api_key:
-        raise Exception(
-            f"API key mancante per provider '{provider}'. Imposta {env_key} nel file .env"
-        )
+        raise ProvrException(OrchestraError(
+            code=ErrorCode.CONFIG_MISSING_KEY,
+            message=f"API key mancante per provider '{provider}'",
+            details=f"Imposta {env_key} nel file .env",
+            provider=provider,
+            recoverable=False,
+            suggestion=f"Aggiungi {env_key} al file .env o usa mode='local'",
+        ))
     return api_key
 
 
@@ -460,8 +492,153 @@ def _cloud_base_url(provider: str) -> str:
         "perplexity": "https://api.perplexity.ai/v1",
     }
     if provider not in base_urls:
-        raise Exception(f"Base URL non configurata per provider {provider}")
+        raise ProvrException(OrchestraError(
+            code=ErrorCode.CONFIG_INVALID_VALUE,
+            message=f"Base URL non configurata per provider {provider}",
+            provider=provider,
+            recoverable=False,
+        ))
     return base_urls[provider]
+
+
+def _retryable_http_status(status_code: int) -> bool:
+    return status_code in {408, 409, 425, 429, 500, 502, 503, 504}
+
+
+def _retry_delay_seconds(attempt: int, retry_after: float | None = None) -> float:
+    """Exponential backoff con jitter e supporto Retry-After header."""
+    if retry_after is not None and retry_after > 0:
+        # Rispetta il Retry-After del server, con cap a 60s per sicurezza
+        return min(retry_after + random.uniform(0.0, 0.5), 60.0)
+    delay = min(1.0 * (2 ** attempt), 16.0)
+    # Full jitter: delay uniformemente distribuito in [0, delay]
+    return random.uniform(0.5, delay) + random.uniform(0.0, 0.25)
+
+
+def _extract_retry_after(headers: dict | None) -> float | None:
+    """Estrae Retry-After header (secondi o HTTP-date) da risposta."""
+    if not headers:
+        return None
+    val = None
+    for k, v in headers.items():
+        if k.lower() == "retry-after":
+            val = v
+            break
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _orchestra_http_error(
+    provider: str,
+    status_code: int,
+    details: str,
+    model: Optional[str] = None,
+) -> ProvrException:
+    truncated = (details or "")[:600]
+    if status_code in {401, 403}:
+        code = ErrorCode.PROVR_AUTH_FAILED
+        suggestion = "Verifica la API key e i permessi del provider"
+        recoverable = False
+    elif status_code == 404:
+        code = ErrorCode.PROVR_MODEL_NOT_FOUND
+        suggestion = "Verifica modello ed endpoint configurati per il provider"
+        recoverable = False
+    elif status_code == 429:
+        code = ErrorCode.PROVR_RATE_LIMITED
+        suggestion = "Riduci il rate o attendi il reset del provider"
+        recoverable = True
+    else:
+        code = ErrorCode.PROVR_UNAVAILABLE
+        suggestion = "Riprova o usa un provider di fallback"
+        recoverable = _retryable_http_status(status_code)
+
+    return ProvrException(OrchestraError(
+        code=code,
+        message=f"{provider} ha risposto con HTTP {status_code}",
+        details=truncated,
+        provider=provider,
+        model=model,
+        recoverable=recoverable,
+        suggestion=suggestion,
+    ))
+
+
+def _normalize_transport_exception(
+    provider: str,
+    exc: Exception,
+    model: Optional[str] = None,
+) -> Exception:
+    if isinstance(exc, (ProvrException, NetworkException)):
+        return exc
+
+    message = str(exc)
+
+    if "Circuit breaker OPEN" in message:
+        return NetworkException(OrchestraError(
+            code=ErrorCode.NETWORK_CIRCUIT_OPEN,
+            message=f"Circuit breaker aperto per {provider}",
+            details=message,
+            provider=provider,
+            model=model,
+            suggestion="Attendi il reset del circuito o usa un fallback provider",
+        ))
+
+    if HAS_HTTPX and isinstance(exc, httpx.HTTPStatusError):
+        try:
+            response_text = exc.response.text
+        except Exception:
+            response_text = message
+        return _orchestra_http_error(provider, exc.response.status_code, response_text, model=model)
+
+    if HAS_HTTPX and isinstance(exc, httpx.TimeoutException):
+        return NetworkException(OrchestraError(
+            code=ErrorCode.PROVR_TIMEOUT,
+            message=f"Timeout verso provider {provider}",
+            details=message,
+            provider=provider,
+            model=model,
+            suggestion="Riprova con un modello piu rapido o aumenta il timeout",
+        ))
+
+    if isinstance(exc, (ConnectionError, OSError, URLError)):
+        return NetworkException(OrchestraError(
+            code=ErrorCode.NETWORK_CONNECTION_FAILED,
+            message=f"Errore di connessione verso {provider}",
+            details=message,
+            provider=provider,
+            model=model,
+            suggestion="Verifica connettivita, DNS e disponibilita del servizio",
+        ))
+
+    return ProvrException(OrchestraError(
+        code=ErrorCode.SYSTEM_UNKNOWN,
+        message=f"Errore imprevisto del provider {provider}",
+        details=message[:600],
+        provider=provider,
+        model=model,
+    ))
+
+
+def _ensure_network_provider_registered(
+    provider: str,
+    base_url: str,
+    timeout_s: float,
+) -> None:
+    pool = get_connection_pool()
+    if provider in pool.stats.get("providers", {}):
+        return
+
+    rate_limit = 100 if provider == "ollama" else 30
+    pool.register_provr(
+        provider,
+        base_url=base_url,
+        timeout=timeout_s,
+        rate_limit=rate_limit,
+    )
 
 
 def _build_cloud_headers(provider: str, api_key: str) -> dict[str, str]:
@@ -536,51 +713,100 @@ def _extract_perplexity_output(data: dict) -> str:
     return ""
 
 
-# Singleton httpx client for connection reuse (saves 50-200ms per API call)
-_PERSISTENT_HTTPX_CLIENT: Optional["httpx.AsyncClient"] = None
-
-
-async def _get_httpx_client(timeout_s: float = 120.0) -> "httpx.AsyncClient":
-    global _PERSISTENT_HTTPX_CLIENT
-    if _PERSISTENT_HTTPX_CLIENT is None or _PERSISTENT_HTTPX_CLIENT.is_closed:
-        _PERSISTENT_HTTPX_CLIENT = httpx.AsyncClient(
-            timeout=timeout_s,
-            trust_env=False,
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
-        )
-    return _PERSISTENT_HTTPX_CLIENT
-
-
-async def _http_post_json(url: str, headers: dict, payload: dict, timeout_s: float = 120.0) -> dict:
+async def _http_post_json(
+    url: str,
+    headers: dict,
+    payload: dict,
+    timeout_s: float = 120.0,
+    provider: str = "unknown",
+    model: Optional[str] = None,
+) -> dict:
     if HAS_HTTPX:
-        client = await _get_httpx_client(timeout_s)
-        response = await client.post(url, headers=headers, json=payload, timeout=timeout_s)
-        if response.status_code >= 400:
-            raise Exception(f"HTTP {response.status_code}: {response.text}")
-        return response.json()
+        try:
+            _ensure_network_provider_registered(provider, url, timeout_s)
+            pool = get_connection_pool()
+            response = await pool.request(
+                provider,
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=timeout_s,
+            )
+            return response.json()
+        except Exception as exc:
+            raise _normalize_transport_exception(provider, exc, model=model) from exc
 
     if HAS_AIOHTTP:
         timeout = aiohttp.ClientTimeout(total=timeout_s)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                text = await response.text()
-                if response.status >= 400:
-                    raise Exception(f"HTTP {response.status}: {text}")
-                try:
-                    return json.loads(text)
-                except json.JSONDecodeError:
-                    raise Exception(f"Risposta JSON non valida da {url}")
+        last_exc: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(url, headers=headers, json=payload) as response:
+                        text = await response.text()
+                        if response.status >= 400:
+                            raise _orchestra_http_error(provider, response.status, text, model=model)
+                        try:
+                            return json.loads(text)
+                        except json.JSONDecodeError as exc:
+                            raise ProvrException(OrchestraError(
+                                code=ErrorCode.PROVR_RESPONSE_INVALID,
+                                message=f"Risposta JSON non valida da {provider}",
+                                details=str(exc),
+                                provider=provider,
+                                model=model,
+                            )) from exc
+            except Exception as exc:
+                normalized = _normalize_transport_exception(provider, exc, model=model)
+                last_exc = normalized
+                if isinstance(normalized, ProvrException) and normalized.error.code == ErrorCode.PROVR_RATE_LIMITED and attempt < 2:
+                    await asyncio.sleep(_retry_delay_seconds(attempt))
+                    continue
+                if isinstance(exc, aiohttp.ClientError) and attempt < 2:
+                    await asyncio.sleep(_retry_delay_seconds(attempt))
+                    continue
+                raise normalized
+
+        if last_exc:
+            raise last_exc
 
     # Fallback sincrono via urllib
     def _sync_request() -> dict:
-        req = Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-        )
-        with urlopen(req, timeout=timeout_s) as resp:
-            body = resp.read().decode("utf-8")
-            return json.loads(body)
+        last_exc: Optional[Exception] = None
+        for attempt in range(3):
+            req = Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+            )
+            try:
+                with urlopen(req, timeout=timeout_s) as resp:
+                    body = resp.read().decode("utf-8")
+                    return json.loads(body)
+            except HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="ignore") if hasattr(exc, "read") else str(exc)
+                last_exc = _orchestra_http_error(provider, exc.code, body, model=model)
+                if _retryable_http_status(exc.code) and attempt < 2:
+                    time.sleep(_retry_delay_seconds(attempt))
+                    continue
+                raise last_exc
+            except (URLError, OSError, json.JSONDecodeError) as exc:
+                last_exc = _normalize_transport_exception(provider, exc, model=model)
+                if attempt < 2:
+                    time.sleep(_retry_delay_seconds(attempt))
+                    continue
+                raise last_exc
+
+        if last_exc:
+            raise last_exc
+
+        raise NetworkException(OrchestraError(
+            code=ErrorCode.SYSTEM_UNKNOWN,
+            message=f"Errore sconosciuto verso {provider}",
+            provider=provider,
+            model=model,
+        ))
 
     return await asyncio.to_thread(_sync_request)
 
@@ -609,6 +835,8 @@ async def _call_cloud_compatible_chat(
         headers=headers,
         payload=payload,
         timeout_s=180.0,
+        provider=provider,
+        model=model,
     )
 
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -649,6 +877,8 @@ async def _call_cloud_claude(
         headers=headers,
         payload=payload,
         timeout_s=180.0,
+        provider=provider,
+        model=model,
     )
 
     content_chunks = data.get("content", [])
@@ -697,6 +927,8 @@ async def _call_cloud_perplexity(
         headers=headers,
         payload=payload,
         timeout_s=180.0,
+        provider=provider,
+        model=model,
     )
 
     content = _extract_perplexity_output(data)
@@ -774,27 +1006,14 @@ async def call_ollama(
     }
 
     ollama_timeout = float(_env_int("VIO_OLLAMA_TIMEOUT_SEC", 45))
-
-    if HAS_HTTPX:
-        async with httpx.AsyncClient(timeout=ollama_timeout, trust_env=False) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-    elif HAS_AIOHTTP:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=ollama_timeout)) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-    else:
-        # Fallback sincrono (non ale ma funziona)
-        import urllib.request
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=ollama_timeout) as resp:
-            data = json.loads(resp.read())
+    data = await _http_post_json(
+        url,
+        headers={"Content-Type": "application/json"},
+        payload=payload,
+        timeout_s=ollama_timeout,
+        provider="ollama",
+        model=model,
+    )
 
     content = data.get("message", {}).get("content", "")
     tokens = (data.get("prompt_eval_count", 0) or 0) + (data.get("eval_count", 0) or 0)

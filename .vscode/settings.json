@@ -1,9 +1,4 @@
 {
-  // ============================================================
-  // VIO 83 AI ORCHESTRA — VS Code Workspace Settings
-  // Configurazione ultra-ottimizzata per il progetto
-  // ============================================================
-  // === EDITOR ===
   "editor.fontFamily": "'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,
@@ -29,7 +24,6 @@
   "editor.acceptSuggestionOnCommitCharacter": false,
   "editor.linkedEditing": true,
   "editor.stickyScroll.enabled": true,
-  // === TYPESCRIPT / JAVASCRIPT ===
   "js/ts.preferences.importModuleSpecifier": "relative",
   "js/ts.suggest.autoImports": true,
   "js/ts.updateImportsOnFileMove.enabled": "always",
@@ -42,14 +36,11 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  // (JavaScript settings unified under js/ts.* above)
-  // === REACT / JSX / TSX ===
   "emmet.includeLanguages": {
     "typescriptreact": "html",
     "javascriptreact": "html"
   },
   "emmet.triggerExpansionOnTab": true,
-  // === TAILWIND CSS ===
   "tailwindCSS.experimental.classRegex": [
     [
       "cn\\(([^)]*)\\)",
@@ -61,7 +52,6 @@
   ],
   "tailwindCSS.emmetCompletions": true,
   "css.validate": false,
-  // === PYTHON ===
   "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true,
@@ -70,7 +60,6 @@
     "editor.formatOnSave": true,
     "editor.tabSize": 4
   },
-  // === RUST (Tauri backend) ===
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.cargo.features": "all",
   "rust-analyzer.inlayHints.typeHints.enable": true,
@@ -80,7 +69,6 @@
     "editor.formatOnSave": true,
     "editor.tabSize": 4
   },
-  // === ESLint ===
   "eslint.validate": [
     "javascript",
     "javascriptreact",
@@ -90,13 +78,11 @@
   "eslint.workingDirectories": [
     "."
   ],
-  // === GIT ===
   "git.autofetch": true,
   "git.confirmSync": false,
   "git.enableSmartCommit": true,
   "gitlens.currentLine.enabled": true,
   "gitlens.hovers.enabled": true,
-  // === FILE ASSOCIATIONS ===
   "files.associations": {
     "*.css": "tailwindcss",
     "*.env*": "dotenv"
@@ -115,7 +101,6 @@
     "**/target/**": true,
     "**/.git/objects/**": true
   },
-  // === SEARCH ===
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true,
@@ -123,24 +108,20 @@
     "**/.git": true,
     "**/package-lock.json": true
   },
-  // === TERMINAL ===
   "terminal.integrated.fontFamily": "'JetBrains Mono', 'SF Mono', Menlo",
   "terminal.integrated.fontSize": 13,
   "terminal.integrated.defaultProfile.osx": "zsh",
   "terminal.integrated.env.osx": {
     "OLLAMA_HOST": "http://localhost:11434"
   },
-  // === THEME (Vio Dark Fluorescent) ===
   "workbench.colorTheme": "One Dark Pro",
   "workbench.iconTheme": "material-icon-theme",
   "workbench.startupEditor": "none",
-  // === ERROR LENS ===
   "errorLens.enabledDiagnosticLevels": [
     "error",
     "warning"
   ],
   "errorLens.fontSize": "12",
-  // === TODO TREE ===
   "todo-tree.general.tags": [
     "TODO",
     "FIXME",
@@ -156,12 +137,10 @@
       "iconColour": "#00ff00"
     }
   },
-  // === WEBHINT (Edge DevTools) — Disable false positives for React ===
   "webhint.enableTelemetry": false,
   "webhint.enabled": false,
   "vscode-edge-devtools.webhint": false,
   "edge-devtools.webhint": false,
-  // === SPELL CHECKER ===
   "cSpell.language": "en,it",
   "cSpell.enabledFileTypes": {
     "typescript": true,
@@ -478,7 +457,7 @@
     "accuratezza",
     "adeguata",
     "adeguato",
-    "affidabilità",
+    "affidabilit\u00e0",
     "algoritmo",
     "algoritmi",
     "allegati",
@@ -580,7 +559,7 @@
     "numeri",
     "nutrizione",
     "odontoiatria",
-    "onestà",
+    "onest\u00e0",
     "organizzazione",
     "padrona",
     "pagina",
@@ -595,7 +574,7 @@
     "prepara",
     "prevenzione",
     "principale",
-    "priorità",
+    "priorit\u00e0",
     "privato",
     "progetta",
     "proprietaria",
@@ -609,7 +588,7 @@
     "ricerche",
     "riduce",
     "riesegui",
-    "riproducibilità",
+    "riproducibilit\u00e0",
     "rispondi",
     "robotica",
     "scientifica",
@@ -692,7 +671,7 @@
     "cronologia",
     "danza",
     "demografia",
-    "densità",
+    "densit\u00e0",
     "dermatologia",
     "didattica",
     "diplomatica",
@@ -787,25 +766,25 @@
     "strutturata",
     "Controllare",
     "Restituisci",
-    "qualità",
-    "modalità",
-    "funzionalità",
-    "possibilità",
-    "capacità",
-    "attività",
-    "proprietà",
-    "comunità",
-    "sicurità",
-    "quantità",
-    "velocità",
-    "complessità",
-    "densità",
-    "intensità",
-    "necessità",
-    "utilità",
-    "disponibilità",
-    "stabilità",
-    "vulnerabilità",
+    "qualit\u00e0",
+    "modalit\u00e0",
+    "funzionalit\u00e0",
+    "possibilit\u00e0",
+    "capacit\u00e0",
+    "attivit\u00e0",
+    "propriet\u00e0",
+    "comunit\u00e0",
+    "sicurit\u00e0",
+    "quantit\u00e0",
+    "velocit\u00e0",
+    "complessit\u00e0",
+    "densit\u00e0",
+    "intensit\u00e0",
+    "necessit\u00e0",
+    "utilit\u00e0",
+    "disponibilit\u00e0",
+    "stabilit\u00e0",
+    "vulnerabilit\u00e0",
     "abilita",
     "configura",
     "correggi",
@@ -833,5 +812,12 @@
       "envManager": "ms-python.python:venv",
       "packageManager": "ms-python.python:pip"
     }
-  ]
+  ],
+  "twinny.fimModelName": "qwen2.5-coder:3b",
+  "twinny.chatModelName": "codellama",
+  "twinny.apiHostname": "localhost",
+  "twinny.apiPort": 11434,
+  "twinny.apiProvider": "ollama",
+  "twinny.enabled": true,
+  "twinny.autoSuggestEnabled": true
 }

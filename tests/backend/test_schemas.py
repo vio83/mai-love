@@ -34,6 +34,11 @@ class TestChatRequest(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ChatRequest(message="")
 
+    def test_system_prompt_too_long_raises_validation_error(self):
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            ChatRequest(message="ok", system_prompt="x" * 12001)
+
 
 class TestClassifyRequest(unittest.TestCase):
 

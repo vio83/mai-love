@@ -183,6 +183,18 @@ class RetryEngine:
         jitter = random.uniform(0, delay * 0.1)
         return min(delay + jitter, self.max_delay)
 
+    def _status_code_from_exception(self, exc: Exception) -> Optional[int]:
+        if HAS_HTTPX and isinstance(exc, httpx.HTTPStatusError):
+            return exc.response.status_code
+        return None
+
+    def _is_retryable_exception(self, exc: Exception) -> bool:
+        if isinstance(exc, self.retryable_exceptions):
+            return True
+
+        status_code = self._status_code_from_exception(exc)
+        return status_code in self.retryable_status_codes if status_code is not None else False
+
     async def execute(self, func: Callable, *args, **kwargs) -> Any:
         """Esegui funzione con retry automatico."""
         last_exception = None
@@ -190,17 +202,16 @@ class RetryEngine:
             try:
                 result = await func(*args, **kwargs)
                 return result
-            except self.retryable_exceptions as e:
+            except Exception as e:
                 last_exception = e
-                if attempt < self.max_retries:
+                if self._is_retryable_exception(e) and attempt < self.max_retries:
                     delay = self._calc_delay(attempt)
                     logger.warning(
                         f"[Retry] Tentativo {attempt+1}/{self.max_retries} fallito: {e}. "
                         f"Riprovo tra {delay:.1f}s"
                     )
                     await asyncio.sleep(delay)
-            except Exception:
-                # Non ritentare per errori non transitori
+                    continue
                 raise
         raise last_exception or Exception("Max retries exceeded")
 
