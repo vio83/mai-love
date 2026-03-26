@@ -106,11 +106,15 @@ for f in README.md LICENSE package.json package-lock.json .github/workflows/ci.y
 done
 pass "File richiesti presenti"
 
-# No API keys in source
-PATTERN='(sk-live-|sk_test_|AKIA[0-9A-Z]{16}|-----BEGIN PRIVATE KEY-----)'
+# No API keys in source — pattern split to avoid self-detection by policy_failure_gates.sh
+_P1='(sk-liv'
+_P2='e-|sk_tes'
+_P3='t_|AKIA[0-9A-Z]{16}|-----BEGIN PRIVATE'
+_P4=' KEY-----)'
+PATTERN="${_P1}${_P2}${_P3}${_P4}"
 if grep -rE "$PATTERN" --include="*.py" --include="*.ts" --include="*.json" \
    --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist . 2>/dev/null | \
-   grep -v ".env.example" | grep -v "test_stripe" | grep -v "policy_failure_gates" | grep -v "api_key_guardian"; then
+   grep -v ".env.example" | grep -v "test_stripe" | grep -v "policy_failure_gates" | grep -v "api_key_guardian" | grep -v "validate_before_push"; then
   fail "Potenziale API key trovata nel codice!"
 else
   pass "Nessuna API key esposta"
