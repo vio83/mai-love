@@ -24,6 +24,7 @@ const OrchestraRuntimePage = lazy(() => import('./pages/OrchestraRuntimePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const PluginsPage = lazy(() => import('./pages/PluginsPage'));
 const OpenClawPage = lazy(() => import('./pages/OpenClawPage'));
+const MobilePage = lazy(() => import('./pages/MobilePage'));
 const UpdaterBanner = lazy(() => import('./components/updater/UpdaterBanner'));
 
 export default function App() {
@@ -128,6 +129,8 @@ export default function App() {
         return <PluginsPage />;
       case 'openclaw':
         return <OpenClawPage />;
+      case 'mobile':
+        return <MobilePage />;
       case 'settings':
         return <SettingsPanel variant="page" />;
       default:
@@ -147,6 +150,7 @@ export default function App() {
     privacy: t('nav.privacy'),
     plugins: t('nav.plugins'),
     openclaw: t('nav.openclaw'),
+    mobile: 'Mobile App',
     settings: t('nav.settings'),
   };
 

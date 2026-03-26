@@ -13,6 +13,7 @@ import {
   Scale,
   Settings,
   Shield,
+  Smartphone,
   Trash2,
   Zap
 } from 'lucide-react';
@@ -32,6 +33,7 @@ const NAV_ITEMS: { id: AppPage; labelKey: string; icon: typeof LayoutDashboard }
   { id: 'privacy', labelKey: 'nav.privacy', icon: Scale },
   { id: 'plugins', labelKey: 'nav.plugins', icon: Puzzle },
   { id: 'openclaw', labelKey: 'nav.openclaw', icon: Zap },
+  { id: 'mobile', labelKey: 'nav.mobile', icon: Smartphone },
 ];
 
 export default function Sidebar() {

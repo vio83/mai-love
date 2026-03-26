@@ -3,7 +3,7 @@
 export type AIProvider = 'claude' | 'gpt4' | 'grok' | 'mistral' | 'deepseek' | 'gemini' | 'groq' | 'openrouter' | 'together' | 'perplexity' | 'ollama';
 
 // Pagine disponibili nell'app
-export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'privacy' | 'plugins' | 'openclaw' | 'settings';
+export type AppPage = 'chat' | 'dashboard' | 'analytics' | 'workflow' | 'models' | 'rag' | 'crosscheck' | 'runtime' | 'privacy' | 'plugins' | 'openclaw' | 'mobile' | 'settings';
 
 // ─── User Auth (impronta digitale) ───
 export interface AuthUser {

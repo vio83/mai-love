@@ -19,7 +19,8 @@
     "privacy": "Privacy & Legal",
     "settings": "Settings",
     "plugins": "Plugins & MCP",
-    "openclaw": "OpenClaw Agent"
+    "openclaw": "OpenClaw Agent",
+    "mobile": "Mobile App"
   },
   "updater": {
     "available": "Update available",

@@ -19,7 +19,8 @@
     "privacy": "Privacy & Legal",
     "settings": "Impostazioni",
     "plugins": "Plugin & MCP",
-    "openclaw": "OpenClaw Agent"
+    "openclaw": "OpenClaw Agent",
+    "mobile": "Mobile App"
   },
   "mode": {
     "cloud": "☁️ Cloud",
