@@ -3182,16 +3182,14 @@ async def api_get_settings():
 
 
 @app.put("/settings/{key}")
-async def api_set_setting(key: str, value: str | None = None, request: Request | None = None):
+async def api_set_setting(key: str, request: Request, value: str | None = None):
     """Aggiorna un'impostazione. Accetta value come query param o JSON body {value: ...}."""
-    if value is None and request is not None:
+    if value is None:
         try:
             body = await request.json()
             value = body.get("value", "")
         except Exception:
             value = ""
-    if value is None:
-        value = ""
     set_setting(key, value)
     return {"status": "ok", "key": key}
 
