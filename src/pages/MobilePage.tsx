@@ -54,12 +54,19 @@ export default function MobilePage() {
       </div>
 
       <p style={{ color: 'var(--vio-text-secondary)', marginBottom: '24px', lineHeight: 1.6 }}>
-        Connetti il tuo iPhone o Android a VIO 83 AI Orchestra.
-        Il tuo Mac fa da server, il mobile si connette via rete locale.
+        Connetti il tuo iPhone o Android a VIO 83 AI Orchestra. Il tuo Mac fa da server, il mobile
+        si connette via rete locale.
       </p>
 
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--vio-text-dim)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: 'var(--vio-text-dim)',
+          }}
+        >
           <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
           Rilevamento rete...
         </div>
@@ -115,8 +122,8 @@ export default function MobilePage() {
               style={{ borderRadius: '8px' }}
             />
             <span style={{ fontSize: '12px', color: '#666' }}>
-              <QrCode size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Scansiona con
-              l&apos;app VIO 83
+              <QrCode size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Scansiona
+              con l&apos;app VIO 83
             </span>
           </div>
 
@@ -164,7 +171,12 @@ export default function MobilePage() {
 
             {/* Capabilities */}
             <h4
-              style={{ fontSize: '14px', color: 'var(--vio-text-secondary)', marginTop: '20px', marginBottom: '8px' }}
+              style={{
+                fontSize: '14px',
+                color: 'var(--vio-text-secondary)',
+                marginTop: '20px',
+                marginBottom: '8px',
+              }}
             >
               Capabilities
             </h4>
@@ -237,7 +249,8 @@ export default function MobilePage() {
             Sul Mac: avvia il backend (<code>./orchestra.sh</code>)
           </li>
           <li>
-            Sul telefono: apri l&apos;app VIO 83 e inserisci l&apos;URL sopra (oppure scansiona il QR)
+            Sul telefono: apri l&apos;app VIO 83 e inserisci l&apos;URL sopra (oppure scansiona il
+            QR)
           </li>
           <li>
             Per accesso da fuori casa: usa <code>ngrok http 4000</code> o Tailscale
