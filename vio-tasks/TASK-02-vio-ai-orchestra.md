@@ -17,7 +17,9 @@ Riprendere e continuare lo sviluppo del progetto VIO AI Orchestra.
 - SQLite (database conversazioni)
 
 ## Stato attuale (2026-03-25, commit bc3779c)
+
 ### Completati
+
 - CI/CD: 10 workflow GitHub Actions, tutti green
 - Cloud streaming SSE: Claude, GPT-4, Grok, Gemini, Mistral, DeepSeek, Groq, Perplexity, OpenRouter, Together
 - Extended thinking: Claude reasoning blocks visibili in UI
@@ -27,11 +29,15 @@ Riprendere e continuare lo sviluppo del progetto VIO AI Orchestra.
 - Frontend rewire backend-first: POST /chat/stream con SSE, fallback diretto
 - JetEngine integrato in /chat/stream (cache hit istantaneo + routing)
 - Persistenza conversazioni: sync frontend-backend, loadConversationsFromBackend()
+- Sync impostazioni frontend-backend: API keys + ollama_host + strict evidence policy
+- Sidebar/backend conversations: lazy-load messaggi al click + sync conversation_id end-to-end
+- Centralizzazione proxy backend nel frontend per analytics, settings, metriche e runtime health
 - 414 test backend passati, TypeScript 0 errori, build pulita
 
 ### Prossimi step (priorita)
-1. P3: Settings sync frontend-backend (API keys, config)
-2. P4: RAG/Vector Engine riattivazione (disabilitato per incompatibilita chromadb/Python 3.14)
-3. P5: WebSocket/SSE unificazione endpoint
+
+1. P4: RAG/Vector Engine riattivazione (disabilitato per incompatibilita chromadb/Python 3.14)
+2. P5: WebSocket/SSE unificazione endpoint
+3. Rimozione completa hardcoded localhost residui nel frontend secondario (Runtime, Auth, Plugins, OpenClaw, RAG)
 4. Tauri build e distribuzione desktop
-5. Conversazione multi-turn: sync conversation_id tra frontend e backend
+5. Copertura test frontend per pagine runtime/settings/analytics

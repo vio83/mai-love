@@ -1,14 +1,14 @@
 // VIO 83 AI ORCHESTRA - Settings Service
 // Sincronizza impostazioni tra frontend e backend
 
-const BACKEND_BASE = '/api';
+import { buildBackendUrl } from './backendApi';
 
 /**
  * Carica tutte le impostazioni dal backend.
  * Ritorna un dizionario { key: value }.
  */
 export async function fetchAllSettings(): Promise<Record<string, string>> {
-  const response = await fetch(`${BACKEND_BASE}/settings`, {
+  const response = await fetch(buildBackendUrl('/settings'), {
     signal: AbortSignal.timeout(3000),
   });
   if (!response.ok) throw new Error(`Backend: ${response.status}`);
@@ -20,7 +20,7 @@ export async function fetchAllSettings(): Promise<Record<string, string>> {
  */
 export async function saveSetting(key: string, value: string): Promise<void> {
   const response = await fetch(
-    `${BACKEND_BASE}/settings/${encodeURIComponent(key)}?value=${encodeURIComponent(value)}`,
+    `${buildBackendUrl('/settings')}/${encodeURIComponent(key)}?value=${encodeURIComponent(value)}`,
     { method: 'PUT', signal: AbortSignal.timeout(3000) },
   );
   if (!response.ok) throw new Error(`Backend: ${response.status}`);
@@ -33,7 +33,7 @@ export async function saveSettingsBatch(
   settings: Record<string, string>,
 ): Promise<void> {
   const promises = Object.entries(settings).map(([key, value]) =>
-    saveSetting(key, value).catch(() => {}),
+    saveSetting(key, value).catch(() => { }),
   );
   await Promise.allSettled(promises);
 }

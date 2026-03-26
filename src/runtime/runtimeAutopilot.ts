@@ -35,6 +35,8 @@ export interface RuntimeAutopilotState {
   targets: RuntimeTarget[];
 }
 
+const PROXIED_BACKEND_HEALTH_BASE = '/api';
+
 const STORAGE_KEY = 'vio83-runtime-autopilot-v1';
 const DEFAULT_TICK_MS = 15 * 60 * 1000;
 const MAX_TREND_POINTS = 20;
@@ -198,8 +200,8 @@ export function setRuntimeTargetAutoOptimize(id: RuntimeTargetId, autoOptimize: 
 
 const TARGET_PROBE_URLS: Record<RuntimeTargetId, string[]> = {
   'ollama-local': ['http://localhost:11434/api/tags', 'http://localhost:11434/'],
-  'openclaw-local': ['http://localhost:4111/health', 'http://localhost:4111/'],
-  'legalroom-360': ['http://localhost:4222/health', 'http://localhost:4222/'],
+  'openclaw-local': [`${PROXIED_BACKEND_HEALTH_BASE}/openclaw/health`, 'http://localhost:4111/health', 'http://localhost:4111/'],
+  'legalroom-360': [`${PROXIED_BACKEND_HEALTH_BASE}/legalroom/health`, 'http://localhost:4222/health', 'http://localhost:4222/'],
   'n8n-automation': ['http://localhost:5678/healthz', 'http://localhost:5678/rest/healthz', 'http://localhost:5678/'],
 };
 

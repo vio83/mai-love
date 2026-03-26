@@ -1,6 +1,7 @@
 import { AlertCircle, Bot, Check, Eye, EyeOff, Globe, HardDrive, X, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../hooks/useI18n';
+import { buildBackendUrl } from '../../services/backendApi';
 import { saveApiKey, saveSetting } from '../../services/settingsService';
 import { useAppStore } from '../../stores/appStore';
 import type { AIProvider } from '../../types';
@@ -156,7 +157,7 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
 
     const syncPolicyFromBackend = async () => {
       try {
-        const response = await fetch('http://localhost:4000/knowledge/scheduler');
+        const response = await fetch(buildBackendUrl('/knowledge/scheduler'));
         if (!response.ok) return;
 
         const data = await response.json();
@@ -243,13 +244,15 @@ export function SettingsPanel({ variant = 'modal' }: SettingsPanelProps) {
     setStrictPolicySyncState('saving');
 
     try {
-      const scheduler = await fetch('http://localhost:4000/knowledge/scheduler')
+      const scheduler = await fetch(buildBackendUrl('/knowledge/scheduler'))
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
 
       const minimumDomainScore = Number(scheduler?.policy?.minimum_domain_score ?? 70);
       const response = await fetch(
-        `http://localhost:4000/knowledge/policy?strict_evidence_mode=${!strictEvidenceMode}&minimum_domain_score=${minimumDomainScore}`,
+        buildBackendUrl(
+          `/knowledge/policy?strict_evidence_mode=${!strictEvidenceMode}&minimum_domain_score=${minimumDomainScore}`,
+        ),
         { method: 'PUT' },
       );
 

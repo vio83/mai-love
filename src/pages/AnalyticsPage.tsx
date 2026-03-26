@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BarChart3, Brain, Coins, Gauge, Star, TrendingUp, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useI18n } from '../hooks/useI18n';
+import { buildBackendUrl } from '../services/backendApi';
 import {
   getCategoryCatalog,
   getMetricsSnapshot,
@@ -90,6 +91,9 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [metrics, setMetrics] = useState<MetricsSnapshot>(getMetricsSnapshot);
   const [backendMetrics, setBackendMetrics] = useState<Record<string, unknown> | null>(null);
+  const [backendMetricsState, setBackendMetricsState] = useState<
+    'idle' | 'loading' | 'ready' | 'error'
+  >('loading');
   const { t, lang } = useI18n();
   const categoryCatalog = getCategoryCatalog(lang);
 
@@ -100,15 +104,23 @@ export default function AnalyticsPage() {
 
   // Fetch backend metrics per il time range selezionato
   useEffect(() => {
+    const controller = new AbortController();
     const days = timeRange === '7d' ? 7 : timeRange === '90d' ? 90 : 30;
-    fetch(`http://localhost:4000/metrics?days=${days}`)
+    fetch(buildBackendUrl(`/metrics?days=${days}`), { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setBackendMetrics(data as Record<string, unknown>);
+        if (!data) {
+          setBackendMetricsState('error');
+          return;
+        }
+        setBackendMetrics(data as Record<string, unknown>);
+        setBackendMetricsState('ready');
       })
       .catch(() => {
-        /* backend non disponibile, usa solo metriche locali */
+        setBackendMetricsState('error');
       });
+
+    return () => controller.abort();
   }, [timeRange]);
 
   // Model stats con dati reali da metriche + capability statiche
@@ -187,6 +199,15 @@ export default function AnalyticsPage() {
             <p style={{ color: 'var(--vio-text-dim)', fontSize: '13px', margin: 0 }}>
               {t('analyticsPage.subtitle')}
             </p>
+            <p style={{ color: 'var(--vio-text-dim)', fontSize: '11px', margin: '6px 0 0' }}>
+              {backendMetricsState === 'ready'
+                ? 'Backend metrics sync: attiva'
+                : backendMetricsState === 'loading'
+                  ? 'Backend metrics sync: in aggiornamento'
+                  : backendMetricsState === 'error'
+                    ? 'Backend metrics sync: fallback locale'
+                    : 'Backend metrics sync: inattiva'}
+            </p>
           </div>
           <div
             style={{
@@ -201,7 +222,11 @@ export default function AnalyticsPage() {
             {(['7d', '30d', '90d'] as const).map((r) => (
               <button
                 key={r}
-                onClick={() => setTimeRange(r)}
+                onClick={() => {
+                  if (r === timeRange) return;
+                  setBackendMetricsState('loading');
+                  setTimeRange(r);
+                }}
                 style={{
                   padding: '5px 12px',
                   borderRadius: '6px',

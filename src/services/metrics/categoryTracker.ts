@@ -1,6 +1,8 @@
 // VIO 83 AI ORCHESTRA — Category Tracker Service
 // Traccia categorie, provider, token, latenze reali in localStorage + backend /metrics
 
+import { buildBackendUrl } from '../backendApi';
+
 const STORAGE_KEY = 'vio83-category-metrics';
 
 // Dati seed per mostrare tutte le 24 categorie attive al 100% al primo avvio
@@ -397,6 +399,7 @@ export function recordMetric(event: {
 
   // Provider
   const key = event.provider;
+
   const prov = data.providers[key] || {
     provider: event.provider, model: event.model, count: 0,
     totalTokens: 0, totalLatencyMs: 0, totalCostUsd: 0, successes: 0, failures: 0,
@@ -420,7 +423,7 @@ export function recordMetric(event: {
 
   // Fire-and-forget backend sync
   try {
-    fetch('http://localhost:4000/metrics/log', {
+    fetch(buildBackendUrl('/metrics/log'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
