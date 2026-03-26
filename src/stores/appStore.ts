@@ -2,9 +2,59 @@
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type { BackendConversation } from '../services/conversationService';
-import { deleteBackendConversation, fetchConversation, fetchConversations } from '../services/conversationService';
+import {
+  archiveBackendConversation,
+  createBackendConversation,
+  deleteBackendConversation,
+  fetchConversation,
+  fetchConversations,
+  isConversationServiceError,
+  updateBackendConversationTitle,
+} from '../services/conversationService';
 import { extractApiKeysFromSettings, fetchAllSettings, saveSetting } from '../services/settingsService';
 import type { AIMode, AIProvider, AppPage, AppSettings, AuthUser, Conversation, Message } from '../types';
+
+function mapBackendMessageToMessage(message: NonNullable<BackendConversation['messages']>[number]): Message {
+  return {
+    id: message.id,
+    role: message.role as 'user' | 'assistant',
+    content: message.content,
+    provider: (message.provider || undefined) as AIProvider | undefined,
+    model: message.model || undefined,
+    timestamp: message.timestamp * 1000,
+    latencyMs: message.latency_ms || undefined,
+    tokensUsed: message.tokens_used || undefined,
+    verified: message.verified === 1 ? true : message.verified === 0 ? false : undefined,
+    qualityScore: message.quality_score || undefined,
+  };
+}
+
+function mapBackendConversationToConversation(conversation: BackendConversation): Conversation {
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    messages: (conversation.messages || []).map(mapBackendMessageToMessage),
+    model: conversation.primary_provider || 'ollama',
+    provider: (conversation.primary_provider || 'ollama') as AIProvider,
+    mode: conversation.mode as AIMode,
+    createdAt: conversation.created_at * 1000,
+    updatedAt: conversation.updated_at * 1000,
+  };
+}
+
+function logConversationWarning(scope: string, error: unknown): void {
+  if (isConversationServiceError(error)) {
+    console.warn(`[conversation:${scope}]`, {
+      message: error.message,
+      status: error.status,
+      isTimeout: error.isTimeout,
+      isRetryable: error.isRetryable,
+    });
+    return;
+  }
+
+  console.warn(`[conversation:${scope}]`, error);
+}
 
 interface AppState {
   // Current conversation
@@ -38,7 +88,9 @@ interface AppState {
   setStreaming: (streaming: boolean) => void;
   stopStreaming: () => void;
   setAbortController: (controller: AbortController | null) => void;
-  deleteConversation: (id: string) => void;
+  deleteConversation: (id: string) => Promise<void>;
+  archiveConversation: (id: string) => Promise<void>;
+  renameConversation: (id: string, title: string) => Promise<void>;
   syncConversationId: (localId: string, backendId: string) => void;
   loadConversationsFromBackend: () => Promise<void>;
   loadSettingsFromBackend: () => Promise<void>;
@@ -126,6 +178,16 @@ export const useAppStore = create<AppState>()(
             conversations: [newConv, ...state.conversations],
             activeConversationId: id,
           }));
+
+          createBackendConversation({
+            title: newConv.title,
+            mode: newConv.mode,
+          }).then((backendConversation) => {
+            get().syncConversationId(id, backendConversation.id);
+          }).catch((error) => {
+            logConversationWarning('create', error);
+          });
+
           return id;
         },
 
@@ -136,24 +198,15 @@ export const useAppStore = create<AppState>()(
           if (conv && conv.messages.length === 0) {
             fetchConversation(id).then(bc => {
               if (!bc.messages?.length) return;
-              const messages = bc.messages.map(m => ({
-                id: m.id,
-                role: m.role as 'user' | 'assistant',
-                content: m.content,
-                provider: (m.provider || undefined) as AIProvider | undefined,
-                model: m.model || undefined,
-                timestamp: m.timestamp * 1000,
-                latencyMs: m.latency_ms || undefined,
-                tokensUsed: m.tokens_used || undefined,
-                verified: m.verified === 1 ? true : m.verified === 0 ? false : undefined,
-                qualityScore: m.quality_score || undefined,
-              }));
+              const messages = bc.messages.map(mapBackendMessageToMessage);
               set(state => ({
                 conversations: state.conversations.map(c =>
-                  c.id === id ? { ...c, messages } : c
+                  c.id === id && c.messages.length === 0 ? { ...c, messages } : c
                 ),
               }));
-            }).catch(() => { });
+            }).catch((error) => {
+              logConversationWarning('lazy-load', error);
+            });
           }
         },
 
@@ -243,13 +296,67 @@ export const useAppStore = create<AppState>()(
           set({ isStreaming: false, abortController: null });
         },
 
-        deleteConversation: (id) => {
+        deleteConversation: async (id) => {
+          const snapshot = get().conversations;
+          const previousActiveConversationId = get().activeConversationId;
           set(state => ({
             conversations: state.conversations.filter(c => c.id !== id),
             activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
           }));
-          // Best-effort: elimina anche nel backend
-          deleteBackendConversation(id).catch(() => { });
+
+          try {
+            await deleteBackendConversation(id);
+          } catch (error) {
+            set({
+              conversations: snapshot,
+              activeConversationId: previousActiveConversationId,
+            });
+            logConversationWarning('delete', error);
+            throw error;
+          }
+        },
+
+        archiveConversation: async (id,) => {
+          const snapshot = get().conversations;
+          const previousActiveConversationId = get().activeConversationId;
+
+          set(state => ({
+            conversations: state.conversations.filter(c => c.id !== id),
+            activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
+          }));
+
+          try {
+            await archiveBackendConversation(id);
+          } catch (error) {
+            set({
+              conversations: snapshot,
+              activeConversationId: previousActiveConversationId,
+            });
+            logConversationWarning('archive', error);
+            throw error;
+          }
+        },
+
+        renameConversation: async (id, title) => {
+          const normalizedTitle = title.trim();
+          if (!normalizedTitle) {
+            return;
+          }
+
+          const snapshot = get().conversations;
+          set(state => ({
+            conversations: state.conversations.map(conv =>
+              conv.id === id ? { ...conv, title: normalizedTitle, updatedAt: Date.now() } : conv
+            ),
+          }));
+
+          try {
+            await updateBackendConversationTitle(id, normalizedTitle);
+          } catch (error) {
+            set({ conversations: snapshot });
+            logConversationWarning('rename', error);
+            throw error;
+          }
         },
 
         syncConversationId: (localId, backendId) => {
@@ -265,27 +372,7 @@ export const useAppStore = create<AppState>()(
         loadConversationsFromBackend: async () => {
           try {
             const backendConvs = await fetchConversations(50);
-            const mapped: Conversation[] = backendConvs.map((bc: BackendConversation) => ({
-              id: bc.id,
-              title: bc.title,
-              messages: (bc.messages || []).map((m) => ({
-                id: m.id,
-                role: m.role as 'user' | 'assistant',
-                content: m.content,
-                provider: (m.provider || undefined) as AIProvider | undefined,
-                model: m.model || undefined,
-                timestamp: m.timestamp * 1000,
-                latencyMs: m.latency_ms || undefined,
-                tokensUsed: m.tokens_used || undefined,
-                verified: m.verified === 1 ? true : m.verified === 0 ? false : undefined,
-                qualityScore: m.quality_score || undefined,
-              })),
-              model: bc.primary_provider || 'ollama',
-              provider: (bc.primary_provider || 'ollama') as AIProvider,
-              mode: bc.mode as AIMode,
-              createdAt: bc.created_at * 1000,
-              updatedAt: bc.updated_at * 1000,
-            }));
+            const mapped: Conversation[] = backendConvs.map(mapBackendConversationToConversation);
 
             // Merge: mantieni conversazioni locali senza duplicati
             set(state => {
@@ -293,7 +380,8 @@ export const useAppStore = create<AppState>()(
               const localOnly = state.conversations.filter(c => !backendIds.has(c.id));
               return { conversations: [...mapped, ...localOnly] };
             });
-          } catch {
+          } catch (error) {
+            logConversationWarning('list', error);
             // Backend non raggiungibile — mantieni conversazioni locali
           }
         },
