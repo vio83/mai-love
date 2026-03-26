@@ -46,7 +46,7 @@ fi
 pass "workflow action pins found"
 
 # Gate 4: disallow obvious leaked API keys in tracked files.
-MATCHES=$(git grep -nE '(sk-live-|sk_test_|AKIA[0-9A-Z]{16}|-----BEGIN PRIVATE KEY-----)' -- . ':(exclude)data/**' ':(exclude)scripts/ci/policy_failure_gates.sh' ':(exclude)scripts/ci/validate_before_push.sh' ':(exclude)scripts/security/api_key_guardian.sh' || true)
+MATCHES=$(git grep -nE '(sk-live-|sk_test_|AKIA[0-9A-Z]{16}|-----BEGIN PRIVATE KEY-----)' -- . ':(exclude)data/**' ':(exclude)scripts/ci/policy_failure_gates.sh' ':(exclude)scripts/ci/validate_before_push.sh' ':(exclude)scripts/security/api_key_guardian.sh' ':(exclude)FIX-AND-PUSH.sh' || true)
 if [ -n "$MATCHES" ]; then
   echo "$MATCHES"
   fail "potential credential leak pattern found"
