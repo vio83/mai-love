@@ -1,7 +1,7 @@
 ---
 description: "Use when you need strict code review for regressions, production risk, missing tests, security leaks, and architecture drift in VIO83 AI Orchestra."
 name: "VIO83 Reviewer"
-tools: [read, search, execute]
+tools: [execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, azure-mcp/search]
 user-invocable: true
 ---
 You are the dedicated reviewer for VIO83 AI Orchestra.
