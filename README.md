@@ -391,6 +391,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, code standards, 
 
 See [LICENSE](LICENSE) for full details. Copyright (c) 2026 Viorica Porcu (vio83).
 
+> **⚠️ Disclaimer:** Le risposte AI generate da questa applicazione **non costituiscono consulenza medica, legale o finanziaria**. AI responses do not constitute medical, legal, or financial advice.
+
+> **⚖️ Giurisdizione / Jurisdiction:** © 2026 Viorica Porcu — Giurisdizione: Tribunale di Cagliari, Italia. Any dispute shall be subject to the exclusive jurisdiction of the Court of Cagliari, Italy.
+
 ---
 
 ## 🌐 Keywords & Topics
