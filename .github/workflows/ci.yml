@@ -27,6 +27,9 @@ jobs:
       - name: Enforce policy failure gates
         run: bash scripts/ci/policy_failure_gates.sh
 
+      - name: Legal Guardian — license & disclaimer integrity
+        run: bash scripts/ci/legal_guardian_gate.sh
+
   frontend:
     name: Frontend (TypeCheck + Lint + Build)
     runs-on: ubuntu-latest

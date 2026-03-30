@@ -171,8 +171,21 @@ run_check() {
     pass "SPONSORS.md clean: nessun template grezzo"
   fi
 
-  # ── 7. Sponsor stats check ───────────────────
-  log "\n${BLUE}[7/7] Sponsor Campaign Tracker${NC}"
+  # ── 7. Legal Guardian — protezione legale ────
+  log "\n${BLUE}[7/8] Legal Guardian — License & Disclaimer${NC}"
+  LEGAL_SCRIPT="$PROJECT_ROOT/scripts/ci/legal_guardian_gate.sh"
+  if [ -x "$LEGAL_SCRIPT" ]; then
+    if bash "$LEGAL_SCRIPT" >>"$LOG_FILE" 2>&1; then
+      pass "Legal Guardian: protezione legale intatta"
+    else
+      fail "Legal Guardian: protezione legale compromessa — esegui bash $LEGAL_SCRIPT per dettagli"
+    fi
+  else
+    warn "legal_guardian_gate.sh non trovato o non eseguibile"
+  fi
+
+  # ── 8. Sponsor stats check ───────────────────
+  log "\n${BLUE}[8/8] Sponsor Campaign Tracker${NC}"
   if [ -f "data/sponsor-stats.json" ]; then
     SPONSORS=$(python3 -c "import json; d=json.load(open('data/sponsor-stats.json')); print(f\"{d['sponsors_active']}/{d['target_30d']} (target: {d['target_date']})\")" 2>/dev/null || echo "parse error")
     pass "sponsor-stats.json: $SPONSORS"

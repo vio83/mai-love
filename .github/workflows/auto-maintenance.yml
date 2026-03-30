@@ -132,6 +132,9 @@ jobs:
           fi
           echo "✅ SPONSORS.md clean"
 
+      - name: Legal Guardian — license & disclaimer integrity
+        run: bash scripts/ci/legal_guardian_gate.sh
+
       - name: Validate data/sponsor-stats.json schema
         run: |
           python3 -c "
