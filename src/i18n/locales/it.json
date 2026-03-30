@@ -5,7 +5,9 @@
     "loading": "Caricamento runtime…",
     "version": "Versione {{version}}",
     "notFoundTitle": "Pagina non trovata",
-    "notFoundDescription": "La sezione richiesta non esiste o è stata rinominata."
+    "notFoundDescription": "La sezione richiesta non esiste o è stata rinominata.",
+    "footerDisclaimer": "Le risposte AI non costituiscono consulenza medica, legale o finanziaria.",
+    "footerJurisdiction": "© 2026 Viorica Porcu — Giurisdizione: Tribunale di Cagliari, Italia"
   },
   "nav": {
     "dashboard": "Dashboard",

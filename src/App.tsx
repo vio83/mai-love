@@ -11,6 +11,7 @@ import './styles/vio-dark.css';
 
 // Lazy-load heavy components for faster initial paint
 const ParticleBackground = lazy(() => import('./components/layout/ParticleBackground'));
+const AppFooter = lazy(() => import('./components/layout/AppFooter'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -232,6 +233,11 @@ export default function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Suspense fallback={loadingFallback}>{renderPage()}</Suspense>
         </div>
+
+        {/* Global legal footer */}
+        <Suspense fallback={null}>
+          <AppFooter />
+        </Suspense>
       </div>
 
       {/* Settings modal — only as overlay when triggered from non-settings pages */}

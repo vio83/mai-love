@@ -5,7 +5,9 @@
     "loading": "Loading runtime…",
     "version": "Version {{version}}",
     "notFoundTitle": "Page not found",
-    "notFoundDescription": "The requested section does not exist or has been renamed."
+    "notFoundDescription": "The requested section does not exist or has been renamed.",
+    "footerDisclaimer": "AI responses do not constitute medical, legal, or financial advice.",
+    "footerJurisdiction": "© 2026 Viorica Porcu — Jurisdiction: Court of Cagliari, Italy"
   },
   "nav": {
     "dashboard": "Dashboard",
