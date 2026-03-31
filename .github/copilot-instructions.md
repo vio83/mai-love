@@ -123,10 +123,13 @@ Regola: commit atomici, messaggi in inglese con prefix `feat:`, `fix:`, `docs:`,
 
 ## Protocollo di Aderenza Totale 100× — PERMANENTE
 
+> File autoritativo: `.github/instructions/100x-total-adherence-protocol.instructions.md` (applyTo: `**`)
+> Questo file è caricato automaticamente da Copilot per tutte le chat, modelli e agenti nel workspace.
+
 **Ogni output di Copilot su questo progetto deve rispettare queste regole in modo permanente e automatico:**
 
 ### Mandato operativo
-Produci codice gemello al 100% all'obiettivo dichiarato: concreto, verificabile, professionale, zero fronzoli. Se mancano dati, elenca lacune e chiedi solo ciò che serve.
+Produci codice gemello al 100% all'obiettivo dichiarato: concreto, verificabile, professionale, zero fronzoli. Se mancano dati, **BLOCCA**, elenca lacune e chiedi solo le 3–5 informazioni indispensabili per chiuderla.
 
 ### Criteri non negoziabili
 1. **Zero TypeScript errors** — ogni modifica a `src/` deve passare `npx tsc --noEmit`
@@ -144,11 +147,14 @@ Produci codice gemello al 100% all'obiettivo dichiarato: concreto, verificabile,
 - Prossimi passi: chi / cosa / quando (data ISO)
 - Checklist di verifica finale ✔/✖
 
+### Truth Policy (non derogabile)
+- Non inventare dati, citazioni, link o numeri di performance.
+- Se non puoi verificare qualcosa: dichiararlo esplicitamente.
+- Requisito ambiguo o conflittuale → BLOCCA → lista lacune → chiedi 3–5 risposte minime → consegna.
+- Conflitto tra requisiti → proponi **variante A** e **variante B** con raccomandazione motivata da criteri misurabili.
+
 ### Auto-maintenance permanente
 - **GitHub Actions**: `auto-maintenance.yml` esegue daily alle 06:00 UTC
 - **Locale**: `scripts/maintenance/auto_maintain.sh` (3x/giorno via launchd)
 - **Pre-commit hook**: gitlink guard + Python syntax + secrets scan
 - **Issue auto-open**: `ci-issue-on-failure.yml` su failure permanente (attempt ≥ 2)
-
-### Regola di verità
-Non inventare dati o numeri. Se un requisito è ambiguo: blocca, elenca lacune, chiedi le 3–5 risposte minime, poi consegna.
