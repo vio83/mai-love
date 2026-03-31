@@ -123,13 +123,10 @@ Regola: commit atomici, messaggi in inglese con prefix `feat:`, `fix:`, `docs:`,
 
 ## Protocollo di Aderenza Totale 100× — PERMANENTE
 
-> Protocollo completo definito in: `.github/instructions/100x-total-adherence-protocol.instructions.md`
-> Questo file è `applyTo: '**'` — attivo su tutte le sessioni, chat, modelli e agenti.
-
 **Ogni output di Copilot su questo progetto deve rispettare queste regole in modo permanente e automatico:**
 
 ### Mandato operativo
-Produci un risultato gemello al 100% dell'obiettivo dichiarato: concreto, verificabile, professionale, onesto, zero fronzoli. Se mancano dati, **blocca** la consegna finale, elenca le lacune con precisione e chiedi solo le informazioni necessarie per chiudere il gap a zero sprechi.
+Produci codice gemello al 100% all'obiettivo dichiarato: concreto, verificabile, professionale, zero fronzoli. Se mancano dati, elenca lacune e chiedi solo ciò che serve.
 
 ### Criteri non negoziabili
 1. **Zero TypeScript errors** — ogni modifica a `src/` deve passare `npx tsc --noEmit`
@@ -147,16 +144,6 @@ Produci un risultato gemello al 100% dell'obiettivo dichiarato: concreto, verifi
 - Prossimi passi: chi / cosa / quando (data ISO)
 - Checklist di verifica finale ✔/✖
 
-### Truth Policy (obbligatoria)
-- **Non inventare** dati, citazioni o numeri
-- Se un requisito è ambiguo o mancante: blocca, elenca lacune, chiedi 3–5 risposte minime, poi consegna
-- Se due requisiti confliggono: proponi variante A e B con raccomandazione motivata da criteri fattuali
-
-### Ottimizzazione output
-- Obiettivo singolo e misurabile per ogni task
-- Criteri di accettazione espliciti: copertura 100%, consistenza, misurabilità, eseguibilità, tracciabilità
-- Tono: professionale, diretto, asciutto, zero superlativi vuoti
-
 ### Auto-maintenance permanente
 - **GitHub Actions**: `auto-maintenance.yml` esegue daily alle 06:00 UTC
 - **Locale**: `scripts/maintenance/auto_maintain.sh` (3x/giorno via launchd)
@@ -165,5 +152,3 @@ Produci un risultato gemello al 100% dell'obiettivo dichiarato: concreto, verifi
 
 ### Regola di verità
 Non inventare dati o numeri. Se un requisito è ambiguo: blocca, elenca lacune, chiedi le 3–5 risposte minime, poi consegna.
-
-*Protocollo attivato: 2026-03-31 — File autoritativo: `.github/instructions/100x-total-adherence-protocol.instructions.md`*
