@@ -1,18 +1,29 @@
 // VIO 83 AI ORCHESTRA — Mobile Connection Screen
 // Schermata iniziale mobile per connessione al backend
 import { Loader2, Server, Wifi, WifiOff } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { checkBackendConnection, setBackendUrl } from '../../services/mobileConfig';
 
 interface MobileConnectProps {
   onConnected: (url: string) => void;
 }
 
+/** Read saved URL outside React lifecycle — pure, synchronous */
+function getSavedUrl(): string {
+  try {
+    return globalThis.localStorage?.getItem('vio83_mobile_backend_url') ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export default function MobileConnect({ onConnected }: MobileConnectProps) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(getSavedUrl);
   const [status, setStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
   const [latency, setLatency] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  const didAutoConnect = useRef(false);
+  const pendingAutoConnect = useRef('');
 
   const tryConnect = useCallback(
     async (targetUrl: string) => {
@@ -34,13 +45,21 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
     [onConnected],
   );
 
-  // Auto-connect se URL salvato
+  // Mark that auto-connect should happen (effect only sets a ref — no setState)
   useEffect(() => {
-    const saved = globalThis.localStorage?.getItem('vio83_mobile_backend_url');
-    if (saved) {
-      setUrl(saved);
-      tryConnect(saved);
+    if (url && !didAutoConnect.current) {
+      didAutoConnect.current = true;
+      pendingAutoConnect.current = url;
     }
+  }, [url]);
+
+  // Fire auto-connect outside the effect via microtask scheduled from a layout callback
+  useEffect(() => {
+    const target = pendingAutoConnect.current;
+    if (!target) return;
+    pendingAutoConnect.current = '';
+    const id = requestAnimationFrame(() => tryConnect(target));
+    return () => cancelAnimationFrame(id);
   }, [tryConnect]);
 
   return (
@@ -57,7 +76,6 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
         fontFamily: 'var(--vio-font-sans)',
       }}
     >
-      {/* Logo */}
       <div
         style={{
           width: '80px',
@@ -74,38 +92,16 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
         <Server size={40} color="#000" />
       </div>
 
-      <h1
-        style={{
-          fontSize: '24px',
-          fontWeight: 700,
-          marginBottom: '8px',
-          color: 'var(--vio-green)',
-        }}
-      >
+      <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px', color: 'var(--vio-green)' }}>
         VIO 83 AI Orchestra
       </h1>
 
-      <p
-        style={{
-          fontSize: '14px',
-          color: 'var(--vio-text-dim)',
-          marginBottom: '32px',
-          textAlign: 'center',
-        }}
-      >
+      <p style={{ fontSize: '14px', color: 'var(--vio-text-dim)', marginBottom: '32px', textAlign: 'center' }}>
         Connettiti al tuo backend locale o remoto
       </p>
 
-      {/* URL Input */}
       <div style={{ width: '100%', maxWidth: '400px' }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '12px',
-            color: 'var(--vio-text-secondary)',
-            marginBottom: '6px',
-          }}
-        >
+        <label style={{ display: 'block', fontSize: '12px', color: 'var(--vio-text-secondary)', marginBottom: '6px' }}>
           URL Backend
         </label>
         <input
@@ -123,9 +119,7 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
             color: 'var(--vio-text-primary)',
             outline: 'none',
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') tryConnect(url);
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter') tryConnect(url); }}
         />
 
         <button
@@ -139,7 +133,7 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
             fontWeight: 600,
             background: status === 'connected' ? 'var(--vio-green)' : 'var(--vio-bg-tertiary)',
             color: status === 'connected' ? '#000' : 'var(--vio-green)',
-            border: `1px solid var(--vio-green)`,
+            border: '1px solid var(--vio-green)',
             borderRadius: 'var(--vio-radius)',
             cursor: status === 'checking' ? 'wait' : 'pointer',
             display: 'flex',
@@ -152,11 +146,7 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
           {status === 'connected' && <Wifi size={18} />}
           {status === 'error' && <WifiOff size={18} />}
           {status === 'idle' && <Wifi size={18} />}
-          {status === 'checking'
-            ? 'Connessione...'
-            : status === 'connected'
-              ? `Connesso (${latency}ms)`
-              : 'Connetti'}
+          {status === 'checking' ? 'Connessione...' : status === 'connected' ? `Connesso (${latency}ms)` : 'Connetti'}
         </button>
 
         {errorMsg && (
@@ -166,24 +156,12 @@ export default function MobileConnect({ onConnected }: MobileConnectProps) {
         )}
       </div>
 
-      {/* Help */}
-      <div
-        style={{
-          marginTop: '40px',
-          fontSize: '12px',
-          color: 'var(--vio-text-dim)',
-          textAlign: 'center',
-          lineHeight: 1.6,
-          maxWidth: '350px',
-        }}
-      >
+      <div style={{ marginTop: '40px', fontSize: '12px', color: 'var(--vio-text-dim)', textAlign: 'center', lineHeight: 1.6, maxWidth: '350px' }}>
         <p style={{ marginBottom: '8px' }}>
-          <strong style={{ color: 'var(--vio-text-secondary)' }}>Rete locale:</strong> Usa l&apos;IP del tuo Mac
-          (Preferenze di Sistema &gt; Rete)
+          <strong style={{ color: 'var(--vio-text-secondary)' }}>Rete locale:</strong> Usa l&apos;IP del tuo Mac (Preferenze di Sistema &gt; Rete)
         </p>
         <p>
-          <strong style={{ color: 'var(--vio-text-secondary)' }}>Da fuori:</strong> Usa un tunnel (ngrok, Tailscale)
-          per esporre il backend
+          <strong style={{ color: 'var(--vio-text-secondary)' }}>Da fuori:</strong> Usa un tunnel (ngrok, Tailscale) per esporre il backend
         </p>
       </div>
 
