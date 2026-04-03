@@ -40,6 +40,136 @@ echo "║  Report: $R  ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
+
+# ═══════════════════════════════════════════════════════════════
+header "0. MACS FAN CONTROL — INSTALLAZIONE CRITICA (ANTI-SURRISCALDAMENTO)"
+# ═══════════════════════════════════════════════════════════════
+# CRITICO: iMac 2009 si surriscalda e si spegne senza controllo ventole!
+# Questo step scarica e installa Macs Fan Control (CrystalIDEA) automaticamente.
+
+MFC_APP="/Applications/Macs Fan Control.app"
+MFC_DMG="/tmp/macsfancontrol.dmg"
+MFC_URL="https://www.crystalidea.com/downloads/macsfancontrol.dmg"
+MFC_INSTALLED=false
+
+if [ -d "$MFC_APP" ]; then
+    ok "Macs Fan Control già installato in /Applications"
+    MFC_INSTALLED=true
+    # Avvia se non è già in esecuzione
+    if ! pgrep -x "Macs Fan Control" > /dev/null 2>&1; then
+        info "Avvio Macs Fan Control..."
+        open "$MFC_APP" 2>/dev/null && ok "Macs Fan Control avviato" || warn "Impossibile avviare automaticamente"
+    else
+        ok "Macs Fan Control già in esecuzione"
+    fi
+else
+    info "Macs Fan Control NON trovato — avvio download e installazione..."
+    echo ""
+    
+    # Step 1: Download DMG
+    info "Download da $MFC_URL ..."
+    if curl -L -o "$MFC_DMG" "$MFC_URL" --progress-bar 2>&1; then
+        ok "Download completato: $(du -h "$MFC_DMG" | cut -f1)"
+    else
+        fail "Download fallito! Prova manualmente: https://www.crystalidea.com/macs-fan-control"
+        warn "ATTENZIONE: Senza fan control, l'iMac potrebbe surriscaldarsi!"
+        echo "  Puoi anche installare smcFanControl come alternativa:"
+        echo "  https://www.eidac.de/smcfancontrol/"
+    fi
+    
+    # Step 2: Monta DMG
+    if [ -f "$MFC_DMG" ]; then
+        info "Montaggio immagine disco..."
+        MOUNT_POINT=$(hdiutil attach "$MFC_DMG" -nobrowse -quiet 2>/dev/null | grep "/Volumes" | awk '{print $NF}')
+        
+        if [ -z "$MOUNT_POINT" ]; then
+            # Prova con path noto
+            MOUNT_POINT=$(hdiutil attach "$MFC_DMG" -nobrowse 2>/dev/null | grep "/Volumes" | sed 's/.*\(\/Volumes\/.*\)/\1/' | head -1)
+        fi
+        
+        if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT" ]; then
+            ok "DMG montato su: $MOUNT_POINT"
+            
+            # Step 3: Cerca l'app nel volume montato
+            MFC_SOURCE=$(find "$MOUNT_POINT" -name "Macs Fan Control.app" -maxdepth 2 2>/dev/null | head -1)
+            
+            if [ -z "$MFC_SOURCE" ]; then
+                # Cerca qualsiasi .app nel volume
+                MFC_SOURCE=$(find "$MOUNT_POINT" -name "*.app" -maxdepth 2 2>/dev/null | head -1)
+            fi
+            
+            if [ -n "$MFC_SOURCE" ] && [ -d "$MFC_SOURCE" ]; then
+                info "Trovato: $MFC_SOURCE"
+                info "Copia in /Applications/ (richiede permessi admin)..."
+                
+                if cp -R "$MFC_SOURCE" /Applications/ 2>/dev/null; then
+                    ok "Macs Fan Control installato in /Applications/"
+                    MFC_INSTALLED=true
+                else
+                    # Prova con sudo (lo script gira già con sudo)
+                    cp -R "$MFC_SOURCE" /Applications/ && {
+                        ok "Macs Fan Control installato in /Applications/"
+                        MFC_INSTALLED=true
+                    } || {
+                        fail "Impossibile copiare in /Applications/"
+                        warn "Prova manuale: trascina l'app dal DMG montato in /Applications/"
+                    }
+                fi
+            else
+                fail "App non trovata nel DMG montato"
+                warn "Contenuto volume: $(ls "$MOUNT_POINT" 2>/dev/null)"
+            fi
+            
+            # Step 4: Smonta DMG
+            hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null
+            info "DMG smontato"
+        else
+            fail "Impossibile montare il DMG"
+        fi
+        
+        # Pulizia
+        rm -f "$MFC_DMG" 2>/dev/null
+    fi
+    
+    # Step 5: Avvia Macs Fan Control
+    if [ "$MFC_INSTALLED" = true ] && [ -d "/Applications/Macs Fan Control.app" ]; then
+        info "Avvio Macs Fan Control..."
+        open "/Applications/Macs Fan Control.app" 2>/dev/null
+        sleep 2
+        if pgrep -x "Macs Fan Control" > /dev/null 2>&1; then
+            ok "Macs Fan Control IN ESECUZIONE — ventole attive!"
+        else
+            warn "Avviato ma processo non rilevato — verifica manualmente"
+        fi
+        
+        echo ""
+        echo -e "  ${GREEN}╔══════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${GREEN}║  MACS FAN CONTROL INSTALLATO E AVVIATO!         ║${NC}"
+        echo -e "  ${GREEN}║  Le ventole sono ora sotto controllo.            ║${NC}"
+        echo -e "  ${GREEN}║  Consiglio: imposta ventole al 60-70% minimo    ║${NC}"
+        echo -e "  ${GREEN}║  per evitare surriscaldamento iMac 2009.        ║${NC}"
+        echo -e "  ${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+    else
+        echo ""
+        echo -e "  ${RED}╔══════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${RED}║  ATTENZIONE: MACS FAN CONTROL NON INSTALLATO!   ║${NC}"
+        echo -e "  ${RED}║  L'iMac 2009 si surriscalda RAPIDAMENTE!        ║${NC}"
+        echo -e "  ${RED}║                                                  ║${NC}"
+        echo -e "  ${RED}║  INSTALLA MANUALMENTE:                           ║${NC}"
+        echo -e "  ${RED}║  1. Apri Safari                                  ║${NC}"
+        echo -e "  ${RED}║  2. Vai su crystalidea.com/macs-fan-control      ║${NC}"
+        echo -e "  ${RED}║  3. Scarica e installa                           ║${NC}"
+        echo -e "  ${RED}║                                                  ║${NC}"
+        echo -e "  ${RED}║  Alternativa: smcFanControl                      ║${NC}"
+        echo -e "  ${RED}║  eidac.de/smcfancontrol                          ║${NC}"
+        echo -e "  ${RED}╚══════════════════════════════════════════════════╝${NC}"
+    fi
+fi
+
+echo ""
+info "Proseguo con la diagnostica completa..."
+echo ""
+
 # ═══════════════════════════════════════════════════════════════
 header "1. IDENTITÀ HARDWARE — ANALISI COMPLETA"
 # ═══════════════════════════════════════════════════════════════
