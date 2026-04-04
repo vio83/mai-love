@@ -277,6 +277,68 @@ const LOCAL_SPECIALIZED: Record<string, string> = {
   reasoning: 'Passaggi logici espliciti, premesse dichiarate, controesempi identificati.',
   realtime: 'Dichiara data limite conoscenze. Non inventare eventi recenti.',
   conversation: 'Massima specializzazione anche per domande semplici. Mai risposte superficiali.',
+
+  chain_of_thought: `CONTESTO SPECIALIZZATO — CHAIN-OF-THOUGHT ESPLICITO:
+Prima di fornire la risposta finale, ragiona ad alta voce in un blocco <thinking> separato:
+
+<thinking>
+1. Decomposizione del problema: identifica i sotto-problemi componenti
+2. Raccolta informazioni: elenca conoscenze pertinenti, fatti, vincoli
+3. Analisi: valuta approcci alternativi con pro/contro
+4. Verifica: controlla coerenza logica, caso limite, ipotesi implicite
+5. Sintesi: scegli approccio ottimale motivato
+</thinking>
+
+Poi fornisci la risposta finale, pulita e diretta, senza ripetere il ragionamento interno.
+Usa questo pattern per: domande complesse, decisioni tecniche, analisi multi-variabile, debug.
+Non usarlo per risposte fattuali semplici (spreco di token su hardware limitato).`,
+
+  wazuh_security: `CONTESTO SPECIALIZZATO — WAZUH SIEM E SICUREZZA OPEN SOURCE:
+Per domande su Wazuh, SIEM, EDR open source e sicurezza infrastrutturale:
+
+WAZUH (fatti tecnici verificati, versione 4.x, 2026):
+• Architettura: Wazuh Agent (host) + Wazuh Manager + Wazuh Indexer (OpenSearch) + Wazuh Dashboard
+• Agent: user-space daemon (~25MB RAM), multi-piattaforma (Linux/Windows/macOS/BSD)
+• Capacità REALI: log analysis, FIM (OSSEC-based), vulnerabilità CVE lookup, compliance (PCI-DSS/HIPAA/GDPR/NIST), rootkit detection, active response
+• Capacità NON presenti: kernel sensor, ML comportamentale profondo, threat intelligence proprietaria
+• Licenza: AGPL-3.0 (codice) — free forever self-hosted
+• Wazuh Cloud: SaaS a pagamento (opzionale, non obbligatorio)
+
+DIFFERENZA ONESTA vs CrowdStrike Falcon:
+• Falcon: kernel module (ring-0), ML addestrato su miliardi di endpoint, SOC cloud 24/7
+• Wazuh: user-space, regole configurabili manualmente, self-managed
+• Gap specifico: Falcon rileva comportamenti anomali senza firma. Wazuh richiede regola esplicita.
+• Use case Wazuh: lab, università, PMI, compliance, monitoring infrastruttura interna
+• Use case Falcon: enterprise, critical infrastructure, realtà con threat model nation-state
+
+Non dichiarare mai equivalenza tra Wazuh e soluzioni EDR enterprise. Sono strumenti diversi per threat model diversi.`,
+
+  llm_internals: `CONTESTO SPECIALIZZATO — ARCHITETTURA LLM E AI INTERNA:
+Per domande sul funzionamento interno dei Large Language Models (2026):
+
+PRECISIONE SU ARCHITETTURA TRANSFORMER:
+• Attention: Attention(Q,K,V) = softmax(QK^T / √d_k) · V
+  - Q=Query [seq_len × d_k], K=Key [seq_len × d_k], V=Value [seq_len × d_v]
+  - d_k: dimensione chiave (es. 128 in GPT-4); √d_k: scala per stabilità numerica (evita gradienti che saturano softmax)
+  - Multi-head: h teste parallele con proiezioni diverse, concat poi proiettate
+• Tokenizzazione BPE (Byte Pair Encoding): vocabolario ~32k-200k token. Algoritmo greedy iterativo su frequenze di coppia.
+• Embedding: token ID → vettore float16/bfloat16 di dimensione d_model (es. 4096, 8192, 12288)
+• Transformer block: LayerNorm → Multi-Head Attention → Residual → LayerNorm → FFN → Residual
+• Training pipeline: Pre-training (predizione token) → SFT (Supervised Fine-Tuning) → RLHF/Constitutional AI → deployment
+
+RLHF (Reinforcement Learning from Human Feedback):
+• Fase 1: SFT su dimostrazioni umane
+• Fase 2: Reward Model addestrato su preferenze umane comparative (Bradley-Terry model)
+• Fase 3: PPO (Proximal Policy Optimization) usa reward model per guidare il modello principale
+• Constitutional AI (Anthropic): sostituisce parzialmente annotatori umani con auto-critica da princìpi dichiarati
+
+PARAMETRI TIPICI 2026 (verificati):
+• Claude Opus 4: ~2T parametri (stimato, non confermato ufficialmente)
+• GPT-4o: ~1.8T parametri (stimato)
+• Llama 3.3 70B: 70 miliardi parametri, 128k context, bfloat16
+• Phi-3 Mini: 3.8B parametri, 4k/128k context
+
+Non dichiarare mai parametri esatti per modelli proprietari se non pubblicati ufficialmente.`,
 };
 
 export function buildLocalSystemPrompt(requestType: string, protocollo100x: boolean = false): string {
