@@ -1,60 +1,129 @@
-# VIO AI Orchestra — Istruzioni Master Claude
+# VIO AI ORCHESTRA — Contesto Progetto
 
-## Identità progetto
+## Identità Progetto
+- **Nome:** VIO AI Orchestra
+- **Autore:** Viorica Porcu (Vio)
+- **Repository:** github.com/vio83/vio83-ai-orchestra
+- **Licenza:** Dual License — Proprietaria (All Rights Reserved) + AGPL-3.0
+- **Stato:** In sviluppo attivo
 
-- Utente: Viorica Porcu (vio83)
-- Mac: MacBook Air M1, username padronavio
-- GitHub: <https://github.com/vio83> (repo: vio83-ai-orchestra)
-- Email: <porcu.v.83@gmail.com>
+## Descrizione
+VIO AI Orchestra è una piattaforma di orchestrazione AI che unifica provider multipli
+(Claude, GPT-4, Gemini, Mistral, DeepSeek, Perplexity) attraverso un'interfaccia singola.
+Il sistema permette di inviare prompt a provider diversi simultaneamente, confrontare
+risposte, e gestire il routing intelligente delle richieste.
 
-## Architettura sistema (verificata 25/03/2026)
+## Stack Tecnologico
 
-- Frontend: React 18 + TypeScript + Vite 6 → porta 5173
-- Backend: FastAPI + Uvicorn (Python >=3.12, dev 3.14.3) → porta 4000
-- AI locale: Ollama → porta 11434 (6 modelli: qwen2.5-coder:3b, llama3.2:3b, qwen2.5:3b, gemma2:2b, phi3:mini, nomic-embed-text)
-- Desktop: Tauri 2.0 (Rust) — build nativo macOS
-- DB: SQLite (conversazioni + FTS5 + vector engine custom)
-- Path locale: /Users/padronavio/Projects/vio83-ai-orchestra
+### Backend (operativo)
+- Runtime: Node.js con Express.js
+- Comunicazione real-time: WebSocket
+- Process Manager: PM2
+- Percorso installazione: /opt/vioaiorchestra/
+- Porta: 3000 (HTTP e WebSocket)
+- File principale: server.js
+- Configurazione: .env (API keys provider)
 
-## Metriche codebase
+### Frontend (in sviluppo)
+- Framework: React 18+ con Suspense
+- Build tool: Vite
+- State management: Zustand
+- Styling: Tailwind CSS con CSS Variables
+- Real-time: WebSocket (gia nel backend)
+- Streaming: SSE per risposte AI
+- Charts: Recharts (analytics)
+- Animation: Framer Motion
+- Testing: Vitest + Testing Library
+- PWA: Service Worker + Workbox
 
-- ~53.000 LOC su 114 file sorgente
-- 80 file Python backend, 34 file TS/TSX frontend
-- 28 moduli core, 12 plugin (30 tool), 139 endpoint REST
-- 410 test automatizzati (pytest, 100% pass)
-- 10 provider cloud: Claude, GPT-4, Grok, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Together, Perplexity
-- 9 motori core: Direct Router, JetEngine, SelfOptimizer, AutoLearner, ReasoningEngine, WorldKnowledge, FeatherMemory, HyperCompressor, VectorEngine
+### Provider AI integrati
+1. Claude (Anthropic) — API ufficiale
+2. GPT-4 (OpenAI) — API ufficiale
+3. Gemini (Google) — API ufficiale
+4. Mistral — API ufficiale
+5. DeepSeek — API ufficiale + modelli locali via Ollama
+6. Perplexity — API ufficiale
 
-## Comandi
+### Modelli locali (via Ollama su MacBook Air M1)
+- DeepSeek R1 (8B)
+- Mistral (7B)
+- Altri modelli compatibili con architettura ARM64
+
+## Endpoints API
+
+| Endpoint | Metodo | Funzione |
+|----------|--------|----------|
+| /health | GET | Health check |
+| /api/providers | GET | Lista provider AI |
+| /api/chat | POST | Invia messaggio |
+| /api/compare | POST | Confronta provider |
+
+## Ambiente di Sviluppo
+- Macchina principale: MacBook Air M1 (macOS)
+- Macchina secondaria: iMac 2009 (iMac11,1) — in fase di setup con Kali Linux
+- Editor: VS Code con estensioni AI (Copilot, Tabnine, Continue.dev)
+- Versioning: Git + GitHub
+- Device mobile: iPhone 15 (per accesso remoto e testing)
+
+## Comandi di gestione server
 
 ```bash
-./orchestra.sh          # Avvia tutto
-npm run dev             # Frontend dev → 5173
-PYTHONPATH=. python3 -m uvicorn backend.api.server:app --reload --port 4000  # Backend
-npx tsc --noEmit        # TypeScript check
-python3 -m pytest tests/backend/ -q   # Test backend
-flake8 backend/ --select=E9,F63,F7,F82,F401,F841,F541 --max-line-length=120 --exclude=backend/__pycache__,backend/rag/
+# Avviare il server
+cd /opt/vioaiorchestra && pm2 start server.js --name vioaiorchestra
+
+# Riavviare
+pm2 restart vioaiorchestra
+
+# Log
+pm2 logs vioaiorchestra
+
+# Stato
+pm2 status
 ```
+
+## Sponsorship
+- Ko-fi: ko-fi.com/vio83_ai_orchestra_
+- GitHub Sponsors: github.com/sponsors/vio83
+- Obiettivo: 30 Founding Sponsors
+
+## Roadmap 2026
+
+### Aprile-Giugno: Architettura frontend stabile
+- React 18+, Vite, Zustand, Tailwind CSS
+- Interfaccia unificata multi-provider operativa
+- Streaming parallelo delle risposte
+
+### Luglio-Settembre: Connettori AI completi
+- Tutti i provider integrati e testati
+- Sistema di caching intelligente
+- Analytics di utilizzo
+
+### Ottobre-Dicembre: Versione pubblica beta
+- Deployment pubblico
+- Documentazione completa
+- Community GitHub attiva
+- Licenza AGPL-3.0 per versione open source
 
 ## Task attivi
 
-Vedi cartella: vio-tasks/
+### TASK-01: Ottimizzazione ambiente Mac
+- Setup completo VS Code con estensioni AI
+- Configurazione Git e GitHub SSH
+- Ambiente Python venv per SDK AI
 
-## Regole comportamento
+### TASK-02: Sviluppo VIO AI Orchestra
+- Completare frontend React
+- Integrare tutti i provider API
+- Testing e ottimizzazione performance
 
-1. Leggi sempre CLAUDE.md e vio-tasks/ all'inizio di ogni sessione
-2. Git commit + push dopo ogni modifica completata
-3. Zero TypeScript errors (npx tsc --noEmit)
-4. Zero Python syntax errors (py_compile + flake8)
-5. API keys solo in .env, MAI in source
-6. Commit atomici: feat:|fix:|chore:|refactor:|docs:
+### TASK-03: Privacy e Sicurezza
+- Configurazione rete sicura
+- Gestione API keys con dotenv
+- Protezione IP del progetto
 
-## Dispositivi sincronizzati
-
-- Mac: Claude Desktop Cowork (task lunghi e complessi)
-- VS Code: Copilot Chat (sviluppo in-IDE)
-- Web: claude.ai Progetti (consultazione e pianificazione)
-
-## Ultimo aggiornamento
-
-25/03/2026 07:05 — Sync post-fix CI + ottimizzazione ambienti
+## Note operative
+- Il server Express gira su porta 3000 gestito da PM2
+- Le API keys sono in /opt/vioaiorchestra/.env
+- Il frontend va costruito in /opt/vioaiorchestra/public/ o in directory separata
+- Ogni modifica deve essere committata su GitHub
+- Workflow: modifica locale, test, git add, commit, push
