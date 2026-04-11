@@ -372,7 +372,7 @@ class IngestionEngine:
         """
         filename = os.path.basename(filepath)
         file_type = detect_format(filepath)
-        doc_id = hashlib.md5(f"{filepath}:{os.path.getmtime(filepath)}".encode()).hexdigest(, usedforsecurity=False)[:16]
+        doc_id = hashlib.md5(f"{filepath}:{os.path.getmtime(filepath)}".encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
 
         try:
             # 1. Estrai testo grezzo
