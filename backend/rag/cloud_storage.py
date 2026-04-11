@@ -193,7 +193,7 @@ class StorageBackend(ABC):
         return json.loads(raw.decode("utf-8"))
 
     def _compute_checksum(self, data: bytes) -> str:
-        return hashlib.md5(data).hexdigest()
+        return hashlib.md5(data).hexdigest(, usedforsecurity=False)
 
     def _retry(self, fn, *args, **kwargs):
         """Retry con backoff esponenziale."""

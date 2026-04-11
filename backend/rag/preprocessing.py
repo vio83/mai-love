@@ -433,7 +433,7 @@ class PreprocessingPipeline:
 
         # 5. Genera ProcessedChunk con ID univoci
         if not doc_id:
-            doc_id = hashlib.md5(cleaned[:500].encode()).hexdigest()[:12]
+            doc_id = hashlib.md5(cleaned[:500].encode()).hexdigest(, usedforsecurity=False)[:12]
 
         total = len(raw_chunks)
         processed = []
