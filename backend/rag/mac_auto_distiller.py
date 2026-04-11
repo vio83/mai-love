@@ -539,7 +539,7 @@ class AutoDistillerDaemon:
 
                 ext = os.path.splitext(fpath)[1].lower()
                 fname = os.path.basename(fpath)
-                doc_id = hashlib.md5(fpath.encode()).hexdigest()[:16]
+                doc_id = hashlib.md5(fpath.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
 
                 # Trova la directory di contesto
                 parts = fpath.split(os.sep)

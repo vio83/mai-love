@@ -621,7 +621,7 @@ class KnowledgeBase:
     ) -> int:
         """Ingesci testo grezzo direttamente (senza file)."""
         pipeline = self.ingestion.pipeline
-        doc_id = hashlib.md5(text[:200].encode()).hexdigest()[:12]
+        doc_id = hashlib.md5(text[:200].encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:12]
 
         chunks = pipeline.process(
             text=text,

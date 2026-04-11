@@ -520,7 +520,7 @@ class LocalMacDistiller:
             logger.error(f"Directory non trovata: {base_path}")
             return
 
-        scan_id = scan_id or hashlib.md5(base_path.encode()).hexdigest()[:12]
+        scan_id = scan_id or hashlib.md5(base_path.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:12]
 
         # Carica stato precedente per resume
         prev_state = self.state.load_scan_state(scan_id)
@@ -575,7 +575,7 @@ class LocalMacDistiller:
 
                     # Crea metadati
                     rel_path = os.path.relpath(fpath, base_path)
-                    doc_id = hashlib.md5(fpath.encode()).hexdigest()[:16]
+                    doc_id = hashlib.md5(fpath.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
 
                     # Estrai info dal percorso e nome file
                     parts = rel_path.split(os.sep)
