@@ -13,9 +13,9 @@ TokenAllocator, MemoryPool, ResponseAccelerator.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
-import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
@@ -211,7 +211,7 @@ class SemanticDigest:
     _STOPS = frozenset({
         "il","lo","la","i","gli","le","un","una","di","a","da","in","con",
         "su","per","tra","fra","e","o","ma","se","che","come","quando","non",
-        "mi","ti","si","ci","vi","ne","lo","the","a","an","of","in","to",
+        "mi","ti","si","ci","vi","ne","the","an","of","to",
         "for","and","or","but","is","are","was","were","be","been","this",
         "that","it","you","we","they","my","your","his","her","its","our",
     })

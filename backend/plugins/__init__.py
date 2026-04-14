@@ -4,6 +4,6 @@
 Plugin registry per VIO 83 AI Orchestra.
 Supporta plugin locali (built-in) e plugin esterni (futuri MCP server).
 """
-from .registry import PluginRegistry, PluginInfo, PluginStatus
+from .registry import PluginInfo, PluginRegistry, PluginStatus
 
 __all__ = ["PluginRegistry", "PluginInfo", "PluginStatus"]

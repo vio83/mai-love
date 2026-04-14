@@ -13,14 +13,14 @@ Caratteristiche:
 ✅ Preferenze utente salvate
 """
 
-import os
-import time
 import asyncio
 import logging
-from typing import Optional, Dict, Any, Tuple
-from pathlib import Path
-from enum import Enum
+import os
 import sqlite3
+import time
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 from dotenv import load_dotenv
 

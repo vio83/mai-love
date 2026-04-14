@@ -11,17 +11,17 @@ Auto-aggiornamento permanente dei provider AI:
 ✅ Fallback graceful se API down
 """
 
-import os
-import json
-import time
 import asyncio
+import json
 import logging
+import os
+import sqlite3
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
-from datetime import datetime
-import urllib.request
-import urllib.error
-import sqlite3
 
 from dotenv import load_dotenv
 

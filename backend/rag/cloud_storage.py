@@ -22,20 +22,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
+import logging
 import os
 import shutil
-import hashlib
-import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Any, BinaryIO, Dict, Generator, List, Optional, Union
-)
+from typing import Any, BinaryIO, Dict, Generator, List, Optional, Union
 
 logger = logging.getLogger("vio83.cloud_storage")
 
@@ -193,7 +191,7 @@ class StorageBackend(ABC):
         return json.loads(raw.decode("utf-8"))
 
     def _compute_checksum(self, data: bytes) -> str:
-        return hashlib.md5(data).hexdigest(, usedforsecurity=False, usedforsecurity=False)
+        return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
     def _retry(self, fn, *args, **kwargs):
         """Retry con backoff esponenziale."""
@@ -749,7 +747,7 @@ class DropboxStorage(StorageBackend):
             raw = data.read()
 
         if len(raw) <= 150 * 1024 * 1024:
-            result = self._dbx.files_upload(raw, path, mode=dropbox.files.WriteMode.overwrite)
+            self._dbx.files_upload(raw, path, mode=dropbox.files.WriteMode.overwrite)
         else:
             # Sessione upload per file grandi
             session = self._dbx.files_upload_session_start(raw[:self.config.chunk_size])
@@ -763,7 +761,7 @@ class DropboxStorage(StorageBackend):
                     self._dbx.files_upload_session_append_v2(raw[offset:end], cursor)
                     cursor.offset = end
                 else:
-                    result = self._dbx.files_upload_session_finish(raw[offset:end], cursor, commit)
+                    self._dbx.files_upload_session_finish(raw[offset:end], cursor, commit)
                 offset = end
 
         return StorageObject(key=key, size=len(raw))

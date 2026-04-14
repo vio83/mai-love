@@ -11,9 +11,9 @@ Sponsor lifecycle and funnel tracking:
 """
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
@@ -126,9 +126,9 @@ def get_funnel_metrics(days: int = 90) -> Dict[str, Any]:
                     elif event_type == "reactivated":
                         users_by_stage["reactivated"].add(user_id)
                         users_by_stage["churned"].discard(user_id)
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
 
     # Convert to counts
@@ -179,9 +179,9 @@ def get_cohort_analysis() -> Dict[str, Any]:
                         cohorts[cohort_month]["paying"] += 1
                     elif event["event_type"] == "churned":
                         cohorts[cohort_month]["churned"] += 1
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
 
     # Calculate retention for each cohort

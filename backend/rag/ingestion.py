@@ -21,19 +21,18 @@ Ogni documento viene:
 4. Segmentato in chunk pronti per embedding e indicizzazione
 """
 
+import hashlib
+import json
+import mimetypes
 import os
 import re
-import json
-import hashlib
-import mimetypes
-from typing import Optional
 from dataclasses import dataclass, field
+from typing import Optional
 
 from backend.rag.preprocessing import (
     PreprocessingPipeline,
     ProcessedChunk,
 )
-
 
 # ============================================================
 # DATACLASS — Documento ingested
@@ -199,7 +198,7 @@ class TextExtractor:
             return "\n\n".join(text_parts)
         except ImportError:
             raise ValueError(
-                f"Libreria EPUB non disponibile. Installa: pip install EbookLib"
+                "Libreria EPUB non disponibile. Installa: pip install EbookLib"
             )
 
     @staticmethod
@@ -372,7 +371,7 @@ class IngestionEngine:
         """
         filename = os.path.basename(filepath)
         file_type = detect_format(filepath)
-        doc_id = hashlib.md5(f"{filepath}:{os.path.getmtime(filepath)}".encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
+        doc_id = hashlib.md5(f"{filepath}:{os.path.getmtime(filepath)}".encode(), usedforsecurity=False).hexdigest()[:16]
 
         try:
             # 1. Estrai testo grezzo

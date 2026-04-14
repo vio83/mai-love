@@ -14,12 +14,11 @@ Sistema complesso di pre-elaborazione dati per:
 - Estrazione metadati strutturati da testo grezzo
 """
 
+import hashlib
 import re
 import unicodedata
-import hashlib
-from typing import Optional
 from dataclasses import dataclass, field
-
+from typing import Optional
 
 # ============================================================
 # DATACLASS — Chunk processato
@@ -433,7 +432,7 @@ class PreprocessingPipeline:
 
         # 5. Genera ProcessedChunk con ID univoci
         if not doc_id:
-            doc_id = hashlib.md5(cleaned[:500].encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:12]
+            doc_id = hashlib.md5(cleaned[:500].encode(), usedforsecurity=False).hexdigest()[:12]
 
         total = len(raw_chunks)
         processed = []

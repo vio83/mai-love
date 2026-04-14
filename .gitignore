@@ -43,6 +43,17 @@ ziVwrPfD
 
 .fake
 
+# Binary blobs — NON tracciare
+*.vsix
+*.m4v
+brace-v3/assets/*.jpg
+brace-v3/PROGETTI FA/
+.mypy_cache/
+brace-v3/webui.py.ots
+brace-v3/webui.py.ots.bak
+brace-v3/webui-current.sha256
+brace-v3/webui-current.sha256.ots
+
 # Nested git repos — NON tracciare come submodule
 AI-LOVE/
 venv/

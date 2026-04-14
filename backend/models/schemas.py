@@ -8,10 +8,10 @@ VIO 83 AI ORCHESTRA - Pydantic Schemas
 Definizione modelli dati per API e validazione.
 """
 
-from typing import Optional, Literal, List
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List, Literal, Optional
 
+from pydantic import BaseModel, Field
 
 # === Multimodal / Vision ===
 

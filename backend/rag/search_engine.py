@@ -259,7 +259,7 @@ class FTS5SearchEngine(SearchBackend):
             "  bm25(search_fts, 0, 5.0, 1.0, 2.0) AS score",
             "FROM search_fts f",
             "JOIN documents d ON d.rowid = f.rowid",
-            f"WHERE search_fts MATCH ?",
+            "WHERE search_fts MATCH ?",
         ]
         params: List[Any] = [fts_query]
 
@@ -311,7 +311,7 @@ class FTS5SearchEngine(SearchBackend):
             rows = []
 
         # Conta totale
-        count_sql = f"SELECT COUNT(*) FROM search_fts WHERE search_fts MATCH ?"
+        count_sql = "SELECT COUNT(*) FROM search_fts WHERE search_fts MATCH ?"
         try:
             total = self._conn.execute(count_sql, [fts_query]).fetchone()[0]
         except Exception:
@@ -499,9 +499,9 @@ class WhooshSearchEngine(SearchBackend):
 
     def __init__(self, index_dir: str = ""):
         try:
-            from whoosh.index import create_in, open_dir, exists_in
-            from whoosh.fields import Schema, TEXT, ID, NUMERIC, KEYWORD, STORED
             from whoosh.analysis import StemmingAnalyzer
+            from whoosh.fields import ID, KEYWORD, NUMERIC, STORED, TEXT, Schema
+            from whoosh.index import create_in, exists_in, open_dir
             self._whoosh = True
         except ImportError:
             raise ImportError(
@@ -576,7 +576,7 @@ class WhooshSearchEngine(SearchBackend):
 
     def search(self, query: SearchQuery) -> SearchResponse:
         from whoosh.qparser import MultifieldParser, OrGroup
-        from whoosh.query import And, Term, NumericRange
+        from whoosh.query import And, NumericRange, Term
 
         t0 = time.perf_counter()
 

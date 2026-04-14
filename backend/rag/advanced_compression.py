@@ -27,11 +27,11 @@ from __future__ import annotations
 
 import bz2
 import io
+import logging
 import lzma
 import struct
 import time
 import zlib
-import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple

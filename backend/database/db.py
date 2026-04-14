@@ -9,10 +9,10 @@ Gestisce persistenza conversazioni, messaggi, metriche provider.
 Funziona interamente in locale — zero dati trasmessi.
 """
 
-import sqlite3
-import uuid
-import time
 import os
+import sqlite3
+import time
+import uuid
 from contextlib import contextmanager
 from typing import Optional
 

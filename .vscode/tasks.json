@@ -313,6 +313,23 @@
         "panel": "shared",
         "group": "maintenance"
       }
+    },
+    {
+      "label": "🚑 Localhost Recovery 100x",
+      "type": "shell",
+      "command": "bash scripts/runtime/localhost_recovery_100x.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "maintenance"
+      }
     }
   ]
 }

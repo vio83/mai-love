@@ -9,10 +9,10 @@ Motore di verifica risposte basato su fonti certificate.
 Usa ChromaDB come vector database per ricerca semantica.
 """
 
-import os
 import hashlib
-from typing import Optional
+import os
 from dataclasses import dataclass, field
+from typing import Optional
 
 try:
     import chromadb

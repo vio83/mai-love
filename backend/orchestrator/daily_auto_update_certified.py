@@ -12,19 +12,19 @@ Sistema di AUTO-AGGIORNAMENTO GIORNALIERO PERMANENTE:
 ✅ Sincero, Serio, Onesto, Brutalmente 100% Funzionale
 """
 
-import os
-import json
-import time
-import hashlib
 import asyncio
+import hashlib
+import json
 import logging
+import os
 import sqlite3
-import urllib.request
+import time
 import urllib.error
+import urllib.request
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
-from dataclasses import dataclass, asdict
 
 logging.basicConfig(
     level=logging.INFO,

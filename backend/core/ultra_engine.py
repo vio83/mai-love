@@ -21,14 +21,13 @@ Performance target:
   - Conversazioni: 90% compressione senza perdita semantica
 """
 
-import re
-import time
 import math
+import re
 import threading
-from collections import defaultdict, OrderedDict
-from typing import Any, Optional, List, Dict, Tuple
+import time
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
-
+from typing import Any, Dict, List, Optional, Tuple
 
 # ─────────────────────────────────────────────────────────────
 # 1. SEMANTIC COMPACT CACHE — Piuma™ Layer 1
@@ -79,7 +78,7 @@ class SemanticCompactCache:
         t = ' '.join(t.split())
         # Rimuovi articoli e preposizioni comuni (IT+EN)
         stopwords = {'il','lo','la','i','gli','le','un','una','uno','di','da','in','con','su','per',
-                     'the','a','an','of','in','to','for','with','on','at','by','from','is','are','was'}
+                     'the','a','an','of','to','for','with','on','at','by','from','is','are','was'}
         words = [w for w in t.split() if w not in stopwords and len(w) > 1]
         return ' '.join(sorted(words[:12]))  # Sort per invarianza ordine, max 12 token
 

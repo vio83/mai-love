@@ -29,6 +29,7 @@ Performance (Piuma™):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -37,7 +38,6 @@ import struct
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import hashlib
 
 logger = logging.getLogger("vector_engine")
 
@@ -64,7 +64,7 @@ def _cosine_similarity_python(a: List[float], b: List[float]) -> float:
     """Cosine similarity in pure Python (fallback senza numpy)."""
     if len(a) != len(b) or not a:
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
     if norm_a == 0 or norm_b == 0:

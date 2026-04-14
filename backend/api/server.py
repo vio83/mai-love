@@ -15,75 +15,109 @@ Server principale con:
 NON dipende da LiteLLM — usa direct_router per chiamate Ollama.
 """
 
-import os
-import time
-import json
 import asyncio
-import shutil
-import subprocess
-import shlex
-import uuid
-import logging
 import hashlib
 import hmac
-from contextlib import asynccontextmanager
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Optional, Any
+import json
+import logging
+import os
+import shlex
+import shutil
+import subprocess
+import time
+import uuid
 from collections import defaultdict
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional, cast
 
 # === Structured Logging (GAP-06) ===
 try:
     import sys as _sys
+
     from loguru import logger as _loguru  # type: ignore[import-untyped]
+
     _loguru.remove()
     _loguru.add(_sys.stderr, serialize=True, level="INFO")
     _loguru.add(
         str(Path(__file__).resolve().parents[2] / "data" / "logs" / "backend.jsonl"),
-        serialize=True, level="WARNING", rotation="10 MB", retention="7 days",
+        serialize=True,
+        level="WARNING",
+        rotation="10 MB",
+        retention="7 days",
         compression="gz",
     )
     _LOG_STRUCTURED = True
 except ImportError:
     _LOG_STRUCTURED = False  # fallback: print() già presenti
 
+from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from dotenv import load_dotenv
 
-from backend.models.schemas import (
-    ChatRequest, ChatResponse, ClassifyRequest, ClassifyResponse,
-    HealthResponse, RAGAddRequest, RAGSearchRequest,
-)
-from backend.config.providers import (
-    LOCAL_PROVIDERS, get_available_cloud_providers,
-    get_free_cloud_providers, get_all_providers_ordered, get_elite_task_stacks,
-)
-from backend.database.db import (
-    init_database, create_conversation, list_conversations,
-    get_conversation, update_conversation_title, delete_conversation,
-    archive_conversation, add_message, log_metric, get_metrics_summary,
-    auto_title_from_message, set_setting, get_all_settings,
-)
-from backend.orchestrator.direct_router import (
-    classify_request, orchestrate, call_ollama_streaming,
-    call_cloud_streaming,
-    check_ollama_status,
-)
 from backend.automation.autonomous_runtime import AutonomousRuntime
-from backend.core.user_auth import get_user_auth, UserProfile
-from backend.core.api_key_manager import get_key_vault
-from backend.core.subscription_manager import get_subscription_manager
-from backend.core.enterprise_strategy import get_enterprise_strategy
 from backend.automation.seo_engine import (
-    run_full_growth_cycle, get_dashboard_metrics, generate_ai_insights,
-    calculate_growth_metrics, calculate_sponsor_funnel,
+    calculate_growth_metrics,
+    calculate_sponsor_funnel,
+    generate_ai_insights,
+    get_dashboard_metrics,
+    run_full_growth_cycle,
 )
 from backend.automation.sponsor_growth_tracker import (
-    get_funnel_metrics, get_cohort_analysis, estimate_ltv, get_health_dashboard,
-    track_visitor, track_subscriber, track_paying_sponsor, track_churn,
+    estimate_ltv,
+    get_cohort_analysis,
+    get_funnel_metrics,
+    get_health_dashboard,
+    track_churn,
+    track_paying_sponsor,
+    track_subscriber,
+    track_visitor,
 )
+from backend.config.providers import (
+    LOCAL_PROVIDERS,
+    get_all_providers_ordered,
+    get_available_cloud_providers,
+    get_elite_task_stacks,
+    get_free_cloud_providers,
+)
+from backend.core.api_key_manager import get_key_vault
+from backend.core.enterprise_strategy import get_enterprise_strategy
+from backend.core.subscription_manager import get_subscription_manager
+from backend.core.user_auth import UserProfile, get_user_auth
+from backend.database.db import (
+    add_message,
+    archive_conversation,
+    auto_title_from_message,
+    create_conversation,
+    delete_conversation,
+    get_all_settings,
+    get_conversation,
+    get_metrics_summary,
+    init_database,
+    list_conversations,
+    log_metric,
+    set_setting,
+    update_conversation_title,
+)
+from backend.models.schemas import (
+    ChatRequest,
+    ChatResponse,
+    ClassifyRequest,
+    ClassifyResponse,
+    HealthResponse,
+    RAGAddRequest,
+    RAGSearchRequest,
+)
+from backend.orchestrator.direct_router import (
+    call_cloud_streaming,
+    call_ollama_streaming,
+    check_ollama_status,
+    classify_request,
+    orchestrate,
+)
+
 # AI-LOVE / VirtualPartner rimosso — progetto separato
 
 # RAG via VectorEngine™ (funziona su QUALSIASI Python, incluso 3.14)
@@ -92,6 +126,7 @@ _vector_engine_instance = None
 
 try:
     from backend.core.vector_engine import get_vector_engine
+
     _vector_engine_instance = get_vector_engine()
     _vector_engine_instance.initialize()
     RAG_AVAILABLE = True
@@ -112,11 +147,13 @@ class RAGSource:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+
 # Knowledge Base v2 — attiva quando il modulo è importabile (fallback SQLite FTS5)
 KB_AVAILABLE = False
 KB_IMPORT_ERROR: str | None = None
 try:
     from backend.rag.knowledge_base import get_knowledge_base
+
     KB_AVAILABLE = True
 except Exception as e:
     KB_IMPORT_ERROR = str(e)
@@ -134,6 +171,7 @@ if _SENTRY_DSN:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
         from sentry_sdk.integrations.starlette import StarletteIntegration
+
         sentry_sdk.init(
             dsn=_SENTRY_DSN,
             integrations=[StarletteIntegration(), FastApiIntegration()],
@@ -367,7 +405,12 @@ def _command_status(command: str) -> dict[str, Any]:
     try:
         parts = shlex.split(normalized)
     except Exception:
-        return {"configured": True, "binary_ok": True, "command_type": "shell-raw", "entry": normalized.split(" ", 1)[0]}
+        return {
+            "configured": True,
+            "binary_ok": True,
+            "command_type": "shell-raw",
+            "entry": normalized.split(" ", 1)[0],
+        }
 
     if not parts:
         return {"configured": False, "binary_ok": False, "command_type": "missing", "entry": None}
@@ -392,8 +435,8 @@ def _command_status(command: str) -> dict[str, Any]:
 
 
 def _probe_runtime_urls(urls: list[str], timeout_s: float = 1.4) -> dict[str, Any]:
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     last_error = None
     for url in urls:
@@ -454,7 +497,7 @@ def _read_json_file(path: Path) -> Optional[dict[str, Any]]:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     except Exception:
         return None
 
@@ -505,11 +548,20 @@ def _runtime_apps_snapshot() -> dict[str, Any]:
             supervisor_pid_raw = None
 
     dependencies = {
-        "python3": {"available": shutil.which("python3") is not None, "version": _safe_version_output(["python3", "--version"])},
+        "python3": {
+            "available": shutil.which("python3") is not None,
+            "version": _safe_version_output(["python3", "--version"]),
+        },
         "node": {"available": shutil.which("node") is not None, "version": _safe_version_output(["node", "--version"])},
         "npm": {"available": shutil.which("npm") is not None, "version": _safe_version_output(["npm", "--version"])},
-        "ollama": {"available": shutil.which("ollama") is not None, "version": _safe_version_output(["ollama", "--version"])},
-        "docker": {"available": shutil.which("docker") is not None, "version": _safe_version_output(["docker", "--version"])},
+        "ollama": {
+            "available": shutil.which("ollama") is not None,
+            "version": _safe_version_output(["ollama", "--version"]),
+        },
+        "docker": {
+            "available": shutil.which("docker") is not None,
+            "version": _safe_version_output(["docker", "--version"]),
+        },
         "nvm": {"available": (Path.home() / ".nvm" / "nvm.sh").exists(), "version": None},
     }
 
@@ -566,39 +618,45 @@ def _runtime_apps_snapshot() -> dict[str, Any]:
 
     apps: list[dict[str, Any]] = []
     for spec in app_specs:
-        command = _runtime_env_value(env_map, spec["env_key"])
-        health_urls_str = _runtime_env_value(env_map, spec["health_env_key"]) or spec["health_default"]
+        command = _runtime_env_value(env_map, str(spec["env_key"]))
+        health_urls_str = _runtime_env_value(env_map, str(spec["health_env_key"])) or str(spec["health_default"])
         health_urls = [url.strip() for url in health_urls_str.split(",") if url.strip()]
         health = _probe_runtime_urls(health_urls)
         command_state = _command_status(command)
         supervisor_info = supervisor_services.get(spec["id"], {})
 
-        apps.append({
-            "id": spec["id"],
-            "name": spec["name"],
-            "configured": command_state["configured"] or spec["id"] == "n8n",
-            "command": command,
-            "command_status": command_state,
-            "health_urls": health_urls,
-            "health": health,
-            "port": spec["port"],
-            "stack": spec["stack"],
-            "required_dependencies": spec["required_dependencies"],
-            "notes": spec["notes"],
-            "supervisor": supervisor_info,
-            "recommended_actions": [
-                f"Configura {spec['env_key']}" if not command_state["configured"] and spec["id"] != "n8n" else None,
-                "Installa/abilita LaunchAgent runtime" if not _launch_agent_loaded("com.vio83.runtime-services") else None,
-                f"Verifica endpoint health sulla porta {spec['port']}" if not health.get("reachable") else None,
-            ],
-        })
+        apps.append(
+            {
+                "id": spec["id"],
+                "name": spec["name"],
+                "configured": command_state["configured"] or spec["id"] == "n8n",
+                "command": command,
+                "command_status": command_state,
+                "health_urls": health_urls,
+                "health": health,
+                "port": spec["port"],
+                "stack": spec["stack"],
+                "required_dependencies": spec["required_dependencies"],
+                "notes": spec["notes"],
+                "supervisor": supervisor_info,
+                "recommended_actions": [
+                    f"Configura {spec['env_key']}" if not command_state["configured"] and spec["id"] != "n8n" else None,
+                    "Installa/abilita LaunchAgent runtime"
+                    if not _launch_agent_loaded("com.vio83.runtime-services")
+                    else None,
+                    f"Verifica endpoint health sulla porta {spec['port']}" if not health.get("reachable") else None,
+                ],
+            }
+        )
 
     return {
         "status": "ok",
         "detected_at": _now_iso(),
         "preferences": {
-            "update_policy": _runtime_env_value(env_map, "RUNTIME_APPS_UPDATE_POLICY") or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_UPDATE_POLICY"],
-            "offline_mode": _runtime_env_value(env_map, "RUNTIME_APPS_OFFLINE_MODE") or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_OFFLINE_MODE"],
+            "update_policy": _runtime_env_value(env_map, "RUNTIME_APPS_UPDATE_POLICY")
+            or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_UPDATE_POLICY"],
+            "offline_mode": _runtime_env_value(env_map, "RUNTIME_APPS_OFFLINE_MODE")
+            or RUNTIME_ENV_DEFAULTS["RUNTIME_APPS_OFFLINE_MODE"],
             "last_user_approved_at": _runtime_env_value(env_map, "RUNTIME_APPS_LAST_USER_APPROVED_AT") or None,
         },
         "controls": {
@@ -763,7 +821,7 @@ def _safe_reclaim_dev_space() -> dict[str, Any]:
 
     return {
         "reclaimed_bytes": reclaimed_bytes,
-        "reclaimed_gb": round(reclaimed_bytes / (1024 ** 3), 3),
+        "reclaimed_gb": round(reclaimed_bytes / (1024**3), 3),
         "removed_targets": removed,
     }
 
@@ -777,7 +835,7 @@ def _append_ops_action(action: dict[str, Any]) -> None:
 
 def _ops_autopilot_tick(force_reclaim: bool = False) -> dict[str, Any]:
     usage = shutil.disk_usage(str(Path.home()))
-    free_gb = round(usage.free / (1024 ** 3), 2)
+    free_gb = round(usage.free / (1024**3), 2)
     min_free_gb = _safe_float(OPS_AUTOPILOT_STATE.get("min_free_gb", 45.0), 45.0)
     low_disk = free_gb < min_free_gb
 
@@ -792,7 +850,7 @@ def _ops_autopilot_tick(force_reclaim: bool = False) -> dict[str, Any]:
     if force_reclaim or low_disk:
         reclaim_result = _safe_reclaim_dev_space()
         usage = shutil.disk_usage(str(Path.home()))
-        free_gb = round(usage.free / (1024 ** 3), 2)
+        free_gb = round(usage.free / (1024**3), 2)
 
     harmony_parts = [
         100.0 if signals["vscode_running"] else 70.0,
@@ -809,13 +867,15 @@ def _ops_autopilot_tick(force_reclaim: bool = False) -> dict[str, Any]:
     OPS_AUTOPILOT_STATE["signals"] = signals
 
     if force_reclaim or low_disk:
-        _append_ops_action({
-            "ts": _now_iso(),
-            "type": "auto-reclaim",
-            "trigger": "manual" if force_reclaim else f"low-disk<{min_free_gb}GB",
-            "reclaim": reclaim_result,
-            "free_gb_after": free_gb,
-        })
+        _append_ops_action(
+            {
+                "ts": _now_iso(),
+                "type": "auto-reclaim",
+                "trigger": "manual" if force_reclaim else f"low-disk<{min_free_gb}GB",
+                "reclaim": reclaim_result,
+                "free_gb_after": free_gb,
+            }
+        )
 
     return {
         "status": "ok",
@@ -829,8 +889,8 @@ def _ops_autopilot_tick(force_reclaim: bool = False) -> dict[str, Any]:
         "last_actions": OPS_AUTOPILOT_STATE.get("last_actions", [])[-20:],
         "low_disk": free_gb < min_free_gb,
         "storage": {
-            "total_gb": round(usage.total / (1024 ** 3), 2),
-            "used_gb": round(usage.used / (1024 ** 3), 2),
+            "total_gb": round(usage.total / (1024**3), 2),
+            "used_gb": round(usage.used / (1024**3), 2),
             "free_gb": free_gb,
         },
     }
@@ -870,8 +930,15 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "medicine-health",
         "name": "Medicina e Salute",
         "subdomains": [
-            "medicina generale", "oncologia", "cardiologia", "neurologia", "psichiatria",
-            "epidemiologia", "sanità pubblica", "farmacologia", "genetica clinica",
+            "medicina generale",
+            "oncologia",
+            "cardiologia",
+            "neurologia",
+            "psichiatria",
+            "epidemiologia",
+            "sanità pubblica",
+            "farmacologia",
+            "genetica clinica",
         ],
         "trusted_sources": ["WHO", "CDC", "EMA", "AIFA", "PubMed", "Cochrane"],
     },
@@ -879,8 +946,15 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "law-policy",
         "name": "Diritto, Regolazione e Policy",
         "subdomains": [
-            "diritto civile", "diritto penale", "diritto amministrativo", "privacy", "compliance",
-            "diritto internazionale", "ai act", "diritto del lavoro", "fisco",
+            "diritto civile",
+            "diritto penale",
+            "diritto amministrativo",
+            "privacy",
+            "compliance",
+            "diritto internazionale",
+            "ai act",
+            "diritto del lavoro",
+            "fisco",
         ],
         "trusted_sources": ["EUR-Lex", "Gazzetta Ufficiale", "UN", "OECD", "WIPO"],
     },
@@ -888,7 +962,12 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "math-logic",
         "name": "Matematica e Logica",
         "subdomains": [
-            "algebra", "analisi", "statistica", "probabilità", "logica formale", "ottimizzazione",
+            "algebra",
+            "analisi",
+            "statistica",
+            "probabilità",
+            "logica formale",
+            "ottimizzazione",
         ],
         "trusted_sources": ["arXiv", "Springer", "IEEE", "ACM", "SIAM"],
     },
@@ -896,8 +975,14 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "computer-ai",
         "name": "Informatica, AI e Sistemi",
         "subdomains": [
-            "machine learning", "llm engineering", "security", "sistemi distribuiti", "database",
-            "rete", "hci", "software engineering",
+            "machine learning",
+            "llm engineering",
+            "security",
+            "sistemi distribuiti",
+            "database",
+            "rete",
+            "hci",
+            "software engineering",
         ],
         "trusted_sources": ["NIST", "CISA", "IEEE", "IETF", "W3C", "ACM"],
     },
@@ -905,7 +990,11 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "physics-space",
         "name": "Fisica, Astrofisica e Astronomia",
         "subdomains": [
-            "fisica teorica", "astrofisica", "cosmologia", "strumentazione", "missioni spaziali",
+            "fisica teorica",
+            "astrofisica",
+            "cosmologia",
+            "strumentazione",
+            "missioni spaziali",
         ],
         "trusted_sources": ["NASA", "ESA", "CERN", "arXiv", "Nature"],
     },
@@ -913,7 +1002,12 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "engineering",
         "name": "Ingegneria e Tecnologia Applicata",
         "subdomains": [
-            "ingegneria civile", "elettronica", "robotica", "materiali", "automazione", "energia",
+            "ingegneria civile",
+            "elettronica",
+            "robotica",
+            "materiali",
+            "automazione",
+            "energia",
         ],
         "trusted_sources": ["ISO", "IEC", "IEEE", "ASTM", "ASME"],
     },
@@ -921,7 +1015,12 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "history-humanities",
         "name": "Storia, Filosofia e Scienze Umane",
         "subdomains": [
-            "storia moderna", "storia antica", "filosofia", "etica", "antropologia", "sociologia",
+            "storia moderna",
+            "storia antica",
+            "filosofia",
+            "etica",
+            "antropologia",
+            "sociologia",
         ],
         "trusted_sources": ["UNESCO", "Europeana", "WorldCat", "Britannica", "JSTOR"],
     },
@@ -929,7 +1028,11 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "psychology-cognition",
         "name": "Psicologia e Scienze Cognitive",
         "subdomains": [
-            "psicologia clinica", "neuroscienze cognitive", "psicometria", "comportamento", "educazione",
+            "psicologia clinica",
+            "neuroscienze cognitive",
+            "psicometria",
+            "comportamento",
+            "educazione",
         ],
         "trusted_sources": ["APA", "NIH", "WHO", "PubMed", "PsycNet"],
     },
@@ -937,7 +1040,12 @@ GLOBAL_KNOWLEDGE_DOMAINS = [
         "id": "economics-politics-journalism",
         "name": "Economia, Politica e Giornalismo Dati",
         "subdomains": [
-            "macroeconomia", "microeconomia", "mercati", "policy pubbliche", "fact-checking", "data journalism",
+            "macroeconomia",
+            "microeconomia",
+            "mercati",
+            "policy pubbliche",
+            "fact-checking",
+            "data journalism",
         ],
         "trusted_sources": ["World Bank", "IMF", "OECD", "Eurostat", "UNData"],
     },
@@ -964,7 +1072,7 @@ GLOBAL_LEGAL_WATCH = {
 }
 
 
-KNOWLEDGE_REFRESH_STATE = {
+KNOWLEDGE_REFRESH_STATE: dict[str, Any] = {
     "last_refresh_at": None,
     "jurisdiction": None,
     "source_count": 0,
@@ -974,7 +1082,7 @@ KNOWLEDGE_REFRESH_STATE = {
 }
 
 
-KNOWLEDGE_POLICY_STATE = {
+KNOWLEDGE_POLICY_STATE: dict[str, Any] = {
     "strict_evidence_mode": True,
     "refresh_interval_hours": 6,
     "minimum_domain_score": 70.0,
@@ -1008,15 +1116,17 @@ def _compute_domain_scores():
         coverage = 100.0
         reliability = 100.0
 
-        scored_domains.append({
-            "id": domain["id"],
-            "name": domain["name"],
-            "coverage_score": coverage,
-            "freshness_score": freshness,
-            "watch_health_score": watch_health,
-            "reliability_score": reliability,
-            "status": "high",
-        })
+        scored_domains.append(
+            {
+                "id": domain["id"],
+                "name": domain["name"],
+                "coverage_score": coverage,
+                "freshness_score": freshness,
+                "watch_health_score": watch_health,
+                "reliability_score": reliability,
+                "status": "high",
+            }
+        )
 
     return scored_domains
 
@@ -1098,9 +1208,9 @@ async def _refresh_knowledge_watch(jurisdiction: str = "global"):
     if jurisdiction == "all":
         sources = [source for group in GLOBAL_LEGAL_WATCH.values() for source in group]
     else:
-        sources = GLOBAL_LEGAL_WATCH.get(jurisdiction)
-        if sources is None:
+        if jurisdiction not in GLOBAL_LEGAL_WATCH:
             raise ValueError(f"Jurisdiction non supportata: {jurisdiction}")
+        sources = GLOBAL_LEGAL_WATCH[jurisdiction]
 
     results = await asyncio.gather(*[_probe_watch_source(source) for source in sources])
     reachable_count = sum(1 for item in results if item.get("ok"))
@@ -1132,14 +1242,15 @@ async def _knowledge_auto_refresh_loop():
         KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(time.time() + next_h * 3600.0)
         await asyncio.sleep(next_h * 60 * 60)
 
+
 # === CORE INFRASTRUCTURE ===
-from backend.core.cache import get_cache
-from backend.core.network import get_connection_pool
-from backend.core.errors import get_error_handler
-from backend.core.security import get_vault, EnvironmentValidator
-from backend.core.jet_engine import get_jet_engine
-from backend.core.feather_memory import get_feather_memory
-from backend.core.hyper_compressor import get_hyper_compressor
+from backend.core.cache import get_cache  # noqa: E402
+from backend.core.errors import get_error_handler  # noqa: E402
+from backend.core.feather_memory import get_feather_memory  # noqa: E402
+from backend.core.hyper_compressor import get_hyper_compressor  # noqa: E402
+from backend.core.jet_engine import get_jet_engine  # noqa: E402
+from backend.core.network import get_connection_pool  # noqa: E402
+from backend.core.security import EnvironmentValidator, get_vault  # noqa: E402
 
 
 @asynccontextmanager
@@ -1151,6 +1262,7 @@ async def lifespan(app: FastAPI):
     # Inizializza database + migrazioni schema
     init_database()
     from backend.database.migrations import run_migrations
+
     run_migrations()
 
     # === SECURITY: Validazione ambiente ===
@@ -1164,8 +1276,10 @@ async def lifespan(app: FastAPI):
 
     # === SECURITY: API Key Vault ===
     vault = get_vault()
-    print(f"🔐 API Keys: {vault.stats['valid_keys']}/{vault.stats['total_keys']} valide "
-          f"→ Provider: {vault.available_provrs or 'solo locale'}")
+    print(
+        f"🔐 API Keys: {vault.stats['valid_keys']}/{vault.stats['total_keys']} valide "
+        f"→ Provider: {vault.available_provrs or 'solo locale'}"
+    )
 
     # === CACHE: Multi-layer cache ===
     cache = get_cache()
@@ -1186,7 +1300,9 @@ async def lifespan(app: FastAPI):
     # === JET ENGINE™: velocità aereo militare ===
     jet = get_jet_engine()
     jet_stats = jet.stats()
-    print(f"✈️  JetEngine™ Mach 1.6+: TurboCache {jet_stats['turbo_cache']['max_size']} slot | local-first | parallel-sprint ATTIVI")
+    print(
+        f"✈️  JetEngine™ Mach 1.6+: TurboCache {jet_stats['turbo_cache']['max_size']} slot | local-first | parallel-sprint ATTIVI"
+    )
 
     # === FEATHER MEMORY™: macchina 400kg → piuma ===
     fm = get_feather_memory()
@@ -1196,16 +1312,20 @@ async def lifespan(app: FastAPI):
     # === HYPER COMPRESSOR™: ottimizzazione 1000x ===
     hc = get_hyper_compressor()
     hc_stats = hc.stats
-    print(f"⚡ HyperCompressor™ 1000x: {hc_stats['prompt_cache_size']} prompt pre-compilati | AutoTuner | ProviderHotPath ATTIVI")
+    print(
+        f"⚡ HyperCompressor™ 1000x: {hc_stats['prompt_cache_size']} prompt pre-compilati | AutoTuner | ProviderHotPath ATTIVI"
+    )
 
     # Knowledge Base v2 (sempre disponibile — SQLite FTS5 fallback)
     if KB_AVAILABLE:
         try:
             kb = get_knowledge_base()
             stats = kb.get_stats()
-            print(f"📚 Knowledge Base v2: {stats['fts_chunks']} chunk FTS, "
-                  f"{stats['chromadb_chunks']} chunk ChromaDB, "
-                  f"embedding: {stats['embedding_mode']}")
+            print(
+                f"📚 Knowledge Base v2: {stats['fts_chunks']} chunk FTS, "
+                f"{stats['chromadb_chunks']} chunk ChromaDB, "
+                f"embedding: {stats['embedding_mode']}"
+            )
         except Exception as e:
             print(f"⚠️  Knowledge Base init fallita: {e}")
     else:
@@ -1243,7 +1363,9 @@ async def lifespan(app: FastAPI):
     # Autopilota operativo locale: monitor continuo + recovery sicura su soglia disco
     _ops_autopilot_tick(force_reclaim=False)
     app.state.ops_autopilot_task = asyncio.create_task(_ops_autopilot_loop())
-    print(f"🛰️ Ops Autopilot: attivo ogni {OPS_AUTOPILOT_STATE['interval_seconds']}s | soglia disco {OPS_AUTOPILOT_STATE['min_free_gb']}GB")
+    print(
+        f"🛰️ Ops Autopilot: attivo ogni {OPS_AUTOPILOT_STATE['interval_seconds']}s | soglia disco {OPS_AUTOPILOT_STATE['min_free_gb']}GB"
+    )
 
     await AUTONOMOUS_RUNTIME.start()
     app.state.autonomous_runtime = AUTONOMOUS_RUNTIME
@@ -1252,33 +1374,45 @@ async def lifespan(app: FastAPI):
     # === AUTO-LEARNING ENGINES: cervello auto-crescente ===
     try:
         from backend.core.auto_learner import get_auto_learner
+
         al = get_auto_learner()
         al_stats = al.get_quality_stats()
-        print(f"📖 AutoLearner: {al_stats['patterns_learned']} pattern appresi | satisfaction: {al_stats['satisfaction_rate']:.0%}")
+        print(
+            f"📖 AutoLearner: {al_stats['patterns_learned']} pattern appresi | satisfaction: {al_stats['satisfaction_rate']:.0%}"
+        )
     except Exception as e:
         print(f"⚠️  AutoLearner init: {e}")
 
     try:
         from backend.core.self_optimizer import get_self_optimizer
+
         so = get_self_optimizer()
         so_stats = so.get_stats()
-        print(f"🎯 SelfOptimizer: {so_stats['providers_tracked']} provider tracked | {so_stats['domains_optimized']} domini ottimizzati")
+        print(
+            f"🎯 SelfOptimizer: {so_stats['providers_tracked']} provider tracked | {so_stats['domains_optimized']} domini ottimizzati"
+        )
     except Exception as e:
         print(f"⚠️  SelfOptimizer init: {e}")
 
     try:
         from backend.core.world_knowledge import get_world_knowledge
+
         wk = get_world_knowledge()
         wk_stats = wk.get_stats()
-        print(f"🌍 WorldKnowledge: {wk_stats['total_facts']} fatti | {wk_stats['db_size_kb']:.0f}KB | domini: {len(wk_stats['domains'])}")
+        print(
+            f"🌍 WorldKnowledge: {wk_stats['total_facts']} fatti | {wk_stats['db_size_kb']:.0f}KB | domini: {len(wk_stats['domains'])}"
+        )
     except Exception as e:
         print(f"⚠️  WorldKnowledge init: {e}")
 
     try:
         from backend.core.reasoning_engine import get_reasoning_engine
+
         re_engine = get_reasoning_engine()
         re_stats = re_engine.get_stats()
-        print(f"🧩 ReasoningEngine: {re_stats['total_reasonings']} ragionamenti | {re_stats['strategies_count']} strategie | quality: {re_stats['avg_reasoning_quality']:.2f}")
+        print(
+            f"🧩 ReasoningEngine: {re_stats['total_reasonings']} ragionamenti | {re_stats['strategies_count']} strategie | quality: {re_stats['avg_reasoning_quality']:.2f}"
+        )
     except Exception as e:
         print(f"⚠️  ReasoningEngine init: {e}")
 
@@ -1289,6 +1423,7 @@ async def lifespan(app: FastAPI):
     # === G4: OpenTelemetry Tracing ===
     try:
         from backend.core.tracing import init_tracing, tracing_stats
+
         otel_active = init_tracing()
         if otel_active:
             ts = tracing_stats()
@@ -1337,6 +1472,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_extra_cors_origins = [o.strip() for o in os.environ.get("VIO_EXTRA_CORS_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -1347,7 +1484,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:1420",
+        *_extra_cors_origins,
     ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Vio-Admin-Pin", "X-Requested-With", "Accept"],
@@ -1468,10 +1607,12 @@ async def structured_request_logger(request: Request, call_next):
         provided_pin = (request.headers.get(_ADMIN_PIN_HEADER, "") or "").strip()
         if provided_pin != admin_pin:
             return Response(
-                content=json.dumps({
-                    "detail": "Admin authentication required",
-                    "hint": f"Invia header {_ADMIN_PIN_HEADER}",
-                }),
+                content=json.dumps(
+                    {
+                        "detail": "Admin authentication required",
+                        "hint": f"Invia header {_ADMIN_PIN_HEADER}",
+                    }
+                ),
                 status_code=401,
                 media_type="application/json",
                 headers={"X-Request-ID": request_id},
@@ -1495,14 +1636,19 @@ async def structured_request_logger(request: Request, call_next):
 
     # Structured log (solo per endpoint significativi, skip assets statici)
     if not path.startswith(("/docs", "/openapi", "/favicon")):
-        _structured_logger.info(json.dumps({
-            "rid": request_id,
-            "method": request.method,
-            "path": path,
-            "status": response.status_code,
-            "ms": elapsed_ms,
-            "client": client_ip,
-        }, ensure_ascii=False))
+        _structured_logger.info(
+            json.dumps(
+                {
+                    "rid": request_id,
+                    "method": request.method,
+                    "path": path,
+                    "status": response.status_code,
+                    "ms": elapsed_ms,
+                    "client": client_ip,
+                },
+                ensure_ascii=False,
+            )
+        )
 
         ENTERPRISE_STRATEGY.write_audit_event(
             event_type="http_request",
@@ -1603,11 +1749,11 @@ async def api_auth_register(request: Request):
 
     # Auto-genera le VIO API keys per i provider del piano
     vault = get_key_vault()
-    allowed_providers = sub_mgr.get_allowed_providers(plan_id)
+    allowed_providers = sub_mgr.get_allowed_provrs(plan_id)
     keys = vault.generate_keys_for_user(
         user_id=user.user_id,
         email_hash=user.email_hash,
-        plan_providers=allowed_providers,
+        plan_provrs=allowed_providers,
     )
 
     return {
@@ -1724,11 +1870,8 @@ async def api_keys_regenerate(request: Request):
 
     # Verificare che il provider sia nel piano dell'utente
     sub_mgr = get_subscription_manager()
-    if not sub_mgr.can_use_provider(user.plan_id, provider):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Provider '{provider}' non incluso nel tuo piano ({user.plan_id})"
-        )
+    if not sub_mgr.can_use_provr(user.plan_id, provider):
+        raise HTTPException(status_code=403, detail=f"Provider '{provider}' non incluso nel tuo piano ({user.plan_id})")
 
     vault = get_key_vault()
     new_key = vault.regenerate_key(
@@ -1820,11 +1963,11 @@ async def api_subscription_upgrade(request: Request):
 
     # Rigenera chiavi per i nuovi provider
     vault = get_key_vault()
-    allowed = sub_mgr.get_allowed_providers(new_plan_id)
+    allowed = sub_mgr.get_allowed_provrs(new_plan_id)
     new_keys = vault.generate_keys_for_user(
         user_id=user.user_id,
         email_hash=user.email_hash,
-        plan_providers=allowed,
+        plan_provrs=allowed,
     )
 
     return {
@@ -1840,6 +1983,7 @@ async def api_subscription_upgrade(request: Request):
 # HEALTH
 # ═══════════════════════════════════════════════
 
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Stato di salute completo del sistema."""
@@ -1851,10 +1995,10 @@ async def health_check():
 
     providers = {
         "ollama": {
-        "available": ollama["available"],
-        "mode": "local",
-        "name": "Ollama (Locale)",
-        "models": ollama.get("models", []),
+            "available": ollama["available"],
+            "mode": "local",
+            "name": "Ollama (Locale)",
+            "models": ollama.get("models", []),
         },
         "policy": _get_orchestration_policy(),
     }
@@ -1906,7 +2050,11 @@ _CHAT_CONTEXT_MAX_MESSAGES = int(os.environ.get("VIO_CHAT_CONTEXT_MAX_MESSAGES",
 _CHAT_CONTEXT_MAX_CHARS = int(os.environ.get("VIO_CHAT_CONTEXT_MAX_CHARS", "14000"))
 
 
-def _trim_chat_messages(messages: list[dict[str, Any]], max_messages: int = _CHAT_CONTEXT_MAX_MESSAGES, max_chars: int = _CHAT_CONTEXT_MAX_CHARS) -> list[dict[str, Any]]:
+def _trim_chat_messages(
+    messages: list[dict[str, Any]],
+    max_messages: int = _CHAT_CONTEXT_MAX_MESSAGES,
+    max_chars: int = _CHAT_CONTEXT_MAX_CHARS,
+) -> list[dict[str, Any]]:
     """Mantiene solo la finestra recente di messaggi per ridurre latenza e token cost."""
     if len(messages) <= 1:
         return messages
@@ -1931,6 +2079,7 @@ def _trim_chat_messages(messages: list[dict[str, Any]], max_messages: int = _CHA
     selected.reverse()
     return selected
 
+
 def _build_vision_message(text: str, images: list) -> dict:
     """
     Costruisce un messaggio in formato OpenAI vision (multi-content).
@@ -1947,15 +2096,19 @@ def _build_vision_message(text: str, images: list) -> dict:
             else:
                 b64_data = data_url
                 mime = img.get("mime_type", "image/png")
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{mime};base64,{b64_data}", "detail": "high"},
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{b64_data}", "detail": "high"},
+                }
+            )
         elif img.get("url"):
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": img["url"], "detail": "high"},
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": img["url"], "detail": "high"},
+                }
+            )
     return {"role": "user", "content": content}
 
 
@@ -1999,6 +2152,7 @@ async def chat(http_request: Request, request: ChatRequest):
                     raise HTTPException(status_code=403, detail="Agent approval scaduta")
 
             from backend.openclaw.agent import run_agent
+
             registry = _get_plugin_registry()
             agent_result = await run_agent(
                 task=request.message,
@@ -2089,10 +2243,7 @@ async def chat(http_request: Request, request: ChatRequest):
 
         # Se c'è una conversazione, recupera il contesto
         if conv and conv.get("messages"):
-            messages = [
-                {"role": m["role"], "content": m["content"]}
-                for m in conv["messages"]
-            ]
+            messages = [{"role": m["role"], "content": m["content"]} for m in conv["messages"]]
             messages.append({"role": "user", "content": request.message})
 
         messages = _trim_chat_messages(messages)
@@ -2146,17 +2297,24 @@ async def chat(http_request: Request, request: ChatRequest):
         if not conv_id:
             title = auto_title_from_message(request.message)
             conv_data = create_conversation(title=title, mode=runtime_mode)
-            conv_id = conv_data["id"]
+            conv_id = str(conv_data["id"])
 
+        assert conv_id is not None
         add_message(conv_id, "user", request.message)
-        add_message(conv_id, "assistant", result["content"],
-                    provider=result["provider"], model=result["model"],
-                    tokens_used=result.get("tokens_used", 0),
-                    latency_ms=result.get("latency_ms", 0))
+        add_message(
+            conv_id,
+            "assistant",
+            result["content"],
+            provider=result["provider"],
+            model=result["model"],
+            tokens_used=result.get("tokens_used", 0),
+            latency_ms=result.get("latency_ms", 0),
+        )
 
         # Log metrica
         log_metric(
-            provider=result["provider"], model=result["model"],
+            provider=result["provider"],
+            model=result["model"],
             request_type=str(result.get("request_type", "general")),
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
@@ -2197,14 +2355,18 @@ async def chat(http_request: Request, request: ChatRequest):
 
         # ✈️  JetEngine™: salva risposta nel TurboCache semantico
         if not request.conversation_id and not request.system_prompt:
-            _jet.cache_store(request.message, request.model or "auto", {
-                "content": result["content"],
-                "provider": result["provider"],
-                "model": result["model"],
-                "tokens_used": result.get("tokens_used", 0),
-                "latency_ms": result.get("latency_ms", 0),
-                "request_type": result.get("request_type"),
-            })
+            _jet.cache_store(
+                request.message,
+                request.model or "auto",
+                {
+                    "content": result["content"],
+                    "provider": result["provider"],
+                    "model": result["model"],
+                    "tokens_used": result.get("tokens_used", 0),
+                    "latency_ms": result.get("latency_ms", 0),
+                    "request_type": result.get("request_type"),
+                },
+            )
 
         return chat_response
 
@@ -2212,16 +2374,20 @@ async def chat(http_request: Request, request: ChatRequest):
         raise
     except Exception as e:
         error_handler = get_error_handler()
-        error_handler.handle(e, context={
-            "endpoint": "/chat",
-            "mode": request.mode,
-            "provider": request.provider,
-            "model": request.model,
-        })
+        error_handler.handle(
+            e,
+            context={
+                "endpoint": "/chat",
+                "mode": request.mode,
+                "provider": request.provider,
+                "model": request.model,
+            },
+        )
         log_metric(
             provider="ollama",
             model=request.model or "unknown",
-            success=False, error_message=str(e),
+            success=False,
+            error_message=str(e),
         )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2229,6 +2395,7 @@ async def chat(http_request: Request, request: ChatRequest):
 # ═══════════════════════════════════════════════
 # CHAT — Streaming SSE
 # ═══════════════════════════════════════════════
+
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
@@ -2251,10 +2418,7 @@ async def chat_stream(request: ChatRequest):
     elif request.conversation_id:
         conv = get_conversation(request.conversation_id)
         if conv and conv.get("messages"):
-            messages = [
-                {"role": m["role"], "content": m["content"]}
-                for m in conv["messages"]
-            ]
+            messages = [{"role": m["role"], "content": m["content"]} for m in conv["messages"]]
             messages.append({"role": "user", "content": request.message})
 
     messages = _trim_chat_messages(messages)
@@ -2267,7 +2431,7 @@ async def chat_stream(request: ChatRequest):
     _fm_prepared = _fm.prepare(
         message=request.message,
         conversation_id=request.conversation_id,
-        history=[{"role":m["role"],"content":m["content"]} for m in messages] if len(messages) > 1 else None,
+        history=[{"role": m["role"], "content": m["content"]} for m in messages] if len(messages) > 1 else None,
         provider="ollama",
         intent="simple",
     )
@@ -2278,6 +2442,7 @@ async def chat_stream(request: ChatRequest):
     # Inietta system prompt SPECIALIZZATO per tipo di richiesta
     from backend.orchestrator.direct_router import classify_request as _classify
     from backend.orchestrator.system_prompt import build_local_system_prompt
+
     has_system = any(m.get("role") == "system" for m in messages)
     if not has_system:
         req_type = _classify(request.message)
@@ -2379,9 +2544,9 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {json.dumps({'token': '', 'done': True, 'full_content': full_content, 'latency_ms': latency, 'model': model, 'provider': effective_provider, 'conversation_id': conv_id})}\n\n"
 
             add_message(conv_id, "user", request.message)
-            add_message(conv_id, "assistant", full_content,
-                        provider=effective_provider, model=model,
-                        latency_ms=latency)
+            add_message(
+                conv_id, "assistant", full_content, provider=effective_provider, model=model, latency_ms=latency
+            )
             log_metric(effective_provider, model, tokens_used=0, latency_ms=latency)
             AUTONOMOUS_RUNTIME.record_chat_turn(
                 conversation_id=conv_id,
@@ -2394,12 +2559,16 @@ async def chat_stream(request: ChatRequest):
 
             # ✈️  JetEngine™: salva nel TurboCache semantico
             if not request.conversation_id and not request.system_prompt:
-                _jet.cache_store(request.message, model, {
-                    "content": full_content,
-                    "provider": effective_provider,
-                    "model": model,
-                    "latency_ms": latency,
-                })
+                _jet.cache_store(
+                    request.message,
+                    model,
+                    {
+                        "content": full_content,
+                        "provider": effective_provider,
+                        "model": model,
+                        "latency_ms": latency,
+                    },
+                )
 
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
@@ -2420,6 +2589,7 @@ async def chat_stream(request: ChatRequest):
 # JET ENGINE™ — Stats & Control endpoints
 # ═══════════════════════════════════════════════
 
+
 @app.get("/ultra/stats")
 async def ultra_stats():
     """JetEngine™ performance stats — velocità in tempo reale."""
@@ -2428,12 +2598,14 @@ async def ultra_stats():
     # Aggiungi info taxonomy
     try:
         from backend.core.knowledge_taxonomy import taxonomy_stats
+
         stats["taxonomy"] = taxonomy_stats()
     except Exception as e:
         stats["taxonomy"] = {"error": str(e)}
     # Aggiungi info ultra_engine (Piuma)
     try:
         from backend.core.ultra_engine import get_ultra_engine
+
         ue = get_ultra_engine()
         cache_obj = getattr(ue, "cache", None)
         cache_store = getattr(cache_obj, "_cache", {}) if cache_obj is not None else {}
@@ -2459,6 +2631,7 @@ async def ultra_stats():
         stats["hyper_compressor"] = {"error": str(e)}
     return {"status": "ok", "jet_engine": stats, "timestamp": time.time()}
 
+
 @app.post("/ultra/classify")
 async def ultra_classify(request: dict = Body(...)):
     """Classifica una query: intento, complessità, provider ottimale."""
@@ -2469,38 +2642,38 @@ async def ultra_classify(request: dict = Body(...)):
     decision = jet.dec(message=message, runtime_mode=request.get("mode", "hybrid"))
     try:
         from backend.core.knowledge_taxonomy import classify_text, get_optimal_config
+
         tax_results = classify_text(message, max_results=3)
-        tax_config  = get_optimal_config(message)
-        taxonomy_match = [
-            {"node_id": nid, "name": node.name_it, "score": sc}
-            for nid, node, sc in tax_results
-        ]
+        tax_config = get_optimal_config(message)
+        taxonomy_match = [{"node_id": nid, "name": node.name_it, "score": sc} for nid, node, sc in tax_results]
     except Exception:
         taxonomy_match = []
         tax_config = {}
     return {
         "complexity": {
-            "score":       decision.profile.score,
-            "intent":      decision.profile.intent,
-            "local_ok":    decision.profile.local_ok,
+            "score": decision.profile.score,
+            "intent": decision.profile.intent,
+            "local_ok": decision.profile.local_ok,
             "stream_prio": decision.profile.stream_prio,
-            "race_prio":   decision.profile.race_prio,
-            "tokens_est":  decision.profile.tokens_est,
+            "race_prio": decision.profile.race_prio,
+            "tokens_est": decision.profile.tokens_est,
         },
         "routing": {
             "provider": decision.routing.provider,
-            "model":    decision.routing.model,
-            "stream":   decision.routing.stream,
-            "race":     decision.routing.race,
-            "reason":   decision.routing.reason,
+            "model": decision.routing.model,
+            "stream": decision.routing.stream,
+            "race": decision.routing.race,
+            "reason": decision.routing.reason,
         },
         "cache_hit": decision.cache_hit,
-        "taxonomy":  taxonomy_match,
+        "taxonomy": taxonomy_match,
         "optimal_config": tax_config,
     }
 
+
 # CONVERSAZIONI
 # ═══════════════════════════════════════════════
+
 
 @app.get("/conversations")
 async def api_list_conversations(
@@ -2552,6 +2725,7 @@ async def api_archive_conversation(conv_id: str):
 # USER FEEDBACK (thumbs up/down)
 # ═══════════════════════════════════════════════
 
+
 @app.post("/feedback")
 async def api_user_feedback(
     provider: str = Body(...),
@@ -2565,6 +2739,7 @@ async def api_user_feedback(
     """
     try:
         from backend.core.self_optimizer import get_self_optimizer
+
         optimizer = get_self_optimizer()
         optimizer.record_user_feedback(provider, model, thumbs_up)
         return {
@@ -2582,6 +2757,7 @@ async def api_user_feedback(
 # CLASSIFY
 # ═══════════════════════════════════════════════
 
+
 @app.post("/classify", response_model=ClassifyResponse)
 async def classify(request: ClassifyRequest):
     """Classifica il tipo di richiesta per il routing intelligente."""
@@ -2589,7 +2765,7 @@ async def classify(request: ClassifyRequest):
 
     return ClassifyResponse(
         request_type=req_type,
-        suggested_provider="ollama",
+        suggested_provr="ollama",
         confidence=0.85,
     )
 
@@ -2597,6 +2773,7 @@ async def classify(request: ClassifyRequest):
 # ═══════════════════════════════════════════════
 # OLLAMA MANAGEMENT
 # ═══════════════════════════════════════════════
+
 
 @app.get("/ollama/status")
 async def api_ollama_status():
@@ -2617,27 +2794,32 @@ async def api_ollama_models():
 # AUTO-LEARNING ENGINES STATUS
 # ═══════════════════════════════════════════════
 
+
 @app.get("/intelligence/status")
 async def intelligence_status():
     """Stato dei motori auto-crescenti: learning, optimization, knowledge, reasoning."""
     result = {}
     try:
         from backend.core.auto_learner import get_auto_learner
+
         result["auto_learner"] = get_auto_learner().get_quality_stats()
     except Exception as e:
         result["auto_learner"] = {"error": str(e)}
     try:
         from backend.core.self_optimizer import get_self_optimizer
+
         result["self_optimizer"] = get_self_optimizer().get_stats()
     except Exception as e:
         result["self_optimizer"] = {"error": str(e)}
     try:
         from backend.core.world_knowledge import get_world_knowledge
+
         result["world_knowledge"] = get_world_knowledge().get_stats()
     except Exception as e:
         result["world_knowledge"] = {"error": str(e)}
     try:
         from backend.core.reasoning_engine import get_reasoning_engine
+
         result["reasoning_engine"] = get_reasoning_engine().get_stats()
     except Exception as e:
         result["reasoning_engine"] = {"error": str(e)}
@@ -2727,6 +2909,7 @@ async def reasoning_multistep(payload: dict = Body(...)):
 # PROVIDERS
 # ═══════════════════════════════════════════════
 
+
 @app.get("/providers")
 async def list_providers():
     """Lista provider runtime effettivi — rispetta VIO_NO_HYBRID da .env."""
@@ -2797,6 +2980,7 @@ async def api_orchestration_elite_stacks():
 # ═══════════════════════════════════════════════
 # CUSTOMER, STRATEGY, COMPLIANCE FOUNDATION
 # ═══════════════════════════════════════════════
+
 
 @app.get("/strategy/positioning")
 async def strategy_positioning():
@@ -3030,7 +3214,7 @@ async def compliance_set_tenant_policy(payload: dict = Body(...)):
             tenant_id=str(payload.get("tenant_id", "")),
             policy_preset=str(payload.get("policy_preset", "generic_eu")),
             jurisdiction=str(payload.get("jurisdiction", "eu")),
-            data_residency=str(payload.get("data_residency", "eu-only")),
+            data_resncy=str(payload.get("data_residency", "eu-only")),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -3165,6 +3349,7 @@ async def api_set_orchestration_profile(
 # METRICHE
 # ═══════════════════════════════════════════════
 
+
 @app.get("/metrics")
 async def api_metrics(days: int = Query(30, ge=1, le=365)):
     """Metriche e analytics degli ultimi N giorni."""
@@ -3174,6 +3359,7 @@ async def api_metrics(days: int = Query(30, ge=1, le=365)):
 # ═══════════════════════════════════════════════
 # SETTINGS
 # ═══════════════════════════════════════════════
+
 
 @app.get("/settings")
 async def api_get_settings():
@@ -3198,6 +3384,7 @@ async def api_set_setting(key: str, request: Request, value: str | None = None):
 # RAG (opzionale)
 # ═══════════════════════════════════════════════
 
+
 @app.post("/rag/add")
 async def rag_add_source(request: RAGAddRequest):
     """Aggiungi fonte certificata al database RAG via VectorEngine™."""
@@ -3217,6 +3404,7 @@ async def rag_add_source(request: RAGAddRequest):
         "reliability_score": request.reliability_score,
     }
     import hashlib as _hl
+
     doc_id = _hl.sha256(doc_content.encode()).hexdigest()[:16]
     success = ve.add_document(doc_id, doc_content, metadata=metadata)
     return {"doc_id": doc_id, "status": "added" if success else "failed"}
@@ -3256,6 +3444,7 @@ async def rag_stats():
 # KNOWLEDGE BASE v2 — Biblioteca Digitale Completa
 # ═══════════════════════════════════════════════
 
+
 @app.get("/kb/stats")
 async def kb_stats():
     """Statistiche Knowledge Base — biblioteca digitale."""
@@ -3281,8 +3470,11 @@ async def kb_ingest_text(
         raise HTTPException(status_code=503, detail="Knowledge Base non disponibile")
     kb = get_knowledge_base()
     chunk_count = kb.ingest_text(
-        text=text, title=title, author=author,
-        source_type=source_type, reliability=reliability,
+        text=text,
+        title=title,
+        author=author,
+        source_type=source_type,
+        reliability=reliability,
     )
     return {"status": "ok", "chunks_created": chunk_count, "title": title}
 
@@ -3327,8 +3519,7 @@ async def kb_ingest_directory(
     if not os.path.isdir(directory):
         raise HTTPException(status_code=404, detail=f"Directory non trovata: {directory}")
     kb = get_knowledge_base()
-    docs = kb.ingest_directory(directory, recursive=recursive,
-                                source_type=source_type, reliability=reliability)
+    docs = kb.ingest_directory(directory, recursive=recursive, source_type=source_type, reliability=reliability)
     return {
         "status": "ok",
         "files_processed": len([d for d in docs if d.status == "success"]),
@@ -3336,9 +3527,7 @@ async def kb_ingest_directory(
         "total_chunks": sum(d.chunk_count for d in docs),
         "total_words": sum(d.word_count for d in docs),
         "details": [
-            {"filename": d.filename, "status": d.status,
-             "chunks": d.chunk_count, "error": d.error}
-            for d in docs
+            {"filename": d.filename, "status": d.status, "chunks": d.chunk_count, "error": d.error} for d in docs
         ],
     }
 
@@ -3355,8 +3544,10 @@ async def kb_query(
         raise HTTPException(status_code=503, detail="Knowledge Base non disponibile")
     kb = get_knowledge_base()
     results = kb.query(
-        question=question, n_results=n_results,
-        min_reliability=min_reliability, domain_filter=domain_filter,
+        question=question,
+        n_results=n_results,
+        min_reliability=min_reliability,
+        domain_filter=domain_filter,
     )
     return {"query": question, "results": results, "count": len(results)}
 
@@ -3382,6 +3573,7 @@ async def kb_build_context(
 # CLAUDE DESKTOP INTEGRATION
 # ═══════════════════════════════════════════════
 
+
 @app.get("/claude/extensions")
 async def api_claude_extensions():
     """Rileva estensioni MCP installate in Claude Desktop (macOS)."""
@@ -3399,16 +3591,18 @@ async def api_claude_extensions():
             for _ext_id, data in raw.get("extensions", {}).items():
                 manifest = data.get("manifest", {})
                 tools = manifest.get("tools", [])
-                extensions.append({
-                    "id": data.get("id", _ext_id),
-                    "name": manifest.get("display_name") or manifest.get("name") or _ext_id,
-                    "version": data.get("version"),
-                    "description": manifest.get("description", ""),
-                    "tool_count": len(tools),
-                    "tools": [t.get("name") for t in tools[:12]],
-                    "installed_at": data.get("installedAt"),
-                    "source": data.get("source", "registry"),
-                })
+                extensions.append(
+                    {
+                        "id": data.get("id", _ext_id),
+                        "name": manifest.get("display_name") or manifest.get("name") or _ext_id,
+                        "version": data.get("version"),
+                        "description": manifest.get("description", ""),
+                        "tool_count": len(tools),
+                        "tools": [t.get("name") for t in tools[:12]],
+                        "installed_at": data.get("installedAt"),
+                        "source": data.get("source", "registry"),
+                    }
+                )
         except Exception as e:
             return {"status": "error", "error": str(e), "extensions": [], "preferences": {}}
 
@@ -3511,6 +3705,7 @@ async def api_claude_activity_summary():
 # GLOBAL VERIFIED KNOWLEDGE STACK
 # ═══════════════════════════════════════════════
 
+
 @app.get("/knowledge/registry")
 async def api_knowledge_registry():
     """Catalogo domini ultra-specializzati con fonti certificate e tracciamento globale."""
@@ -3590,7 +3785,9 @@ async def api_set_knowledge_scheduler(
     """Aggiorna intervallo scheduler auto-refresh (in ore)."""
     KNOWLEDGE_POLICY_STATE["refresh_interval_hours"] = int(refresh_interval_hours)
     KNOWLEDGE_POLICY_STATE["last_policy_update_at"] = _now_iso()
-    KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(time.time() + int(refresh_interval_hours) * 3600.0)
+    KNOWLEDGE_POLICY_STATE["next_scheduled_refresh_at"] = _iso_from_epoch(
+        time.time() + int(refresh_interval_hours) * 3600.0
+    )
     return {
         "status": "ok",
         "refresh_interval_hours": KNOWLEDGE_POLICY_STATE["refresh_interval_hours"],
@@ -3616,6 +3813,7 @@ async def api_set_knowledge_policy(
 # ═══════════════════════════════════════════════
 # CORE INFRASTRUCTURE — Cache, Network, Security
 # ═══════════════════════════════════════════════
+
 
 @app.get("/core/cache/stats")
 async def api_cache_stats():
@@ -3651,7 +3849,7 @@ async def api_network_stats():
 async def api_provider_health(provider: str):
     """Health check specifico per un provider."""
     pool = get_connection_pool()
-    return pool.get_provider_health(provider)
+    return pool.get_provr_health(provider)
 
 
 @app.get("/core/errors/stats")
@@ -3702,6 +3900,7 @@ async def api_core_status():
 # ═══════════════════════════════════════════════
 # RUNTIME APPS — ANALYSIS / CONFIG / ACTIONS
 # ═══════════════════════════════════════════════
+
 
 @app.get("/runtime/apps/analysis")
 async def api_runtime_apps_analysis():
@@ -3789,10 +3988,12 @@ async def api_runtime_autopilot_config(payload: dict[str, Any] = Body(...)):
         min_free_val = _safe_float(payload.get("min_free_gb"), OPS_AUTOPILOT_STATE["min_free_gb"])
         OPS_AUTOPILOT_STATE["min_free_gb"] = max(5.0, min(512.0, min_free_val))
 
-    _write_project_env_updates({
-        "VIO_AUTOPILOT_INTERVAL_SEC": str(int(OPS_AUTOPILOT_STATE["interval_seconds"])),
-        "VIO_AUTOPILOT_MIN_FREE_GB": str(float(OPS_AUTOPILOT_STATE["min_free_gb"])),
-    })
+    _write_project_env_updates(
+        {
+            "VIO_AUTOPILOT_INTERVAL_SEC": str(int(OPS_AUTOPILOT_STATE["interval_seconds"])),
+            "VIO_AUTOPILOT_MIN_FREE_GB": str(float(OPS_AUTOPILOT_STATE["min_free_gb"])),
+        }
+    )
 
     return {
         "status": "ok",
@@ -3814,6 +4015,7 @@ async def api_runtime_autopilot_tick(force_reclaim: bool = Query(False)):
 # ═══════════════════════════════════════════════
 # AUTONOMOUS RUNTIME — Trigger, Memory, Session Namespace
 # ═══════════════════════════════════════════════
+
 
 @app.get("/autonomy/status")
 async def api_autonomy_status():
@@ -3914,7 +4116,8 @@ async def api_autonomy_config(payload: dict[str, Any] = Body(...)):
 # PLUGIN / MCP ENDPOINTS
 # ═══════════════════════════════════════════════
 
-from backend.plugins.registry import get_registry as _get_plugin_registry
+from backend.plugins.registry import get_registry as _get_plugin_registry  # noqa: E402
+
 
 @app.get("/plugins")
 async def list_plugins():
@@ -3974,6 +4177,7 @@ async def get_tools_context():
 # VOICE & VISION ENDPOINTS
 # ═══════════════════════════════════════════════
 
+
 @app.post("/voice/transcribe")
 async def voice_transcribe(request: Request):
     """
@@ -4005,6 +4209,7 @@ async def voice_tts(request: Request):
 
     # Pulisci il testo per TTS: rimuovi markdown, code blocks, link
     import re
+
     clean = text
     clean = re.sub(r"```[\s\S]*?```", " codice omesso ", clean)
     clean = re.sub(r"`[^`]+`", "", clean)
@@ -4106,7 +4311,7 @@ async def vision_analyze(request: Request):
 
     raise HTTPException(
         status_code=503,
-        detail="Nessun provider vision disponibile. Configura una API key cloud (Claude, GPT-4, Gemini) o installa llava su Ollama."
+        detail="Nessun provider vision disponibile. Configura una API key cloud (Claude, GPT-4, Gemini) o installa llava su Ollama.",
     )
 
 
@@ -4135,9 +4340,13 @@ async def vision_capabilities():
     env_map = _read_project_env_map()
     available_providers = []
     for p in _VISION_PROVIDERS:
-        key_map = {"claude": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY",
-                    "gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY",
-                    "openrouter": "OPENROUTER_API_KEY"}
+        key_map = {
+            "claude": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }
         key_name = key_map.get(p, "")
         if env_map.get(key_name, os.environ.get(key_name, "")):
             available_providers.append(p)
@@ -4164,6 +4373,7 @@ async def vision_capabilities():
 # OPENCLAW AGENT RUNTIME
 # ═══════════════════════════════════════════════
 
+
 @app.post("/openclaw/run")
 async def openclaw_run(request: Request):
     """
@@ -4171,6 +4381,7 @@ async def openclaw_run(request: Request):
     The agent loops: AI → tool call → result → AI → ... → final answer.
     """
     from backend.openclaw.agent import run_agent
+
     body = await request.json()
     task = body.get("task", "").strip()
     if not task:
@@ -4282,6 +4493,7 @@ async def openclaw_approval_decide(approval_id: str, payload: dict = Body(...)):
 async def openclaw_capabilities():
     """Return OpenClaw agent capabilities and loaded tools."""
     from backend.openclaw.agent import get_agent_capabilities
+
     registry = _get_plugin_registry()
     caps = get_agent_capabilities(registry)
     caps["approval_required"] = _AGENT_APPROVAL_REQUIRED
@@ -4347,7 +4559,9 @@ async def vertical_legal_eu_demo(payload: dict = Body(...)):
         policy_preset=tenant_policy.get("policy_preset", "legal"),
         tenant_policy=tenant_policy,
     )
-    guardrail = ENTERPRISE_STRATEGY.enforce_plan_guardrails(plan_id=plan_id, mode=decision["effective"]["mode"], max_tokens=4096)
+    guardrail = ENTERPRISE_STRATEGY.enforce_plan_guardrails(
+        plan_id=plan_id, mode=decision["effective"]["mode"], max_tokens=4096
+    )
 
     ENTERPRISE_STRATEGY.write_audit_event(
         event_type="legal_eu_demo_executed",
@@ -4379,6 +4593,7 @@ async def vertical_legal_eu_demo(payload: dict = Body(...)):
 async def openclaw_health():
     """Health check for OpenClaw agent runtime (built-in, always healthy)."""
     from backend.openclaw.agent import get_agent_capabilities
+
     registry = _get_plugin_registry()
     caps = get_agent_capabilities(registry)
     return {
@@ -4407,6 +4622,7 @@ async def legalroom_health():
 # ═══════════════════════════════════════════════
 # SEO & GROWTH ANALYTICS ENDPOINTS
 # ═══════════════════════════════════════════════
+
 
 @app.post("/growth/run-cycle")
 async def api_growth_run_cycle():
@@ -4492,10 +4708,7 @@ async def api_sponsor_cohorts():
 
 
 @app.get("/sponsor/ltv")
-async def api_sponsor_ltv(
-    avg_monthly: float = Query(5.0, ge=0.1),
-    lifespan_months: int = Query(12, ge=1, le=60)
-):
+async def api_sponsor_ltv(avg_monthly: float = Query(5.0, ge=0.1), lifespan_months: int = Query(12, ge=1, le=60)):
     """Calculate sponsor Lifetime Value."""
     try:
         ltv = estimate_ltv(avg_monthly, lifespan_months)
@@ -4522,9 +4735,7 @@ async def api_sponsor_health():
 
 @app.post("/sponsor/track/visitor")
 async def api_sponsor_track_visitor(
-    user_id: str = Body(...),
-    source: str = Body("organic"),
-    utm_params: dict = Body(None)
+    user_id: str = Body(...), source: str = Body("organic"), utm_params: dict = Body(None)
 ):
     """Track a new visitor in sponsor funnel."""
     try:
@@ -4538,10 +4749,7 @@ async def api_sponsor_track_visitor(
 
 
 @app.post("/sponsor/track/subscriber")
-async def api_sponsor_track_subscriber(
-    user_id: str = Body(...),
-    email: str = Body(...)
-):
+async def api_sponsor_track_subscriber(user_id: str = Body(...), email: str = Body(...)):
     """Track email subscriber in sponsor funnel."""
     try:
         event = track_subscriber(user_id, email)
@@ -4555,10 +4763,7 @@ async def api_sponsor_track_subscriber(
 
 @app.post("/sponsor/track/paid")
 async def api_sponsor_track_paid(
-    user_id: str = Body(...),
-    tier: str = Body("silver"),
-    amount: float = Body(5.0),
-    interval: str = Body("monthly")
+    user_id: str = Body(...), tier: str = Body("silver"), amount: float = Body(5.0), interval: str = Body("monthly")
 ):
     """Track paying sponsor."""
     try:
@@ -4572,10 +4777,7 @@ async def api_sponsor_track_paid(
 
 
 @app.post("/sponsor/track/churn")
-async def api_sponsor_track_churn(
-    user_id: str = Body(...),
-    reason: str = Body("unknown")
-):
+async def api_sponsor_track_churn(user_id: str = Body(...), reason: str = Body("unknown")):
     """Track churned sponsor."""
     try:
         event = track_churn(user_id, reason)
@@ -4594,7 +4796,7 @@ async def api_billing_webhook_stripe(request: Request):
     sig_header = request.headers.get("stripe-signature", "")
     # Prefer project .env to avoid stale shell/session env values during local resets.
     env_map = _read_project_env_map()
-    webhook_secret = (env_map.get("STRIPE_WEBHOOK_SECRET") or os.environ.get("STRIPE_WEBHOOK_SECRET", "")).strip()
+    webhook_secret = str(env_map.get("STRIPE_WEBHOOK_SECRET") or os.environ.get("STRIPE_WEBHOOK_SECRET", "")).strip()
 
     if not webhook_secret:
         raise HTTPException(status_code=503, detail="STRIPE_WEBHOOK_SECRET not configured")
@@ -4611,14 +4813,17 @@ async def api_billing_webhook_stripe(request: Request):
     event_id = str(event.get("id", ""))
     created_ts = event.get("created")
 
-    _append_jsonl(BILLING_EVENTS_FILE, {
-        "received_at": datetime.now(timezone.utc).isoformat(),
-        "event_id": event_id,
-        "event_type": event_type,
-        "created": created_ts,
-        "livemode": bool(event.get("livemode", False)),
-        "data": event.get("data", {}),
-    })
+    _append_jsonl(
+        BILLING_EVENTS_FILE,
+        {
+            "received_at": datetime.now(timezone.utc).isoformat(),
+            "event_id": event_id,
+            "event_type": event_type,
+            "created": created_ts,
+            "livemode": bool(event.get("livemode", False)),
+            "data": event.get("data", {}),
+        },
+    )
 
     _structured_logger.info(f"Stripe webhook received: type={event_type} id={event_id}")
     return {"status": "ok", "received": True, "event_type": event_type, "event_id": event_id}
@@ -4656,10 +4861,10 @@ _INVESTOR_CRM_FILE = PROJECT_ROOT / "docs" / "investors" / "investor_crm.json"
 _INVESTOR_CRM_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
-def _load_crm() -> dict:
+def _load_crm() -> dict[str, Any]:
     if not _INVESTOR_CRM_FILE.exists():
         return {"pipeline": [], "_meta": {}}
-    return json.loads(_INVESTOR_CRM_FILE.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(_INVESTOR_CRM_FILE.read_text(encoding="utf-8")))
 
 
 def _save_crm(data: dict) -> None:
@@ -4698,12 +4903,25 @@ async def update_investor_status(investor_id: str, request: Request):
     Body JSON: {"status": "contacted", "last_contact": "2026-04-01", "interest_level": "high", "notes": "..."}
     Status validi: to_contact | contacted | follow_up | meeting_set | rejected | funded
     """
-    VALID_STATUSES = {"to_contact", "contacted", "follow_up", "meeting_set", "rejected", "funded",
-                      "to_apply", "applied", "to_setup", "to_create_profile", "to_launch"}
+    VALID_STATUSES = {
+        "to_contact",
+        "contacted",
+        "follow_up",
+        "meeting_set",
+        "rejected",
+        "funded",
+        "to_apply",
+        "applied",
+        "to_setup",
+        "to_create_profile",
+        "to_launch",
+    }
     body = await request.json()
     new_status = body.get("status")
     if new_status and new_status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail=f"Status non valido: {new_status}. Validi: {sorted(VALID_STATUSES)}")
+        raise HTTPException(
+            status_code=422, detail=f"Status non valido: {new_status}. Validi: {sorted(VALID_STATUSES)}"
+        )
     crm = _load_crm()
     updated = False
     for inv in crm.get("pipeline", []):
@@ -4745,6 +4963,7 @@ async def investor_funnel():
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("LITELLM_PROXY_PORT", 4000))
     print(f"🎵 Avvio VIO 83 AI ORCHESTRA v2 su porta {port}...")
     uvicorn.run(app, host="0.0.0.0", port=port)  # nosec B104

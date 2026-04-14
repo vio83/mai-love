@@ -137,9 +137,9 @@ _STOPWORDS: Dict[str, Set[str]] = {
         "questa", "questi", "queste", "quello", "quella", "quelli", "quelle",
         "sono", "essere", "avere", "fare", "dire", "potere", "volere", "dovere",
         "stato", "stata", "stati", "state", "ho", "hai", "ha", "abbiamo",
-        "hanno", "era", "sono", "sei", "siamo", "siete", "pi\xf9", "molto",
+        "hanno", "era", "sei", "siamo", "siete", "pi\xf9", "molto",
         "tutto", "tutti", "ogni", "suo", "sua", "suoi", "sue", "mio", "mia",
-        "nostro", "loro", "quando", "dove", "perch\xe9", "come", "se", "chi",
+        "nostro", "loro", "quando", "dove", "perch\xe9", "se", "chi",
     },
     "es": {
         "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del",
@@ -424,7 +424,7 @@ class NLTKNLP:
         """NER con NLTK ne_chunk."""
         entities: List[Entity] = []
         try:
-            from nltk import word_tokenize, pos_tag, ne_chunk
+            from nltk import ne_chunk, pos_tag, word_tokenize
             from nltk.tree import Tree
 
             tokens = word_tokenize(text)
@@ -453,8 +453,8 @@ class NLTKNLP:
         """TF-IDF-like con NLTK stopwords."""
         try:
             from nltk.corpus import stopwords as nltk_stopwords
-            from nltk.tokenize import word_tokenize
             from nltk.stem import PorterStemmer
+            from nltk.tokenize import word_tokenize
 
             lang_map = {"en": "english", "it": "italian", "es": "spanish",
                         "fr": "french", "de": "german", "pt": "portuguese"}
@@ -501,7 +501,7 @@ class NLTKNLP:
         sent_score, sent_label = self._regex_nlp.sentiment(cleaned)
 
         try:
-            from nltk.tokenize import word_tokenize, sent_tokenize
+            from nltk.tokenize import sent_tokenize, word_tokenize
             word_count = len(word_tokenize(cleaned))
             sent_count = len(sent_tokenize(cleaned))
         except Exception:

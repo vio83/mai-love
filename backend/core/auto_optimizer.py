@@ -33,12 +33,12 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Deque, Dict, List, Optional
-import threading
 
 logger = logging.getLogger("auto_optimizer")
 

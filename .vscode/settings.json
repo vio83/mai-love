@@ -55,11 +55,6 @@
   "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true,
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
-    "editor.formatOnSave": true,
-    "editor.tabSize": 4
-  },
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.cargo.features": "all",
   "rust-analyzer.inlayHints.typeHints.enable": true,
@@ -831,5 +826,19 @@
     "typescript": true,
     "typescriptreact": true,
     "rust": true
+  },
+  "ruff.enable": true,
+  "ruff.lint.enable": true,
+  "ruff.fixAll": true,
+  "ruff.organizeImports": true,
+  "ruff.configurationPreference": "filesystemFirst",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
   }
 }

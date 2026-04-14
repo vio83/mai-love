@@ -14,12 +14,12 @@ Gestione sicura delle credenziali e configurazione:
 - Encryption: Obfuscazione chiavi in memoria
 """
 
+import logging
 import os
 import re
 import time
-import logging
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger("vio83.security")
 

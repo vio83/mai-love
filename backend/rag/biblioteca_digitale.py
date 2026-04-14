@@ -83,12 +83,11 @@ STRUTTURA:
 import os
 import re
 import sqlite3
-import uuid
 import time
-from typing import Optional
-from dataclasses import dataclass
+import uuid
 from contextlib import contextmanager
-
+from dataclasses import dataclass
+from typing import Optional
 
 # ============================================================
 # CONFIGURAZIONE

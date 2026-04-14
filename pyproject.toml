@@ -30,3 +30,26 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "S"]
 ignore = ["S101", "S307"]
+
+[tool.ruff.lint.per-file-ignores]
+# Embedded HTML/CSS/JS in web UI servers — long lines are inherent
+"brace-v3/webui*.py" = ["E501"]
+"brace-v3/prototipo_web_advanced.py" = ["E501"]
+"brace-v3/webui_glassmorphic_elite.py" = ["E501"]
+# PROGETTI FA: prototype/exploratory code with relaxed linting
+"brace-v3/PROGETTI FA/**/*.py" = ["E501", "E402", "E722", "F841", "S310", "S603", "S607", "S108", "B007", "B905"]
+# Notebooks have cell-level imports and exploratory code
+"brace-v3/**/*.ipynb" = ["E401", "E402", "E501", "F401", "F811", "F541", "I001", "B007", "B905", "S108", "S310"]
+# Backend: suppress audit/style warnings that are legitimate patterns
+# E501: long SQL, URLs, log messages — backend uses 120 limit but has embedded strings
+# S110/S112: resilient try/except pass/continue — backend must not crash on partial failures
+# S310: urllib.request needed for API calls to AI providers
+# S603/S607: subprocess for automation scripts (ollama, system tools)
+# S608: parameterized SQLite queries (no user input injection)
+# S311: random for IDs/jitter, not cryptographic use
+# S324: md5/sha1 for checksums/fingerprints, not security
+# S104/S105/S108: dev defaults (bind-all, temp files, example passwords)
+# S314: XML parsing for RSS/feeds
+# B008: FastAPI Depends() and Query() in function signatures
+# B904: raise-without-from — code style, not a bug; deferred to future refactor
+"backend/**/*.py" = ["E501", "S110", "S112", "S310", "S311", "S324", "S603", "S607", "S608", "S104", "S105", "S108", "S314", "B008", "B904"]

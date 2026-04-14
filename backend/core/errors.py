@@ -13,12 +13,12 @@ Gestione errori robusta con:
 - Error recovery strategies
 """
 
-import time
 import logging
+import time
 import traceback
-from enum import Enum
-from typing import Any, Optional, Callable
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger("vio83.errors")
 

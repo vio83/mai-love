@@ -37,18 +37,18 @@ INSTALLAZIONE:
   python3 -m backend.rag.mac_auto_distiller uninstall
 """
 
+import argparse
+import hashlib
+import json
+import logging
 import os
+import signal
+import sqlite3
+import subprocess
 import sys
 import time
-import json
-import signal
-import hashlib
-import sqlite3
-import logging
-import argparse
-import subprocess
-from datetime import datetime
 from contextlib import contextmanager
+from datetime import datetime
 
 # ============================================================
 # PATH SETUP
@@ -58,11 +58,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.rag.harvest_state import (
-    HarvestStateDB, setup_logger, DATA_DIR, LOG_DIR
-)
-from backend.rag.knowledge_distiller import (
-    Level1_Metadata, get_distilled_db,
+from backend.rag.harvest_state import DATA_DIR, LOG_DIR, HarvestStateDB, setup_logger  # noqa: E402
+from backend.rag.knowledge_distiller import (  # noqa: E402
+    Level1_Metadata,
+    get_distilled_db,
 )
 
 # ============================================================
@@ -158,17 +157,14 @@ EXT_CATEGORIES = {
     ".bz2": "archivi", ".7z": "archivi", ".rar": "archivi",
     ".log": "dati", ".toml": "dati", ".ini": "dati",
     ".cfg": "dati", ".conf": "dati", ".env": "dati",
-    ".plist": "dati", ".properties": "dati",
-    ".rtf": "documenti", ".odt": "documenti",
-    ".mobi": "libri", ".xhtml": "fonti_online",
+    ".plist": "dati", ".properties": "dati", ".xhtml": "fonti_online",
     ".odp": "documenti", ".ods": "dati",
     ".less": "informatica", ".fish": "informatica",
     ".jl": "informatica", ".lua": "informatica", ".php": "informatica",
-    ".kts": "informatica", ".hpp": "informatica",
+    ".kts": "informatica",
     ".m4a": "media", ".aac": "media",
-    ".webm": "media", ".flac": "media",
+    ".webm": "media",
     ".sqlite": "dati", ".db": "dati",
-    ".tsx": "informatica", ".jsx": "informatica",
 }
 
 
@@ -227,8 +223,8 @@ class FSEventsWatcher:
     def _try_watchdog(self) -> bool:
         """Prova a usare watchdog per FSEvents nativi (più efficiente)."""
         try:
-            from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler
+            from watchdog.observers import Observer
 
             class Handler(FileSystemEventHandler):
                 def __init__(self, watcher):
@@ -539,7 +535,7 @@ class AutoDistillerDaemon:
 
                 ext = os.path.splitext(fpath)[1].lower()
                 fname = os.path.basename(fpath)
-                doc_id = hashlib.md5(fpath.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
+                doc_id = hashlib.md5(fpath.encode(), usedforsecurity=False).hexdigest()[:16]
 
                 # Trova la directory di contesto
                 parts = fpath.split(os.sep)
@@ -746,9 +742,9 @@ def install_daemon():
     print(f"✅ LaunchAgent installato: {PLIST_PATH}")
     print(f"   Config: {CONFIG_FILE}")
     print(f"   Log: {LOG_DIR}")
-    print(f"\n   Per avviare: python3 -m backend.rag.mac_auto_distiller start")
+    print("\n   Per avviare: python3 -m backend.rag.mac_auto_distiller start")
     print(f"   Oppure: launchctl load {PLIST_PATH}")
-    print(f"\n   Si avvierà automaticamente ad ogni login!")
+    print("\n   Si avvierà automaticamente ad ogni login!")
 
 
 def uninstall_daemon():
@@ -851,19 +847,19 @@ def show_status():
     try:
         db = get_distilled_db()
         stats = db.stats()
-        print(f"\n📊 Database Knowledge:")
+        print("\n📊 Database Knowledge:")
         print(f"   Documenti totali:   {stats['livello_1_metadati']:,}")
         print(f"   Con embedding:      {stats['livello_2_embedding']:,}")
         print(f"   Con riassunto:      {stats['livello_3_riassunti']:,}")
         print(f"   Dimensione DB:      {stats['db_size_MB']:.1f} MB")
 
         if stats.get("per_fonte"):
-            print(f"\n   Per fonte:")
+            print("\n   Per fonte:")
             for fonte, n in sorted(stats["per_fonte"].items(), key=lambda x: -x[1]):
                 print(f"     {fonte}: {n:,}")
 
         if stats.get("per_categoria"):
-            print(f"\n   Per categoria:")
+            print("\n   Per categoria:")
             for cat, n in sorted(stats["per_categoria"].items(), key=lambda x: -x[1])[:10]:
                 print(f"     {cat}: {n:,}")
     except Exception as e:
@@ -873,13 +869,13 @@ def show_status():
     try:
         pm = ProcessMonitor()
         pm_stats = pm.stats()
-        print(f"\n📡 Process Monitor:")
+        print("\n📡 Process Monitor:")
         print(f"   Snapshot totali:    {pm_stats['total_snapshots']:,}")
         print(f"   Processi unici:     {pm_stats['unique_processes']:,}")
 
         top = pm.get_top_apps(24)
         if top:
-            print(f"\n   Top app (ultime 24h):")
+            print("\n   Top app (ultime 24h):")
             for app in top[:5]:
                 print(f"     {app['name']}: {app['avg_cpu']:.1f}% CPU ({app['samples']} samples)")
     except Exception:
@@ -890,7 +886,7 @@ def show_status():
         try:
             with open(CONFIG_FILE) as f:
                 config = json.load(f)
-            print(f"\n⚙️  Configurazione:")
+            print("\n⚙️  Configurazione:")
             print(f"   Directory monitorate: {len(config.get('watch_dirs', []))}")
             for d in config.get("watch_dirs", []):
                 print(f"     {d}")
@@ -905,7 +901,7 @@ def show_status():
             with open(log_file) as f:
                 lines = f.readlines()
             last_lines = lines[-5:] if len(lines) > 5 else lines
-            print(f"\n📋 Ultimi log:")
+            print("\n📋 Ultimi log:")
             for line in last_lines:
                 print(f"   {line.rstrip()}")
         except Exception:

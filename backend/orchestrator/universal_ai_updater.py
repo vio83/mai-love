@@ -14,19 +14,19 @@ MOTORE UNIVERSALE DI AUTO-AGGIORNAMENTO PERMANENTE:
 ✅ Permanente via LaunchAgent macOS — PER SEMPRE
 """
 
-import os
-import sys
-import json
-import time
 import hashlib
+import json
 import logging
+import os
 import sqlite3
 import subprocess
-import urllib.request
+import sys
+import time
 import urllib.error
+import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
 
 # Aggiungi project root al path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

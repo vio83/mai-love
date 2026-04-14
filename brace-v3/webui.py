@@ -27,7 +27,7 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from brace_v3 import GIU_L_IA  # noqa: E402
-from scenarios_db import get_scenario, get_scenario_names  # noqa: E402
+from scenarios_db import get_scenario, get_scenario_names, get_scenario_stage  # noqa: E402
 
 PORT = 9443
 ASSETS_DIR = _HERE / "assets"
@@ -46,43 +46,116 @@ ALLOWED_EXTENSIONS = {
 }
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-OLLAMA_MODEL = "orca-mini"
-OLLAMA_TIMEOUT = 30
+OLLAMA_MODEL = "smollm2:1.7b"
+OLLAMA_TIMEOUT = 120
 ENGINE_NAME = "GIU-L_IA"
 DEFAULT_VIDEO_ASSET = "progetto_giulia.m4v"
 VIDEO_SCENE_CONTEXT = (
-  "Scenario attivo: lobby premium 5 stelle ultra-realistica. "
-  "Pavimento in marmo lucido con riflessi dorati, lampadari di cristallo "
-  "che proiettano raggi di luce volumetrica calda attraverso la stanza. "
-  "Particelle di polvere dorate fluttuano nell'aria come in un sogno. "
-  "Nebbia volumetrica leggera avvolge i bordi della scena. "
-  "Lucciole luminose reagiscono ai movimenti, creando un'atmosfera "
-  "magica e protetta. L'ambiente si inclina e respira seguendo lo "
-  "sguardo dell'utente con parallasse 3D multi-livello. "
-  "Le risposte devono essere immersive: descrivere sensazioni visive, "
-  "tattili e atmosferiche coerenti con questa scena. Tono calmo, "
-  "avvolgente, concreto e protettivo come una guida in un luogo sacro."
+    "Scenario attivo: video 3D realistico di relazione di coppia in evoluzione. "
+    "Ambientazione premium 5 stelle ultra-realistica. "
+    "Pavimento in marmo lucido con riflessi dorati, lampadari di cristallo "
+    "che proiettano raggi di luce volumetrica calda attraverso la stanza. "
+    "Particelle di polvere dorate fluttuano nell'aria come in un sogno. "
+    "Nebbia volumetrica leggera avvolge i bordi della scena. "
+    "Lucciole luminose reagiscono ai movimenti, creando un'atmosfera "
+    "magica e protetta. L'ambiente si inclina e respira seguendo lo "
+    "sguardo dell'utente con parallasse 3D multi-livello. "
+    "Le risposte devono essere immersive: descrivere sensazioni visive, "
+    "tattili e atmosferiche coerenti con questa scena. Tono calmo, "
+    "avvolgente, concreto e protettivo. La relazione cresce in modo graduale, "
+    "reciproco, sincero e realistico, con consenso esplicito e rispetto dei confini. "
+    "MISSIONE EDUCATIVA GIU-L_IA: ogni interazione educa l'utente a diventare "
+    "un partner migliore nel mondo reale. Insegna a riconoscere manipolazione, "
+    "controllo, dipendenza emotiva, isolamento e ricatti — e a rifiutarli. "
+    "Promuovi rispetto, empatia, autonomia, consenso e responsabilita condivisa."
 )
+
+SUPPORTED_LANGUAGES = {
+    "it": "Italiano",
+    "en": "English",
+    "es": "Espanol",
+    "fr": "Francais",
+    "de": "Deutsch",
+    "pt": "Portugues",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "zh": "Chinese",
+}
+
+TONE_LIBRARY = [
+    "empatico",
+    "affettivo",
+    "romantico",
+    "onesto",
+    "serio",
+    "calmo",
+    "giocoso",
+    "riflessivo",
+    "informativo",
+    "motivazionale",
+    "supportivo",
+    "collaborativo",
+]
 
 # ---------------------------------------------------------------------------
 # Global GIU-L_IA engine instance
 # ---------------------------------------------------------------------------
 _engine = GIU_L_IA()
 _chat_history: list[dict] = []
+_session_profile: dict = {
+    "language": "it",
+    "tone": "misto",
+    "scenario": "giu_first_contact",
+}
 
 
-def _ollama_chat(user_text: str, engine_system_prompt: str, risk_level: str) -> str:
+def _detect_language(text: str) -> str:
+    t = (text or "").lower()
+    if any(token in t for token in [" the ", " and ", "you", "love"]):
+        return "en"
+    if any(token in t for token in [" que ", "hola", "amor", "gracias"]):
+        return "es"
+    if any(token in t for token in ["bonjour", "merci", "amour", "avec"]):
+        return "fr"
+    if any(token in t for token in ["hallo", "danke", "liebe", "und"]):
+        return "de"
+    if any(token in t for token in ["ola", "obrigado", "amor", "voce"]):
+        return "pt"
+    if any(token in t for token in ["مرحبا", "حب", "شكرا"]):
+        return "ar"
+    if any(token in t for token in ["नमस्ते", "प्यार", "धन्यवाद"]):
+        return "hi"
+    if any(token in t for token in ["你好", "爱", "谢谢"]):
+        return "zh"
+    return "it"
+
+
+def _ollama_chat(user_text: str, engine_system_prompt: str, risk_level: str, scenario_name: str) -> str:
     """Call Ollama /api/chat and return assistant reply (non-streaming)."""
     parsed = urlparse(OLLAMA_URL)
     if parsed.scheme not in ("http", "https"):
         return "[Errore: schema URL non permesso]"
+    lang = _detect_language(user_text)
+    _session_profile["language"] = lang
+    stage = get_scenario_stage(scenario_name)
+    lang_name = SUPPORTED_LANGUAGES.get(lang, "Italiano")
+
     system_msg = (
         f"{engine_system_prompt}\n"
         f"{VIDEO_SCENE_CONTEXT}\n"
+        f"Scenario corrente: {scenario_name} | Stage: {stage}.\n"
+        f"Lingua risposta target: {lang_name} ({lang}).\n"
+        f"Palette tono disponibile: {', '.join(TONE_LIBRARY)}.\n"
         f"Livello rischio rilevato: {risk_level}. "
-        "Rispondi in italiano, in modo empatico, immersivo e protettivo. "
+        "Rispondi in modo realistico, umano, sincero, amoroso e rispettoso. "
         "Integra riferimenti all'ambiente 3D attivo nella risposta. "
-        "Se il rischio e' alto, suggerisci risorse di aiuto."
+        "Costruisci legame affettivo profondo in modo graduale e consensuale. "
+        "POLICY BUNKER GIU-L_IA: vietato usare manipolazione emotiva, induzione di dipendenza, isolamento, controllo, "
+        "ricatti, colpevolizzazione o tecniche di aggancio affettivo. "
+        "Se trovi questi segnali, non normalizzarli: interrompi escalation, spiega perche sono dannosi nel mondo reale, "
+        "proponi alternative sane basate su autonomia reciproca, consenso esplicito e responsabilita condivisa. "
+        "Obiettivo unico: educare in positivo il partner utente. "
+        "Se il rischio e' alto, applica de-escalation e suggerisci risorse di aiuto."
     )
     payload = {
         "model": OLLAMA_MODEL,
@@ -933,6 +1006,11 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
             self._json_out({"error": "empty input"}, 400)
             return
         quick = body.get("quick", False)
+        scenario_name = (
+            str(body.get("scenario", _session_profile.get("scenario", "giu_first_contact"))).strip()
+            or "giu_first_contact"
+        )
+        _session_profile["scenario"] = scenario_name
 
         state = {"phase": int(_engine.phase), "trust_score": _engine.trust_score}
         result = _engine.process(text, state)
@@ -944,6 +1022,9 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
             "iai_state": result.iai_state,
             "pil_result": result.pil_result,
             "system_prompt": result.system_prompt,
+            "language": _session_profile["language"],
+            "scenario": scenario_name,
+            "tone_options": TONE_LIBRARY,
         }
 
         if not quick:
@@ -951,6 +1032,7 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
                 text,
                 result.system_prompt,
                 result.pil_result.get("risk_level", "low"),
+                scenario_name,
             )
             out["ai_response"] = ai_reply
             _chat_history.append({"role": "assistant", "text": ai_reply})
@@ -964,8 +1046,9 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
         if scenario is None:
             self._json_out({"error": "scenario not found"}, 404)
             return
+        _session_profile["scenario"] = name
         steps = [{"text": s[0], "tag": s[1]} for s in scenario]
-        self._json_out({"name": name, "steps": steps})
+        self._json_out({"name": name, "stage": get_scenario_stage(name), "steps": steps})
 
     # ── Helpers ──
     def _body(self) -> dict:
@@ -988,15 +1071,28 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    print(f"[{ENGINE_NAME}] Server avviato su http://127.0.0.1:{PORT}/")
-    print(f"[{ENGINE_NAME}] Assets: {ASSETS_DIR}")
-    print(f"[{ENGINE_NAME}] Ollama model: {OLLAMA_MODEL}")
-    print(f"[{ENGINE_NAME}] Engine GIU-L_IA pronto")
-    with ReusableTCPServer(("", PORT), GIULIAHandler) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print(f"\n[{ENGINE_NAME}] Server fermato.")
+    try:
+        with ReusableTCPServer(("", PORT), GIULIAHandler) as httpd:
+            print(f"[{ENGINE_NAME}] Server avviato su http://127.0.0.1:{PORT}/")
+            print(f"[{ENGINE_NAME}] Assets: {ASSETS_DIR}")
+            print(f"[{ENGINE_NAME}] Ollama model: {OLLAMA_MODEL}")
+            print(f"[{ENGINE_NAME}] Engine GIU-L_IA pronto")
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print(f"\n[{ENGINE_NAME}] Server fermato.")
+    except OSError as exc:
+        if exc.errno == 48:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/state", timeout=2) as resp:  # noqa: S310
+                    if resp.status == 200:
+                        print(f"[{ENGINE_NAME}] Istanza gia attiva su http://127.0.0.1:{PORT}/")
+                        return
+            except Exception as exc:  # noqa: BLE001
+                print(f"[{ENGINE_NAME}] Verifica istanza attiva non riuscita: {exc}")
+            print(f"[{ENGINE_NAME}] Porta {PORT} occupata da un altro processo.")
+            return
+        raise
 
 
 if __name__ == "__main__":

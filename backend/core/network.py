@@ -18,11 +18,11 @@ States: CLOSED → OPEN → HALF_OPEN → CLOSED
 """
 
 import asyncio
-import time
 import logging
+import time
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Optional
-from dataclasses import dataclass
 
 logger = logging.getLogger("vio83.network")
 

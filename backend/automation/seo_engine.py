@@ -20,9 +20,9 @@ Features:
 import asyncio
 import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -196,9 +196,9 @@ def _load_growth_history(days: int = 90) -> List[dict]:
                     entry_date = datetime.fromisoformat(entry["date"])
                     if entry_date >= cutoff:
                         history.append(entry)
-                except:
+                except Exception:
                     continue
-    except:
+    except Exception:
         pass
 
     return history

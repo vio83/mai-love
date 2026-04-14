@@ -41,18 +41,17 @@ Un libro di 300 pagine puo' essere distillato in:
   per scopi di retrieval, classificazione e risposta.
 """
 
+import hashlib
+import json
 import os
 import re
-import json
-import time
-import struct
 import sqlite3
-import hashlib
+import struct
+import time
 import zlib
-from typing import Optional
-from dataclasses import dataclass, field
 from contextlib import contextmanager
-
+from dataclasses import dataclass, field
+from typing import Optional
 
 # ============================================================
 # CONFIGURAZIONE
@@ -69,9 +68,11 @@ MAX_KNOWLEDGE_DB_MB_DEFAULT = 500
 # DATACLASSES PER I 5 LIVELLI
 # ============================================================
 
+
 @dataclass
 class Level1_Metadata:
     """Livello 1: Metadati puri (~400 bytes/doc)."""
+
     doc_id: str = ""
     titolo: str = ""
     autore: str = ""
@@ -79,33 +80,35 @@ class Level1_Metadata:
     lingua: str = "en"
     categoria: str = ""
     sotto_disciplina: str = ""
-    fonte_tipo: str = ""        # book, article, thesis, archive, online
+    fonte_tipo: str = ""  # book, article, thesis, archive, online
     isbn: str = ""
     doi: str = ""
     issn: str = ""
     editore: str = ""
-    parole_chiave: str = ""     # comma-separated, max 10
+    parole_chiave: str = ""  # comma-separated, max 10
     affidabilita: float = 0.5
     peer_reviewed: bool = False
-    fonte_origine: str = ""     # openalex, crossref, gutenberg, arxiv, etc.
+    fonte_origine: str = ""  # openalex, crossref, gutenberg, arxiv, etc.
     url_fonte: str = ""
 
 
 @dataclass
 class Level2_Embedding:
     """Livello 2: Embedding compresso (~384 bytes/doc)."""
+
     doc_id: str = ""
-    vector_int8: bytes = b""    # 384 bytes: vettore 384-dim quantizzato int8
-    model_name: str = ""        # nome modello usato per embedding
-    norm: float = 0.0           # norma originale (per de-quantizzazione)
+    vector_int8: bytes = b""  # 384 bytes: vettore 384-dim quantizzato int8
+    model_name: str = ""  # nome modello usato per embedding
+    norm: float = 0.0  # norma originale (per de-quantizzazione)
 
 
 @dataclass
 class Level3_Summary:
     """Livello 3: Riassunto distillato (~500 bytes/doc)."""
+
     doc_id: str = ""
-    abstract: str = ""          # max 500 chars
-    concetti_chiave: str = ""   # top 5-10 concetti, comma-separated
+    abstract: str = ""  # max 500 chars
+    concetti_chiave: str = ""  # top 5-10 concetti, comma-separated
     dominio_primario: str = ""
     dominio_secondario: str = ""
     rilevanza_score: float = 0.0
@@ -114,15 +117,17 @@ class Level3_Summary:
 @dataclass
 class Level4_KnowledgeGraph:
     """Livello 4: Knowledge Graph (~200 bytes/doc)."""
+
     doc_id: str = ""
-    entita: str = ""            # JSON compresso: [{name, type}]
-    relazioni: str = ""         # JSON compresso: [{subj, pred, obj}]
-    concetti: str = ""          # top concetti come stringa
+    entita: str = ""  # JSON compresso: [{name, type}]
+    relazioni: str = ""  # JSON compresso: [{subj, pred, obj}]
+    concetti: str = ""  # top concetti come stringa
 
 
 @dataclass
 class DistilledDocument:
     """Documento distillato completo (tutti i livelli)."""
+
     metadata: Level1_Metadata = field(default_factory=Level1_Metadata)
     embedding: Optional[Level2_Embedding] = None
     summary: Optional[Level3_Summary] = None
@@ -133,6 +138,7 @@ class DistilledDocument:
 # ============================================================
 # QUANTIZZAZIONE EMBEDDING (float32 → int8 = 4x compressione)
 # ============================================================
+
 
 class EmbeddingQuantizer:
     """
@@ -188,18 +194,19 @@ class EmbeddingQuantizer:
         va = struct.unpack(f"{len(a)}b", a)
         vb = struct.unpack(f"{len(b)}b", b)
 
-        dot = sum(x * y for x, y in zip(va, vb))
+        dot = sum(x * y for x, y in zip(va, vb, strict=False))
         norm_a = sum(x * x for x in va) ** 0.5
         norm_b = sum(x * x for x in vb) ** 0.5
 
         if norm_a == 0 or norm_b == 0:
             return 0.0
-        return dot / (norm_a * norm_b)
+        return float(dot / (norm_a * norm_b))
 
 
 # ============================================================
 # KNOWLEDGE GRAPH EXTRACTOR (leggero, senza dipendenze)
 # ============================================================
+
 
 class LightweightKGExtractor:
     """
@@ -211,14 +218,16 @@ class LightweightKGExtractor:
     """
 
     # Pattern per nomi propri (iniziale maiuscola, non a inizio frase)
-    _NOME_PROPRIO = re.compile(r'(?<=[.!?]\s)[A-Z][a-z]+(?:\s[A-Z][a-z]+)*|'
-                                r'(?<=\s)[A-Z][a-z]+(?:\s[A-Z][a-z]+)+')
+    _NOME_PROPRIO = re.compile(
+        r"(?<=[.!?]\s)[A-Z][a-z]+(?:\s[A-Z][a-z]+)*|"
+        r"(?<=\s)[A-Z][a-z]+(?:\s[A-Z][a-z]+)+"
+    )
 
     # Pattern per anni
-    _ANNO = re.compile(r'\b(1[0-9]{3}|20[0-2][0-9])\b')
+    _ANNO = re.compile(r"\b(1[0-9]{3}|20[0-2][0-9])\b")
 
     # Pattern per termini tecnici (parole composte con trattino o camelCase)
-    _TERMINE_TECNICO = re.compile(r'\b[a-z]+[-][a-z]+\b|\b[a-z]+[A-Z][a-z]+\b')
+    _TERMINE_TECNICO = re.compile(r"\b[a-z]+[-][a-z]+\b|\b[a-z]+[A-Z][a-z]+\b")
 
     @classmethod
     def extract_entities(cls, text: str, max_entities: int = 10) -> list[dict]:
@@ -247,15 +256,59 @@ class LightweightKGExtractor:
         """Estrae concetti chiave (parole piu frequenti non-stop)."""
         # Stop words multilingua minimali
         stop = {
-            "il", "lo", "la", "le", "gli", "un", "una", "di", "da", "in", "su",
-            "per", "con", "tra", "fra", "che", "non", "del", "della", "dei",
-            "the", "a", "an", "of", "in", "to", "for", "and", "or", "is", "are",
-            "was", "were", "be", "been", "with", "from", "by", "at", "on", "as",
-            "this", "that", "it", "its", "has", "have", "had", "but", "not",
+            "il",
+            "lo",
+            "la",
+            "le",
+            "gli",
+            "un",
+            "una",
+            "di",
+            "da",
+            "in",
+            "su",
+            "per",
+            "con",
+            "tra",
+            "fra",
+            "che",
+            "non",
+            "del",
+            "della",
+            "dei",
+            "the",
+            "a",
+            "an",
+            "of",
+            "to",
+            "for",
+            "and",
+            "or",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "with",
+            "from",
+            "by",
+            "at",
+            "on",
+            "as",
+            "this",
+            "that",
+            "it",
+            "its",
+            "has",
+            "have",
+            "had",
+            "but",
+            "not",
         }
 
-        words = re.findall(r'\b[a-zA-Z\u00C0-\u024F]{4,}\b', text.lower())
-        freq = {}
+        words = re.findall(r"\b[a-zA-Z\u00C0-\u024F]{4,}\b", text.lower())
+        freq: dict[str, int] = {}
         for w in words:
             if w not in stop:
                 freq[w] = freq.get(w, 0) + 1
@@ -285,6 +338,7 @@ class LightweightKGExtractor:
 # TEXT SUMMARIZER (leggero, senza LLM)
 # ============================================================
 
+
 class ExtractiveSummarizer:
     """
     Riassunto estrattivo leggero:
@@ -300,22 +354,22 @@ class ExtractiveSummarizer:
             return text
 
         # Split in frasi
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r"[.!?]+", text)
         sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
 
         if not sentences:
             return text[:max_chars]
 
         # Calcola frequenza parole (TF semplificato)
-        all_words = re.findall(r'\b\w{3,}\b', text.lower())
-        word_freq = {}
+        all_words = re.findall(r"\b\w{3,}\b", text.lower())
+        word_freq: dict[str, int] = {}
         for w in all_words:
             word_freq[w] = word_freq.get(w, 0) + 1
 
         # Score per frase
         scored = []
         for i, sent in enumerate(sentences):
-            words = re.findall(r'\b\w{3,}\b', sent.lower())
+            words = re.findall(r"\b\w{3,}\b", sent.lower())
             if not words:
                 continue
             score = sum(word_freq.get(w, 0) for w in words) / len(words)
@@ -328,7 +382,7 @@ class ExtractiveSummarizer:
         scored.sort(key=lambda x: -x[0])
         result = []
         total_len = 0
-        for score, sent in scored:
+        for _score, sent in scored:
             if total_len + len(sent) + 2 > max_chars:
                 break
             result.append(sent)
@@ -346,6 +400,7 @@ class ExtractiveSummarizer:
 # DISTILLED KNOWLEDGE DATABASE
 # ============================================================
 
+
 class DistilledKnowledgeDB:
     """
     Database ottimizzato per conoscenza distillata.
@@ -357,7 +412,9 @@ class DistilledKnowledgeDB:
 
     def __init__(self, db_path: str = ""):
         self.db_path = db_path or DISTILLED_DB
-        max_mb = float(os.environ.get("VIO_MAX_KNOWLEDGE_DB_MB", str(MAX_KNOWLEDGE_DB_MB_DEFAULT)) or MAX_KNOWLEDGE_DB_MB_DEFAULT)
+        max_mb = float(
+            os.environ.get("VIO_MAX_KNOWLEDGE_DB_MB", str(MAX_KNOWLEDGE_DB_MB_DEFAULT)) or MAX_KNOWLEDGE_DB_MB_DEFAULT
+        )
         self.max_db_size_bytes = max(50 * 1024 * 1024, int(max_mb * 1024 * 1024))
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
@@ -374,7 +431,7 @@ class DistilledKnowledgeDB:
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA cache_size=-128000")  # 128MB cache
         conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
-        conn.execute("PRAGMA page_size=8192")       # 8KB pages (ottimale per SSD)
+        conn.execute("PRAGMA page_size=8192")  # 8KB pages (ottimale per SSD)
         try:
             yield conn
             conn.commit()
@@ -582,21 +639,36 @@ class DistilledKnowledgeDB:
             now = time.time()
 
             # --- Livello 1: Metadati ---
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO l1_metadata
                 (doc_id, titolo, autore, anno, lingua, categoria,
                  sotto_disciplina, fonte_tipo, isbn, doi, issn,
                  editore, parole_chiave, affidabilita, peer_reviewed,
                  fonte_origine, url_fonte, data_distillazione)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                doc_id, metadata.titolo, metadata.autore, metadata.anno,
-                metadata.lingua, metadata.categoria, metadata.sotto_disciplina,
-                metadata.fonte_tipo, metadata.isbn, metadata.doi, metadata.issn,
-                metadata.editore, metadata.parole_chiave, metadata.affidabilita,
-                1 if metadata.peer_reviewed else 0,
-                metadata.fonte_origine, metadata.url_fonte, now,
-            ))
+            """,
+                (
+                    doc_id,
+                    metadata.titolo,
+                    metadata.autore,
+                    metadata.anno,
+                    metadata.lingua,
+                    metadata.categoria,
+                    metadata.sotto_disciplina,
+                    metadata.fonte_tipo,
+                    metadata.isbn,
+                    metadata.doi,
+                    metadata.issn,
+                    metadata.editore,
+                    metadata.parole_chiave,
+                    metadata.affidabilita,
+                    1 if metadata.peer_reviewed else 0,
+                    metadata.fonte_origine,
+                    metadata.url_fonte,
+                    now,
+                ),
+            )
 
             # --- Livello 2: Embedding compresso ---
             if embedding_vector:
@@ -609,11 +681,14 @@ class DistilledKnowledgeDB:
                 )
                 result.embedding = emb
                 # Salva riferimento (embedding binario in file separato per efficienza)
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO l2_embeddings
                     (doc_id, shard_file, offset_bytes, vector_size, norm, model_name)
                     VALUES (?, '', 0, ?, ?, 'int8_quantized')
-                """, (doc_id, len(packed), norm))
+                """,
+                    (doc_id, len(packed), norm),
+                )
 
             # --- Livello 3: Riassunto distillato ---
             if text:
@@ -622,6 +697,7 @@ class DistilledKnowledgeDB:
 
                 # Classifica dominio
                 from backend.rag.knowledge_base import classify_domain
+
                 domains = classify_domain(text)
                 dom1 = domains[0][0] if len(domains) > 0 else ""
                 dom2 = domains[1][0] if len(domains) > 1 else ""
@@ -636,13 +712,15 @@ class DistilledKnowledgeDB:
                 )
                 result.summary = summary
 
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO l3_summaries
                     (doc_id, abstract, concetti_chiave,
                      dominio_primario, dominio_secondario, rilevanza_score)
                     VALUES (?,?,?,?,?,?)
-                """, (doc_id, abstract, ",".join(concepts),
-                      dom1, dom2, summary.rilevanza_score))
+                """,
+                    (doc_id, abstract, ",".join(concepts), dom1, dom2, summary.rilevanza_score),
+                )
 
             # --- Livello 4: Knowledge Graph ---
             if text:
@@ -650,11 +728,14 @@ class DistilledKnowledgeDB:
                 kg.doc_id = doc_id
                 result.knowledge_graph = kg
 
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO l4_knowledge_graph
                     (doc_id, entita, relazioni, concetti)
                     VALUES (?,?,?,?)
-                """, (doc_id, kg.entita, kg.relazioni, kg.concetti))
+                """,
+                    (doc_id, kg.entita, kg.relazioni, kg.concetti),
+                )
 
             # --- Livello 5: Testo completo (opzionale) ---
             if keep_fulltext and text:
@@ -664,25 +745,33 @@ class DistilledKnowledgeDB:
                     f.write(compressed)
                 result.has_fulltext = True
 
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO l5_fulltext
                     (doc_id, file_path, byte_size, compressed, word_count)
                     VALUES (?,?,?,1,?)
-                """, (doc_id, file_path, len(compressed), len(text.split())))
+                """,
+                    (doc_id, file_path, len(compressed), len(text.split())),
+                )
 
             # --- Aggiorna FTS ---
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO distilled_fts
                 (doc_id, titolo, autore, parole_chiave,
                  abstract, concetti_chiave, categoria)
                 VALUES (?,?,?,?,?,?,?)
-            """, (
-                doc_id, metadata.titolo, metadata.autore,
-                metadata.parole_chiave,
-                result.summary.abstract if result.summary else "",
-                result.summary.concetti_chiave if result.summary else "",
-                metadata.categoria,
-            ))
+            """,
+                (
+                    doc_id,
+                    metadata.titolo,
+                    metadata.autore,
+                    metadata.parole_chiave,
+                    result.summary.abstract if result.summary else "",
+                    result.summary.concetti_chiave if result.summary else "",
+                    metadata.categoria,
+                ),
+            )
 
         self._enforce_storage_budget()
         return result
@@ -694,38 +783,58 @@ class DistilledKnowledgeDB:
         Velocissimo: ~100K docs/secondo.
         """
         if not metadata.doc_id:
-            metadata.doc_id = hashlib.md5(
-                f"{metadata.titolo}:{metadata.autore}:{metadata.anno}".encode()
-            ).hexdigest()[:16]
+            metadata.doc_id = hashlib.md5(f"{metadata.titolo}:{metadata.autore}:{metadata.anno}".encode()).hexdigest()[
+                :16
+            ]
 
         with self._conn() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR IGNORE INTO l1_metadata
                 (doc_id, titolo, autore, anno, lingua, categoria,
                  sotto_disciplina, fonte_tipo, isbn, doi, issn,
                  editore, parole_chiave, affidabilita, peer_reviewed,
                  fonte_origine, url_fonte, data_distillazione)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                metadata.doc_id, metadata.titolo, metadata.autore,
-                metadata.anno, metadata.lingua, metadata.categoria,
-                metadata.sotto_disciplina, metadata.fonte_tipo,
-                metadata.isbn, metadata.doi, metadata.issn,
-                metadata.editore, metadata.parole_chiave,
-                metadata.affidabilita, 1 if metadata.peer_reviewed else 0,
-                metadata.fonte_origine, metadata.url_fonte, time.time(),
-            ))
+            """,
+                (
+                    metadata.doc_id,
+                    metadata.titolo,
+                    metadata.autore,
+                    metadata.anno,
+                    metadata.lingua,
+                    metadata.categoria,
+                    metadata.sotto_disciplina,
+                    metadata.fonte_tipo,
+                    metadata.isbn,
+                    metadata.doi,
+                    metadata.issn,
+                    metadata.editore,
+                    metadata.parole_chiave,
+                    metadata.affidabilita,
+                    1 if metadata.peer_reviewed else 0,
+                    metadata.fonte_origine,
+                    metadata.url_fonte,
+                    time.time(),
+                ),
+            )
 
             # FTS minimo
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR IGNORE INTO distilled_fts
                 (doc_id, titolo, autore, parole_chiave,
                  abstract, concetti_chiave, categoria)
                 VALUES (?,?,?,?,'','',?)
-            """, (
-                metadata.doc_id, metadata.titolo, metadata.autore,
-                metadata.parole_chiave, metadata.categoria,
-            ))
+            """,
+                (
+                    metadata.doc_id,
+                    metadata.titolo,
+                    metadata.autore,
+                    metadata.parole_chiave,
+                    metadata.categoria,
+                ),
+            )
 
         self._enforce_storage_budget()
         return metadata.doc_id
@@ -739,31 +848,48 @@ class DistilledKnowledgeDB:
         with self._conn() as conn:
             for m in batch:
                 if not m.doc_id:
-                    m.doc_id = hashlib.md5(
-                        f"{m.titolo}:{m.autore}:{m.anno}".encode()
-                    ).hexdigest()[:16]
+                    m.doc_id = hashlib.md5(f"{m.titolo}:{m.autore}:{m.anno}".encode()).hexdigest()[:16]
 
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR IGNORE INTO l1_metadata
                     (doc_id, titolo, autore, anno, lingua, categoria,
                      sotto_disciplina, fonte_tipo, isbn, doi, issn,
                      editore, parole_chiave, affidabilita, peer_reviewed,
                      fonte_origine, url_fonte, data_distillazione)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (
-                    m.doc_id, m.titolo, m.autore, m.anno, m.lingua,
-                    m.categoria, m.sotto_disciplina, m.fonte_tipo,
-                    m.isbn, m.doi, m.issn, m.editore, m.parole_chiave,
-                    m.affidabilita, 1 if m.peer_reviewed else 0,
-                    m.fonte_origine, m.url_fonte, time.time(),
-                ))
+                """,
+                    (
+                        m.doc_id,
+                        m.titolo,
+                        m.autore,
+                        m.anno,
+                        m.lingua,
+                        m.categoria,
+                        m.sotto_disciplina,
+                        m.fonte_tipo,
+                        m.isbn,
+                        m.doi,
+                        m.issn,
+                        m.editore,
+                        m.parole_chiave,
+                        m.affidabilita,
+                        1 if m.peer_reviewed else 0,
+                        m.fonte_origine,
+                        m.url_fonte,
+                        time.time(),
+                    ),
+                )
 
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR IGNORE INTO distilled_fts
                     (doc_id, titolo, autore, parole_chiave,
                      abstract, concetti_chiave, categoria)
                     VALUES (?,?,?,?,'','',?)
-                """, (m.doc_id, m.titolo, m.autore, m.parole_chiave, m.categoria))
+                """,
+                    (m.doc_id, m.titolo, m.autore, m.parole_chiave, m.categoria),
+                )
 
                 count += 1
             self._enforce_storage_budget()
@@ -785,7 +911,7 @@ class DistilledKnowledgeDB:
     ) -> list[dict]:
         """Ricerca FTS5 + filtri sui dati distillati."""
         with self._conn() as conn:
-            safe_q = re.sub(r'[^\w\s]', ' ', query)
+            safe_q = re.sub(r"[^\w\s]", " ", query)
             terms = [w for w in safe_q.split() if len(w) > 2]
             if not terms:
                 return []
@@ -827,10 +953,7 @@ class DistilledKnowledgeDB:
     def get_fulltext(self, doc_id: str) -> Optional[str]:
         """Recupera testo completo (livello 5) se disponibile."""
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT file_path, compressed FROM l5_fulltext WHERE doc_id = ?",
-                (doc_id,)
-            ).fetchone()
+            row = conn.execute("SELECT file_path, compressed FROM l5_fulltext WHERE doc_id = ?", (doc_id,)).fetchone()
             if not row:
                 return None
             file_path = row["file_path"]
@@ -857,20 +980,17 @@ class DistilledKnowledgeDB:
 
             # Per fonte
             fonti = conn.execute(
-                "SELECT fonte_origine, COUNT(*) as n FROM l1_metadata "
-                "GROUP BY fonte_origine ORDER BY n DESC"
+                "SELECT fonte_origine, COUNT(*) as n FROM l1_metadata GROUP BY fonte_origine ORDER BY n DESC"
             ).fetchall()
 
             # Per categoria
             cats = conn.execute(
-                "SELECT categoria, COUNT(*) as n FROM l1_metadata "
-                "GROUP BY categoria ORDER BY n DESC"
+                "SELECT categoria, COUNT(*) as n FROM l1_metadata GROUP BY categoria ORDER BY n DESC"
             ).fetchall()
 
             # Per lingua
             lingue = conn.execute(
-                "SELECT lingua, COUNT(*) as n FROM l1_metadata "
-                "GROUP BY lingua ORDER BY n DESC LIMIT 20"
+                "SELECT lingua, COUNT(*) as n FROM l1_metadata GROUP BY lingua ORDER BY n DESC LIMIT 20"
             ).fetchall()
 
             # Stima spazio su disco

@@ -17,10 +17,10 @@ Pattern: Semaphore-bounded async parallelism
 """
 
 import asyncio
-import time
 import logging
-from typing import Any, Callable, Optional, TypeVar
+import time
 from dataclasses import dataclass
+from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger("vio83.parallel")
 

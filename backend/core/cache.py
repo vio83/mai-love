@@ -18,15 +18,15 @@ Features:
 - Serializzazione automatica JSON
 """
 
-import os
-import json
-import time
 import hashlib
+import json
+import os
 import sqlite3
 import threading
+import time
 from collections import OrderedDict
-from typing import Any, Optional, Callable
 from functools import wraps
+from typing import Any, Callable, Optional
 
 
 class L1MemoryCache:
@@ -295,7 +295,8 @@ def get_cache(data_dir: str = "./data") -> CacheEngine:
         import sqlite3 as _sq
         _c = _sq.connect(_test_path, timeout=2)
         _c.execute("CREATE TABLE IF NOT EXISTS _t (x)")
-        _c.commit(); _c.close()
+        _c.commit()
+        _c.close()
         os.remove(_test_path)
     except Exception:
         data_dir = "/tmp/vio83_cache"

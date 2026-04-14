@@ -38,7 +38,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-
 # ─── Costanti ────────────────────────────────────────────────────────
 
 VIO_KEY_PREFIX = "vio83"

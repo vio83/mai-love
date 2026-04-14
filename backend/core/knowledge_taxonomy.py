@@ -31,7 +31,6 @@ Dati reali, completi, verificati — Marzo 2026.
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-
 # ─────────────────────────────────────────────────────────────
 # STRUTTURA DATI TASSONOMIA
 # ─────────────────────────────────────────────────────────────

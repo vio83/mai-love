@@ -9,36 +9,36 @@ Gestisce chiamate dirette a Ollama e provider cloud via HTTP.
 Non dipende da LiteLLM — funziona con Python 3.14.
 """
 
-import re
-import os
-import time
-import json
 import asyncio
+import json
 import logging
+import os
 import random
-from typing import Optional, AsyncGenerator
-from urllib.request import Request, urlopen
+import re
+import time
+from typing import Any, AsyncGenerator, Optional
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-from backend.core.tracing import traced_span
 from backend.config.providers import (
     CLOUD_PROVRS,
     FREE_CLOUD_PROVRS,
     REQUEST_TYPE_ROUTING,
 )
+from backend.core.tracing import traced_span
 
 # Per chiamate async HTTP usiamo aiohttp se disponibile, altrimenti asyncio
 try:
     import httpx
+
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
-    logging.getLogger(__name__).warning(
-        "httpx non disponibile — fallback a urllib (prestazioni ridotte in async)"
-    )
+    logging.getLogger(__name__).warning("httpx non disponibile — fallback a urllib (prestazioni ridotte in async)")
 
 try:
     import aiohttp
+
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -47,28 +47,27 @@ except ImportError:
 # === SYSTEM PROMPT CERTIFICATO VIO 83 ===
 # Importato dal modulo dedicato (versione completa con tutti i campi)
 
-from backend.orchestrator.system_prompt import (
-    VIO83_MASTER_PROMPT,
-    build_system_prompt,
-    build_local_system_prompt,
-)
-
 # === AUTO-LEARNING + SELF-OPTIMIZATION + REASONING ENGINES ===
 from backend.core.auto_learner import get_auto_learner
-from backend.core.self_optimizer import get_self_optimizer
-from backend.core.world_knowledge import get_world_knowledge
-from backend.core.reasoning_engine import get_reasoning_engine
 from backend.core.errors import (
     ErrorCode,
+    NetworkException,
     OrchestraError,
     ProvrException,
-    NetworkException,
 )
-from backend.core.network import get_connection_pool
 
 # === JETENGINE™ + KNOWLEDGE TAXONOMY ===
 from backend.core.jet_engine import get_jet_engine
 from backend.core.knowledge_taxonomy import get_optimal_config
+from backend.core.network import get_connection_pool
+from backend.core.reasoning_engine import get_reasoning_engine
+from backend.core.self_optimizer import get_self_optimizer
+from backend.core.world_knowledge import get_world_knowledge
+from backend.orchestrator.system_prompt import (
+    VIO83_MASTER_PROMPT,
+    build_local_system_prompt,
+    build_system_prompt,
+)
 
 # Alias per retrocompatibilità (server.py lo importa come VIO83_SYSTEM_PROMPT)
 VIO83_SYSTEM_PROMPT = VIO83_MASTER_PROMPT
@@ -78,32 +77,168 @@ logger = logging.getLogger(__name__)
 # === CLASSIFICAZIONE RICHIESTE ===
 
 KEYWORDS = {
-    "code": ["codice", "code", "funzione", "function", "bug", "debug", "api",
-             "database", "sql", "python", "javascript", "typescript", "react",
-             "script", "algoritmo", "classe", "metodo", "array", "json",
-             "html", "css", "endpoint", "backend", "frontend"],
-    "legal": ["legge", "norma", "contratto", "compliance", "gdpr", "privacy",
-              "tribunale", "sentenza", "clausola", "regolamento", "licenza", "diritto"],
-    "medical": ["medicina", "clinico", "diagnosi", "terapia", "farmaco", "sintomo",
-                "linea guida", "paziente", "epmiologia", "oncologia", "cardiologia", "pubmed"],
-    "writing": ["linkedin", "headline", "about", "copy", "newsletter", "ghostwrite",
-                "articolo", "post", "caption", "seo", "landing page", "scrittura"],
-    "research": ["ricerca", "paper", "citazioni", "fonti", "survey", "benchmark",
-                 "state of the art", "deep research", "letteratura", "bibliografia"],
-    "automation": ["workflow", "automazione", "agent", "agente", "tool", "mcp",
-                   "n8n", "pipeline", "orchestrazione", "browser automation", "task runner",
-                   "openclaw", "esegui tool", "run tool", "multi-step", "usa plugin"],
-    "creative": ["scrivi", "write", "storia", "story", "poesia", "poem",
-                 "creativo", "creative", "articolo", "article", "blog",
-                 "racconto", "romanzo", "canzone", "email", "lettera"],
-    "analysis": ["analiz", "analy", "dati", "data", "grafico", "chart",
-                 "statistic", "csv", "excel", "tabella", "confronta",
-                 "compare", "trend", "metrica", "report"],
-    "realtime": ["oggi", "today", "attual", "current", "news", "notizie",
-                 "ultimo", "latest", "2026", "2025", "tempo reale"],
-    "reasoning": ["spiega", "explain", "perché", "why", "come funziona",
-                  "how does", "ragion", "reason", "logic", "matematica",
-                  "math", "teoria", "filosofia", "dimostrazione"],
+    "code": [
+        "codice",
+        "code",
+        "funzione",
+        "function",
+        "bug",
+        "debug",
+        "api",
+        "database",
+        "sql",
+        "python",
+        "javascript",
+        "typescript",
+        "react",
+        "script",
+        "algoritmo",
+        "classe",
+        "metodo",
+        "array",
+        "json",
+        "html",
+        "css",
+        "endpoint",
+        "backend",
+        "frontend",
+    ],
+    "legal": [
+        "legge",
+        "norma",
+        "contratto",
+        "compliance",
+        "gdpr",
+        "privacy",
+        "tribunale",
+        "sentenza",
+        "clausola",
+        "regolamento",
+        "licenza",
+        "diritto",
+    ],
+    "medical": [
+        "medicina",
+        "clinico",
+        "diagnosi",
+        "terapia",
+        "farmaco",
+        "sintomo",
+        "linea guida",
+        "paziente",
+        "epmiologia",
+        "oncologia",
+        "cardiologia",
+        "pubmed",
+    ],
+    "writing": [
+        "linkedin",
+        "headline",
+        "about",
+        "copy",
+        "newsletter",
+        "ghostwrite",
+        "articolo",
+        "post",
+        "caption",
+        "seo",
+        "landing page",
+        "scrittura",
+    ],
+    "research": [
+        "ricerca",
+        "paper",
+        "citazioni",
+        "fonti",
+        "survey",
+        "benchmark",
+        "state of the art",
+        "deep research",
+        "letteratura",
+        "bibliografia",
+    ],
+    "automation": [
+        "workflow",
+        "automazione",
+        "agent",
+        "agente",
+        "tool",
+        "mcp",
+        "n8n",
+        "pipeline",
+        "orchestrazione",
+        "browser automation",
+        "task runner",
+        "openclaw",
+        "esegui tool",
+        "run tool",
+        "multi-step",
+        "usa plugin",
+    ],
+    "creative": [
+        "scrivi",
+        "write",
+        "storia",
+        "story",
+        "poesia",
+        "poem",
+        "creativo",
+        "creative",
+        "articolo",
+        "article",
+        "blog",
+        "racconto",
+        "romanzo",
+        "canzone",
+        "email",
+        "lettera",
+    ],
+    "analysis": [
+        "analiz",
+        "analy",
+        "dati",
+        "data",
+        "grafico",
+        "chart",
+        "statistic",
+        "csv",
+        "excel",
+        "tabella",
+        "confronta",
+        "compare",
+        "trend",
+        "metrica",
+        "report",
+    ],
+    "realtime": [
+        "oggi",
+        "today",
+        "attual",
+        "current",
+        "news",
+        "notizie",
+        "ultimo",
+        "latest",
+        "2026",
+        "2025",
+        "tempo reale",
+    ],
+    "reasoning": [
+        "spiega",
+        "explain",
+        "perché",
+        "why",
+        "come funziona",
+        "how does",
+        "ragion",
+        "reason",
+        "logic",
+        "matematica",
+        "math",
+        "teoria",
+        "filosofia",
+        "dimostrazione",
+    ],
 }
 
 ROUTING_MAP = {
@@ -122,8 +257,8 @@ ROUTING_MAP = {
 
 # ─── Embedding-based Classification (via Ollama) ───────────────────
 
-import math as _math
-import logging as _logging
+import logging as _logging  # noqa: E402
+import math as _math  # noqa: E402
 
 _log = _logging.getLogger("embedding_classifier")
 
@@ -189,7 +324,7 @@ _EMBED_MODEL = "nomic-embed-text"  # modello embedding leggero
 
 def _cosine_sim(a: list[float], b: list[float]) -> float:
     """Cosine similarity tra due vettori."""
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = _math.sqrt(sum(x * x for x in a))
     norm_b = _math.sqrt(sum(x * x for x in b))
     if norm_a < 1e-9 or norm_b < 1e-9:
@@ -200,6 +335,7 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
 def _get_embedding_sync(text: str) -> list[float] | None:
     """Chiama Ollama /api/embeddings in modo sincrono."""
     import json as _json
+
     try:
         body = _json.dumps({"model": _EMBED_MODEL, "prompt": text}).encode()
         req = Request(
@@ -210,7 +346,8 @@ def _get_embedding_sync(text: str) -> list[float] | None:
         )
         with urlopen(req, timeout=5) as resp:
             data = _json.loads(resp.read())
-            return data.get("embedding")
+            embedding = data.get("embedding")
+            return list(embedding) if isinstance(embedding, list) else None
     except Exception:
         return None
 
@@ -342,7 +479,7 @@ def _local_model_candidates(
         "llama3:latest",
     ]
 
-    raw_candidates = ([*fast_chain, *quality_chain] if prefer_fast else quality_chain)
+    raw_candidates = [*fast_chain, *quality_chain] if prefer_fast else quality_chain
 
     seen: set[str] = set()
     candidates: list[str] = []
@@ -387,6 +524,7 @@ def _effective_generation_params(
     temp = min(requested_temperature, 0.25)
     return temp, capped, False
 
+
 ALL_CLOUD_ROUTER_PROVRS = {
     **FREE_CLOUD_PROVRS,
     **CLOUD_PROVRS,
@@ -423,13 +561,15 @@ def route_to_provr(request_type: str, mode: str = "cloud") -> str:
 def _resolve_cloud_provr_entry(provider: str) -> dict:
     entry = ALL_CLOUD_ROUTER_PROVRS.get(provider)
     if not entry:
-        raise ProvrException(OrchestraError(
-            code=ErrorCode.PROVR_UNAVAILABLE,
-            message=f"Provider cloud non supportato: {provider}",
-            provider=provider,
-            recoverable=False,
-            suggestion="Usa un provider configurato in backend/config/providers.py",
-        ))
+        raise ProvrException(
+            OrchestraError(
+                code=ErrorCode.PROVR_UNAVAILABLE,
+                message=f"Provider cloud non supportato: {provider}",
+                provider=provider,
+                recoverable=False,
+                suggestion="Usa un provider configurato in backend/config/providers.py",
+            )
+        )
     return entry
 
 
@@ -445,41 +585,47 @@ def _resolve_cloud_model(provider: str, requested_model: Optional[str] = None) -
         return requested_model
 
     if default_model:
-        return default_model
+        return str(default_model)
 
     if models:
-        return next(iter(models.keys()))
+        return str(next(iter(models.keys())))
 
-    raise ProvrException(OrchestraError(
-        code=ErrorCode.PROVR_MODEL_NOT_FOUND,
-        message=f"Nessun modello disponibile per provider {provider}",
-        provider=provider,
-        recoverable=False,
-        suggestion="Imposta default_model o aggiungi almeno un modello al registry del provider",
-    ))
+    raise ProvrException(
+        OrchestraError(
+            code=ErrorCode.PROVR_MODEL_NOT_FOUND,
+            message=f"Nessun modello disponibile per provider {provider}",
+            provider=provider,
+            recoverable=False,
+            suggestion="Imposta default_model o aggiungi almeno un modello al registry del provider",
+        )
+    )
 
 
 def _resolve_cloud_api_key(provider: str) -> str:
     entry = _resolve_cloud_provr_entry(provider)
     env_key = entry.get("env_key")
     if not env_key:
-        raise ProvrException(OrchestraError(
-            code=ErrorCode.CONFIG_INVALID_VALUE,
-            message=f"env_key mancante per provider {provider}",
-            provider=provider,
-            recoverable=False,
-        ))
+        raise ProvrException(
+            OrchestraError(
+                code=ErrorCode.CONFIG_INVALID_VALUE,
+                message=f"env_key mancante per provider {provider}",
+                provider=provider,
+                recoverable=False,
+            )
+        )
 
     api_key = os.environ.get(env_key, "").strip()
     if not api_key:
-        raise ProvrException(OrchestraError(
-            code=ErrorCode.CONFIG_MISSING_KEY,
-            message=f"API key mancante per provider '{provider}'",
-            details=f"Imposta {env_key} nel file .env",
-            provider=provider,
-            recoverable=False,
-            suggestion=f"Aggiungi {env_key} al file .env o usa mode='local'",
-        ))
+        raise ProvrException(
+            OrchestraError(
+                code=ErrorCode.CONFIG_MISSING_KEY,
+                message=f"API key mancante per provider '{provider}'",
+                details=f"Imposta {env_key} nel file .env",
+                provider=provider,
+                recoverable=False,
+                suggestion=f"Aggiungi {env_key} al file .env o usa mode='local'",
+            )
+        )
     return api_key
 
 
@@ -497,12 +643,14 @@ def _cloud_base_url(provider: str) -> str:
         "perplexity": "https://api.perplexity.ai/v1",
     }
     if provider not in base_urls:
-        raise ProvrException(OrchestraError(
-            code=ErrorCode.CONFIG_INVALID_VALUE,
-            message=f"Base URL non configurata per provider {provider}",
-            provider=provider,
-            recoverable=False,
-        ))
+        raise ProvrException(
+            OrchestraError(
+                code=ErrorCode.CONFIG_INVALID_VALUE,
+                message=f"Base URL non configurata per provider {provider}",
+                provider=provider,
+                recoverable=False,
+            )
+        )
     return base_urls[provider]
 
 
@@ -515,7 +663,7 @@ def _retry_delay_seconds(attempt: int, retry_after: float | None = None) -> floa
     if retry_after is not None and retry_after > 0:
         # Rispetta il Retry-After del server, con cap a 60s per sicurezza
         return min(retry_after + random.uniform(0.0, 0.5), 60.0)
-    delay = min(1.0 * (2 ** attempt), 16.0)
+    delay = min(1.0 * (2**attempt), 16.0)
     # Full jitter: delay uniformemente distribuito in [0, delay]
     return random.uniform(0.5, delay) + random.uniform(0.0, 0.25)
 
@@ -561,15 +709,17 @@ def _orchestra_http_error(
         suggestion = "Riprova o usa un provider di fallback"
         recoverable = _retryable_http_status(status_code)
 
-    return ProvrException(OrchestraError(
-        code=code,
-        message=f"{provider} ha risposto con HTTP {status_code}",
-        details=truncated,
-        provider=provider,
-        model=model,
-        recoverable=recoverable,
-        suggestion=suggestion,
-    ))
+    return ProvrException(
+        OrchestraError(
+            code=code,
+            message=f"{provider} ha risposto con HTTP {status_code}",
+            details=truncated,
+            provider=provider,
+            model=model,
+            recoverable=recoverable,
+            suggestion=suggestion,
+        )
+    )
 
 
 def _normalize_transport_exception(
@@ -583,14 +733,16 @@ def _normalize_transport_exception(
     message = str(exc)
 
     if "Circuit breaker OPEN" in message:
-        return NetworkException(OrchestraError(
-            code=ErrorCode.NETWORK_CIRCUIT_OPEN,
-            message=f"Circuit breaker aperto per {provider}",
-            details=message,
-            provider=provider,
-            model=model,
-            suggestion="Attendi il reset del circuito o usa un fallback provider",
-        ))
+        return NetworkException(
+            OrchestraError(
+                code=ErrorCode.NETWORK_CIRCUIT_OPEN,
+                message=f"Circuit breaker aperto per {provider}",
+                details=message,
+                provider=provider,
+                model=model,
+                suggestion="Attendi il reset del circuito o usa un fallback provider",
+            )
+        )
 
     if HAS_HTTPX and isinstance(exc, httpx.HTTPStatusError):
         try:
@@ -600,32 +752,38 @@ def _normalize_transport_exception(
         return _orchestra_http_error(provider, exc.response.status_code, response_text, model=model)
 
     if HAS_HTTPX and isinstance(exc, httpx.TimeoutException):
-        return NetworkException(OrchestraError(
-            code=ErrorCode.PROVR_TIMEOUT,
-            message=f"Timeout verso provider {provider}",
-            details=message,
-            provider=provider,
-            model=model,
-            suggestion="Riprova con un modello piu rapido o aumenta il timeout",
-        ))
+        return NetworkException(
+            OrchestraError(
+                code=ErrorCode.PROVR_TIMEOUT,
+                message=f"Timeout verso provider {provider}",
+                details=message,
+                provider=provider,
+                model=model,
+                suggestion="Riprova con un modello piu rapido o aumenta il timeout",
+            )
+        )
 
     if isinstance(exc, (ConnectionError, OSError, URLError)):
-        return NetworkException(OrchestraError(
-            code=ErrorCode.NETWORK_CONNECTION_FAILED,
-            message=f"Errore di connessione verso {provider}",
-            details=message,
+        return NetworkException(
+            OrchestraError(
+                code=ErrorCode.NETWORK_CONNECTION_FAILED,
+                message=f"Errore di connessione verso {provider}",
+                details=message,
+                provider=provider,
+                model=model,
+                suggestion="Verifica connettivita, DNS e disponibilita del servizio",
+            )
+        )
+
+    return ProvrException(
+        OrchestraError(
+            code=ErrorCode.SYSTEM_UNKNOWN,
+            message=f"Errore imprevisto del provider {provider}",
+            details=message[:600],
             provider=provider,
             model=model,
-            suggestion="Verifica connettivita, DNS e disponibilita del servizio",
-        ))
-
-    return ProvrException(OrchestraError(
-        code=ErrorCode.SYSTEM_UNKNOWN,
-        message=f"Errore imprevisto del provider {provider}",
-        details=message[:600],
-        provider=provider,
-        model=model,
-    ))
+        )
+    )
 
 
 def _ensure_network_provider_registered(
@@ -685,10 +843,12 @@ def _normalize_messages_for_claude(messages: list[dict]) -> tuple[str, list[dict
             continue
 
         normalized_role = "assistant" if role == "assistant" else "user"
-        anthropic_messages.append({
-            "role": normalized_role,
-            "content": content,
-        })
+        anthropic_messages.append(
+            {
+                "role": normalized_role,
+                "content": content,
+            }
+        )
 
     if not anthropic_messages:
         anthropic_messages = [{"role": "user", "content": ""}]
@@ -738,7 +898,8 @@ async def _http_post_json(
                 json=payload,
                 timeout=timeout_s,
             )
-            return response.json()
+            resp_data: dict[Any, Any] = response.json()
+            return resp_data
         except Exception as exc:
             raise _normalize_transport_exception(provider, exc, model=model) from exc
 
@@ -753,19 +914,26 @@ async def _http_post_json(
                         if response.status >= 400:
                             raise _orchestra_http_error(provider, response.status, text, model=model)
                         try:
-                            return json.loads(text)
+                            parsed: dict[Any, Any] = json.loads(text)
+                            return parsed
                         except json.JSONDecodeError as exc:
-                            raise ProvrException(OrchestraError(
-                                code=ErrorCode.PROVR_RESPONSE_INVALID,
-                                message=f"Risposta JSON non valida da {provider}",
-                                details=str(exc),
-                                provider=provider,
-                                model=model,
-                            )) from exc
+                            raise ProvrException(
+                                OrchestraError(
+                                    code=ErrorCode.PROVR_RESPONSE_INVALID,
+                                    message=f"Risposta JSON non valida da {provider}",
+                                    details=str(exc),
+                                    provider=provider,
+                                    model=model,
+                                )
+                            ) from exc
             except Exception as exc:
                 normalized = _normalize_transport_exception(provider, exc, model=model)
                 last_exc = normalized
-                if isinstance(normalized, ProvrException) and normalized.error.code == ErrorCode.PROVR_RATE_LIMITED and attempt < 2:
+                if (
+                    isinstance(normalized, ProvrException)
+                    and normalized.error.code == ErrorCode.PROVR_RATE_LIMITED
+                    and attempt < 2
+                ):
                     await asyncio.sleep(_retry_delay_seconds(attempt))
                     continue
                 if isinstance(exc, aiohttp.ClientError) and attempt < 2:
@@ -788,7 +956,8 @@ async def _http_post_json(
             try:
                 with urlopen(req, timeout=timeout_s) as resp:
                     body = resp.read().decode("utf-8")
-                    return json.loads(body)
+                    parsed_body: dict[Any, Any] = json.loads(body)
+                    return parsed_body
             except HTTPError as exc:
                 body = exc.read().decode("utf-8", errors="ignore") if hasattr(exc, "read") else str(exc)
                 last_exc = _orchestra_http_error(provider, exc.code, body, model=model)
@@ -806,12 +975,14 @@ async def _http_post_json(
         if last_exc:
             raise last_exc
 
-        raise NetworkException(OrchestraError(
-            code=ErrorCode.SYSTEM_UNKNOWN,
-            message=f"Errore sconosciuto verso {provider}",
-            provider=provider,
-            model=model,
-        ))
+        raise NetworkException(
+            OrchestraError(
+                code=ErrorCode.SYSTEM_UNKNOWN,
+                message=f"Errore sconosciuto verso {provider}",
+                provider=provider,
+                model=model,
+            )
+        )
 
     return await asyncio.to_thread(_sync_request)
 
@@ -953,10 +1124,7 @@ async def _call_cloud_perplexity(
     headers = _build_cloud_headers(provider, api_key)
 
     preset = model if model in PERPLEXITY_PRESETS else "pro-search"
-    input_text = "\n\n".join(
-        f"{(m.get('role') or 'user').upper()}: {m.get('content', '')}"
-        for m in messages
-    )
+    input_text = "\n\n".join(f"{(m.get('role') or 'user').upper()}: {m.get('content', '')}" for m in messages)
 
     payload = {
         "preset": preset,
@@ -1029,12 +1197,15 @@ async def call_cloud(
 
     # G4: registra span di tracing
     _call_ms = (time.time() - _call_start) * 1000
-    with traced_span("call_cloud", {
-        "ai.provider": provider,
-        "ai.model": resolved_model,
-        "ai.tokens_used": result.get("tokens_used", 0),
-        "ai.latency_ms": round(_call_ms, 2),
-    }):
+    with traced_span(
+        "call_cloud",
+        {
+            "ai.provider": provider,
+            "ai.model": resolved_model,
+            "ai.tokens_used": result.get("tokens_used", 0),
+            "ai.latency_ms": round(_call_ms, 2),
+        },
+    ):
         pass  # span registra solo attributi, la chiamata è già completata
 
     return result
@@ -1151,7 +1322,7 @@ async def call_ollama(
             "temperature": temperature,
             "num_predict": max_tokens,
             "num_ctx": int(os.environ.get("VIO_OLLAMA_NUM_CTX", 2048)),
-        }
+        },
     }
 
     ollama_timeout = float(_env_int("VIO_OLLAMA_TIMEOUT_SEC", 45))
@@ -1196,7 +1367,7 @@ async def call_ollama_streaming(
             "temperature": temperature,
             "num_predict": max_tokens,
             "num_ctx": int(os.environ.get("VIO_OLLAMA_NUM_CTX", 2048)),
-        }
+        },
     }
 
     streaming_timeout = float(_env_int("VIO_OLLAMA_STREAM_TIMEOUT_SEC", 90))
@@ -1221,7 +1392,7 @@ async def call_ollama_streaming(
             async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=streaming_timeout)) as resp:
                 resp.raise_for_status()
                 async for line in resp.content:
-                    decoded = line.decode("utf-8").strip()
+                    decoded = (line.decode("utf-8") if isinstance(line, bytes) else str(line)).strip()
                     if decoded:
                         try:
                             data = json.loads(decoded)
@@ -1239,6 +1410,7 @@ async def call_ollama_streaming(
 
 
 # === OLLAMA MANAGEMENT ===
+
 
 async def check_ollama_status(host: str = "http://localhost:11434") -> dict:
     """Verifica stato Ollama e modelli disponibili."""
@@ -1265,13 +1437,13 @@ async def check_ollama_status(host: str = "http://localhost:11434") -> dict:
                 ]
         else:
             import urllib.request
+
             req = urllib.request.Request(f"{host}/api/tags")
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read())
                 result["available"] = True
                 result["models"] = [
-                    {"name": m["name"], "size_gb": round(m.get("size", 0) / 1e9, 1)}
-                    for m in data.get("models", [])
+                    {"name": m["name"], "size_gb": round(m.get("size", 0) / 1e9, 1)} for m in data.get("models", [])
                 ]
     except Exception as e:
         result["error"] = str(e)
@@ -1280,6 +1452,7 @@ async def check_ollama_status(host: str = "http://localhost:11434") -> dict:
 
 
 # === ORCHESTRATOR PRINCIPALE ===
+
 
 def _post_call_learn(messages: list[dict], result: dict, request_type: str) -> None:
     """
@@ -1341,7 +1514,8 @@ def _validate_structured_output(content: str, response_format: dict | None) -> d
             lines = lines[:-1]
         text = "\n".join(lines).strip()
     try:
-        return json.loads(text)
+        result: dict[Any, Any] | None = json.loads(text)
+        return result
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("Structured output validation failed: %s", e)
         return None
@@ -1387,8 +1561,10 @@ async def orchestrate(
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info("JetEngine cache_hit intent=%s latency=%.1fms", jet_decision.profile.intent, latency_ms)
         cached["_diagnostic"] = {
-            "cache_hit": True, "latency_ms": round(latency_ms, 1),
-            "intent": jet_decision.profile.intent, "complexity": jet_decision.profile.score,
+            "cache_hit": True,
+            "latency_ms": round(latency_ms, 1),
+            "intent": jet_decision.profile.intent,
+            "complexity": jet_decision.profile.score,
         }
         return cached
 
@@ -1624,6 +1800,4 @@ async def orchestrate(
                     f"Fallback '{fallback_provr}' fallito: {fallback_error}"
                 )
 
-        raise Exception(
-            f"Cloud provider '{effective_provr}' fallito: {e}"
-        )
+        raise Exception(f"Cloud provider '{effective_provr}' fallito: {e}")

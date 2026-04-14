@@ -12,14 +12,14 @@ SINCRONIZZAZIONE REALE E PERMANENTE DI TUTTI I MODELLI LOCALI:
 ✅ Log, audit, rollback automatico
 """
 
+import json
+import logging
 import os
 import re
-import json
-import time
 import shutil
 import sqlite3
-import logging
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple
 

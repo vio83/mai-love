@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-BRACE v3.0 — Algorithm Demo
+GIU-L_IA v3.0 — Algorithm Demo
 7-turn demonstration showing core capabilities
 """
 
-from brace_v3 import BRACE_v30, ImplicitProfile, WindowState
+from brace_v3 import GIU_L_IA, ImplicitProfile, WindowState
 from scenarios_db import get_scenario
 
 
 def run_demo():
-    """Esegui demo BRACE"""
+    """Esegui demo GIU-L_IA"""
     print("\n╔════════════════════════════════════════════════════════════╗")
-    print("║  🎯 BRACE v3.0 — Algorithm Demonstration                 ║")
+    print("║  🎯 GIU-L_IA v3.0 — Algorithm Demonstration              ║")
     print("║  7-Turn Analysis with Pattern Detection                 ║")
     print("╚════════════════════════════════════════════════════════════╝\n")
 
     # Inizializza engine
-    engine = BRACE_v30()
+    engine = GIU_L_IA()
 
     # Recupera scenario dating_aggressive
     scenario = get_scenario("dating_aggressive")

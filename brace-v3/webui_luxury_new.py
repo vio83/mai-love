@@ -42,7 +42,7 @@ def ensure_cert() -> bool:
         "-subj", "/C=IT/ST=Local/L=Localhost/O=BRACE/CN=localhost",
     ]
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)  # nosec B603
+        subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa: S603  # nosec B603
         CERT_FILE.chmod(0o600)
         KEY_FILE.chmod(0o600)
         return True
@@ -58,9 +58,9 @@ def _proxy(path: str, method: str = "GET", payload: dict | None = None) -> tuple
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=body, method=method, headers=headers)
+    req = urllib.request.Request(url, data=body, method=method, headers=headers)  # noqa: S310 — localhost proxy
     try:
-        with urllib.request.urlopen(req, timeout=12) as res:  # nosec B310
+        with urllib.request.urlopen(req, timeout=12) as res:  # noqa: S310  # nosec B310 — localhost only
             return int(res.status), json.loads(res.read().decode("utf-8"))
     except Exception as exc:
         return 502, {"error": str(exc)}

@@ -28,27 +28,28 @@ USO:
 INTERRUPT: Ctrl+C per interrompere — riprende automaticamente con 'resume'
 """
 
-import os
-import sys
-import json
-import time
-import signal
-import hashlib
 import argparse
+import hashlib
+import json
+import os
+import signal
+import sys
+import time
 
 # Aggiungi il progetto al path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.rag.harvest_state import (
-    HarvestStateDB, HarvestProgress, setup_logger, DATA_DIR
+from backend.rag.harvest_state import DATA_DIR, HarvestProgress, HarvestStateDB, setup_logger  # noqa: E402
+from backend.rag.knowledge_distiller import (  # noqa: E402
+    Level1_Metadata,
+    get_distilled_db,
 )
-from backend.rag.knowledge_distiller import (
-    Level1_Metadata, get_distilled_db,
-)
-from backend.rag.open_sources import (
-    RateLimitedClient, OpenAlexConnector, CrossrefConnector,
+from backend.rag.open_sources import (  # noqa: E402
+    CrossrefConnector,
+    OpenAlexConnector,
+    RateLimitedClient,
 )
 
 # ============================================================
@@ -520,7 +521,7 @@ class LocalMacDistiller:
             logger.error(f"Directory non trovata: {base_path}")
             return
 
-        scan_id = scan_id or hashlib.md5(base_path.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:12]
+        scan_id = scan_id or hashlib.md5(base_path.encode(), usedforsecurity=False).hexdigest()[:12]
 
         # Carica stato precedente per resume
         prev_state = self.state.load_scan_state(scan_id)
@@ -575,7 +576,7 @@ class LocalMacDistiller:
 
                     # Crea metadati
                     rel_path = os.path.relpath(fpath, base_path)
-                    doc_id = hashlib.md5(fpath.encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16]
+                    doc_id = hashlib.md5(fpath.encode(), usedforsecurity=False).hexdigest()[:16]
 
                     # Estrai info dal percorso e nome file
                     parts = rel_path.split(os.sep)
@@ -708,7 +709,7 @@ def cmd_status(args):
 
     # Database
     stats = db.stats()
-    print(f"\n📊 DATABASE:")
+    print("\n📊 DATABASE:")
     print(f"  Documenti totali:   {stats['livello_1_metadati']:,}")
     print(f"  Con embedding:      {stats['livello_2_embedding']:,}")
     print(f"  Con riassunto:      {stats['livello_3_riassunti']:,}")
@@ -717,12 +718,12 @@ def cmd_status(args):
     print(f"  Dimensione DB:      {stats['db_size_MB']:.1f} MB")
 
     if stats.get("per_fonte"):
-        print(f"\n  Per fonte:")
+        print("\n  Per fonte:")
         for fonte, n in sorted(stats["per_fonte"].items(), key=lambda x: -x[1]):
             print(f"    {fonte}: {n:,}")
 
     if stats.get("per_categoria"):
-        print(f"\n  Per categoria (top 10):")
+        print("\n  Per categoria (top 10):")
         for cat, n in sorted(stats["per_categoria"].items(), key=lambda x: -x[1])[:10]:
             print(f"    {cat}: {n:,}")
 

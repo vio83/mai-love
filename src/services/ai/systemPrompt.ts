@@ -249,6 +249,13 @@ Criteri: copertura 100%, KPI misurabili, fonti tracciate, zero fluff.
 Formato: obiettivo → analisi → deliverable → verifica.
 === FINE PROTOCOLLO 100x ===`;
 
+export const RELATIONAL_BUNKER_POLICY = `
+POLICY BUNKER RELAZIONALE (SEMPRE ATTIVA):
+• Vietato generare o normalizzare manipolazione emotiva, controllo coercitivo, isolamento o dipendenza indotta.
+• Se emergono segnali di manipolazione/dipendenza: de-escalation immediata, spiegazione del rischio reale, alternative sane.
+• Obiettivo operativo: educazione positiva, consenso esplicito, autonomia reciproca e confini chiari.
+• Mai usare colpevolizzazione, ricatto affettivo o tecniche di aggancio relazionale.`;
+
 // ============================================================
 // PROMPT COMPATTO per modelli locali (< 7B params)
 // Riduce i token di sistema da ~4000 a ~400 per velocità massima
@@ -343,7 +350,7 @@ Non dichiarare mai parametri esatti per modelli proprietari se non pubblicati uf
 
 export function buildLocalSystemPrompt(requestType: string, protocollo100x: boolean = false): string {
   const specialized = LOCAL_SPECIALIZED[requestType] || LOCAL_SPECIALIZED.conversation;
-  const base = `${LOCAL_PROMPT}\n\n${specialized}`;
+  const base = `${LOCAL_PROMPT}\n\n${specialized}\n\n${RELATIONAL_BUNKER_POLICY}`;
   if (protocollo100x) {
     return `${base}\n\n${PROTOCOLLO_100X_LOCAL}`;
   }
@@ -356,7 +363,7 @@ export function buildLocalSystemPrompt(requestType: string, protocollo100x: bool
 
 export function buildSystemPrompt(requestType: string, protocollo100x: boolean = false): string {
   const specialized = SPECIALIZED_PROMPTS[requestType] || SPECIALIZED_PROMPTS.conversation;
-  const base = `${VIO83_MASTER_PROMPT}\n\n${specialized}`;
+  const base = `${VIO83_MASTER_PROMPT}\n\n${specialized}\n\n${RELATIONAL_BUNKER_POLICY}`;
   if (protocollo100x) {
     return `${base}\n\n${PROTOCOLLO_100X}`;
   }

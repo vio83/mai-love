@@ -34,15 +34,22 @@ import sys
 import threading
 import time
 from concurrent.futures import (
+    Future,
     ProcessPoolExecutor,
     ThreadPoolExecutor,
-    Future,
     as_completed,
 )
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
     Union,
 )
 
@@ -55,9 +62,11 @@ R = TypeVar("R")
 # Rilevamento risorse
 # ═══════════════════════════════════════════════════════
 
+
 @dataclass
 class SystemResources:
     """Risorse di sistema rilevate automaticamente."""
+
     cpu_count: int = 1
     cpu_count_physical: int = 1
     memory_total_gb: float = 0.0
@@ -76,6 +85,7 @@ def detect_resources() -> SystemResources:
     mem_avail = 0.0
     try:
         import psutil
+
         cpu_physical = psutil.cpu_count(logical=False) or cpu_logical
         mem = psutil.virtual_memory()
         mem_total = mem.total / (1024**3)
@@ -95,6 +105,7 @@ def detect_resources() -> SystemResources:
     disk_free = 0.0
     try:
         import shutil
+
         usage = shutil.disk_usage(os.path.expanduser("~"))
         disk_free = usage.free / (1024**3)
     except Exception:
@@ -114,6 +125,7 @@ def detect_resources() -> SystemResources:
 # Task & Progress
 # ═══════════════════════════════════════════════════════
 
+
 class TaskStatus(Enum):
     PENDING = "pending"
     RUNNING = "running"
@@ -125,6 +137,7 @@ class TaskStatus(Enum):
 @dataclass
 class TaskResult:
     """Risultato di un task distribuito."""
+
     task_id: str
     status: TaskStatus
     result: Any = None
@@ -137,6 +150,7 @@ class TaskResult:
 @dataclass
 class BatchProgress:
     """Progresso di un batch di task."""
+
     total: int = 0
     completed: int = 0
     failed: int = 0
@@ -161,6 +175,7 @@ class BatchProgress:
 # ═══════════════════════════════════════════════════════
 # Progress Callback
 # ═══════════════════════════════════════════════════════
+
 
 class ProgressTracker:
     """Thread-safe progress tracker con callback."""
@@ -219,6 +234,7 @@ class ProgressTracker:
 # 1. LOCAL PROCESS POOL (default)
 # ═══════════════════════════════════════════════════════
 
+
 class LocalProcessPool:
     """
     Pool di processi locale con multiprocessing.
@@ -239,8 +255,10 @@ class LocalProcessPool:
 
         self.max_workers = max_workers
         self._executor: Optional[ProcessPoolExecutor] = None
-        logger.info(f"LocalProcessPool: {max_workers} workers "
-                     f"(CPU: {resources.cpu_count_physical}, RAM: {resources.memory_available_gb:.1f}GB)")
+        logger.info(
+            f"LocalProcessPool: {max_workers} workers "
+            f"(CPU: {resources.cpu_count_physical}, RAM: {resources.memory_available_gb:.1f}GB)"
+        )
 
     def _get_executor(self) -> ProcessPoolExecutor:
         if self._executor is None:
@@ -295,7 +313,7 @@ class LocalProcessPool:
                     new_future = executor.submit(fn, items[idx])
                     futures[new_future] = (idx, retry_count + 1)
                     tracker.start_task()
-                    logger.warning(f"Task {idx} fallito, retry {retry_count+1}: {e}")
+                    logger.warning(f"Task {idx} fallito, retry {retry_count + 1}: {e}")
                 else:
                     tracker.fail_task(str(e))
                     logger.error(f"Task {idx} fallito definitivamente: {e}")
@@ -313,12 +331,12 @@ class LocalProcessPool:
         Esegui fn su batch di items.
         Più efficiente per I/O-bound con overhead per item.
         """
-        batches = [items[i:i+batch_size] for i in range(0, len(items), batch_size)]
+        batches = [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
         tracker = ProgressTracker(len(batches), progress_callback)
         executor = self._get_executor()
 
         all_results: List[R] = []
-        futures = {executor.submit(fn, batch): i for i, batch in enumerate(batches)}
+        futures = {executor.submit(fn, list(batch)): i for i, batch in enumerate(batches)}
 
         for future in as_completed(futures):
             tracker.start_task()
@@ -340,6 +358,7 @@ class LocalProcessPool:
 # ═══════════════════════════════════════════════════════
 # 2. LOCAL THREAD POOL (I/O-bound)
 # ═══════════════════════════════════════════════════════
+
 
 class LocalThreadPool:
     """
@@ -417,6 +436,7 @@ class LocalThreadPool:
 # 3. ASYNC POOL (massimo throughput I/O)
 # ═══════════════════════════════════════════════════════
 
+
 class AsyncPool:
     """
     Pool asyncio per massimo throughput I/O.
@@ -465,6 +485,7 @@ class AsyncPool:
         if loop and loop.is_running():
             # Già in un event loop — usa thread per evitare deadlock
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(1) as ex:
                 future = ex.submit(asyncio.run, self.map_async(fn, items, progress_callback))
                 return future.result()
@@ -475,6 +496,7 @@ class AsyncPool:
 # ═══════════════════════════════════════════════════════
 # 4. DASK DISTRIBUTED (opzionale)
 # ═══════════════════════════════════════════════════════
+
 
 class DaskCluster:
     """
@@ -493,10 +515,7 @@ class DaskCluster:
         try:
             from dask.distributed import Client, LocalCluster
         except ImportError:
-            raise ImportError(
-                "dask e distributed richiesti. "
-                "Installa con: pip install 'dask[distributed]'"
-            )
+            raise ImportError("dask e distributed richiesti. Installa con: pip install 'dask[distributed]'")
 
         if scheduler_address:
             # Connetti a cluster esistente
@@ -536,7 +555,8 @@ class DaskCluster:
                     tracker.fail_task(str(e))
             return results
         else:
-            return self._client.gather(futures)
+            gathered: list[R] = self._client.gather(futures)
+            return gathered
 
     def submit(self, fn: Callable, *args, **kwargs) -> Any:
         """Invia singolo task."""
@@ -558,6 +578,7 @@ class DaskCluster:
 # 5. SPARK CLUSTER (opzionale, big data)
 # ═══════════════════════════════════════════════════════
 
+
 class SparkCluster:
     """
     Wrapper per PySpark.
@@ -574,10 +595,7 @@ class SparkCluster:
         try:
             from pyspark.sql import SparkSession
         except ImportError:
-            raise ImportError(
-                "pyspark richiesto per SparkCluster. "
-                "Installa con: pip install pyspark"
-            )
+            raise ImportError("pyspark richiesto per SparkCluster. Installa con: pip install pyspark")
 
         builder = SparkSession.builder.appName(app_name).master(master)
         if config:
@@ -586,8 +604,7 @@ class SparkCluster:
 
         # Config ottimizzate per il nostro caso
         builder = (
-            builder
-            .config("spark.sql.adaptive.enabled", "true")
+            builder.config("spark.sql.adaptive.enabled", "true")
             .config("spark.sql.shuffle.partitions", "auto")
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
             .config("spark.driver.memory", "4g")
@@ -602,7 +619,8 @@ class SparkCluster:
         if partitions <= 0:
             partitions = self._sc.defaultParallelism
         rdd = self._sc.parallelize(items, partitions)
-        return rdd.map(fn).collect()
+        collected: List[Any] = rdd.map(fn).collect()
+        return collected
 
     def map_dataframe(self, fn: Callable, items: List[Dict], schema: Optional[Any] = None) -> List[Dict]:
         """Map su DataFrame Spark (più ottimizzato)."""
@@ -639,9 +657,11 @@ class SparkCluster:
 # PIPELINE DAG
 # ═══════════════════════════════════════════════════════
 
+
 @dataclass
 class PipelineStage:
     """Uno stadio della pipeline."""
+
     name: str
     fn: Callable
     depends_on: List[str] = field(default_factory=list)
@@ -739,7 +759,7 @@ class Pipeline:
             # Callback specifico per stadio
             def stage_callback(p: BatchProgress) -> None:
                 if progress_callback:
-                    progress_callback(stage_name, p)
+                    progress_callback(stage_name, p)  # noqa: B023
 
             # Esegui
             t0 = time.time()
@@ -755,7 +775,7 @@ class Pipeline:
             logger.info(f"Stadio {stage_name}: {len(results)} risultati in {elapsed:.1f}s")
 
             # Shutdown pool se non riutilizzabile
-            if hasattr(pool, 'shutdown'):
+            if hasattr(pool, "shutdown"):
                 pool.shutdown()
 
         return stage_results
@@ -772,6 +792,7 @@ class Pipeline:
 # ═══════════════════════════════════════════════════════
 # BATCH PROCESSOR con backpressure
 # ═══════════════════════════════════════════════════════
+
 
 class BatchProcessor:
     """
@@ -829,10 +850,10 @@ class BatchProcessor:
             return []
 
         # Processa in batch paralleli
-        batches = [items[i:i+self.batch_size] for i in range(0, len(items), self.batch_size)]
+        batches = [items[i : i + self.batch_size] for i in range(0, len(items), self.batch_size)]
 
         if self._pool_type == "process":
-            pool = LocalProcessPool(max_workers=self._max_workers or None)
+            pool: LocalProcessPool | LocalThreadPool = LocalProcessPool(max_workers=self._max_workers or None)
         else:
             pool = LocalThreadPool(max_workers=self._max_workers or None)
 

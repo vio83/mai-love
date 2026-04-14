@@ -23,8 +23,8 @@ Se opentelemetry non è installato, tutto funziona in modalità noop
 """
 from __future__ import annotations
 
-import os
 import logging
+import os
 import time
 from contextlib import contextmanager
 from typing import Any, Optional
@@ -37,12 +37,12 @@ _tracer = None
 
 try:
     from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import (
         BatchSpanProcessor,
         ConsoleSpanExporter,
     )
-    from opentelemetry.sdk.resources import Resource
     from opentelemetry.trace import StatusCode
     _OTEL_AVAILABLE = True
 except ImportError:

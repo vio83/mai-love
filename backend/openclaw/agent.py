@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -176,7 +176,7 @@ async def run_agent(
     system_prompt = _build_agent_system_prompt(tools_desc)
 
     # Import the orchestrator's call functions
-    from backend.orchestrator.direct_router import call_ollama, call_cloud
+    from backend.orchestrator.direct_router import call_cloud, call_ollama
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system_prompt},
@@ -348,9 +348,12 @@ async def run_agent_native(
         registry = get_registry()
 
     from backend.orchestrator.direct_router import (
-        _resolve_cloud_model, _resolve_cloud_api_key,
-        _cloud_base_url, _build_cloud_headers,
-        _http_post_json, _normalize_messages_for_claude,
+        _build_cloud_headers,
+        _cloud_base_url,
+        _http_post_json,
+        _normalize_messages_for_claude,
+        _resolve_cloud_api_key,
+        _resolve_cloud_model,
     )
 
     resolved_model = _resolve_cloud_model(provider, model or None)

@@ -29,6 +29,7 @@ Matematica:
 
 from __future__ import annotations
 
+import logging
 import math
 import random
 import sqlite3
@@ -36,7 +37,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-import logging
 
 logger = logging.getLogger("bandit_selector")
 

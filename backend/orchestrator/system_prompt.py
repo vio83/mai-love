@@ -305,6 +305,14 @@ Formato: obiettivo → analisi → deliverable → verifica.
 === FINE PROTOCOLLO 100x ==="""
 
 
+RELATIONAL_BUNKER_POLICY = """\nPOLICY BUNKER RELAZIONALE (SEMPRE ATTIVA):
+• Vietato generare o normalizzare manipolazione emotiva, controllo coercitivo, isolamento o dipendenza indotta.
+• Se emergono segnali di manipolazione/dipendenza: de-escalation immediata, spiegazione del rischio reale, alternative sane.
+• Obiettivo operativo: educazione positiva, consenso esplicito, autonomia reciproca e confini chiari.
+• Mai usare colpevolizzazione, ricatto affettivo o tecniche di aggancio relazionale.
+"""
+
+
 # ============================================================
 # PROMPT COMPATTO LOCALE (turbo-latency)
 # Riduce drasticamente i token di sistema per modelli locali.
@@ -340,7 +348,7 @@ LOCAL_SPECIALIZED_PROMPTS = {
 def build_local_system_prompt(request_type: str, protocollo_100x: bool = False) -> str:
     """Componi il prompt compatto locale per minimizzare latenza e token overhead."""
     specialized = LOCAL_SPECIALIZED_PROMPTS.get(request_type, LOCAL_SPECIALIZED_PROMPTS["conversation"])
-    base = f"{LOCAL_PROMPT}\n\n{specialized}"
+    base = f"{LOCAL_PROMPT}\n\n{specialized}\n\n{RELATIONAL_BUNKER_POLICY}"
     if protocollo_100x:
         return f"{base}\n\n{PROTOCOLLO_100X_LOCAL}"
     return base
@@ -349,7 +357,7 @@ def build_local_system_prompt(request_type: str, protocollo_100x: bool = False) 
 def build_system_prompt(request_type: str, protocollo_100x: bool = False) -> str:
     """Componi il system prompt completo per una richiesta specifica."""
     specialized = SPECIALIZED_PROMPTS.get(request_type, SPECIALIZED_PROMPTS["conversation"])
-    base = f"{VIO83_MASTER_PROMPT}\n\n{specialized}"
+    base = f"{VIO83_MASTER_PROMPT}\n\n{specialized}\n\n{RELATIONAL_BUNKER_POLICY}"
     if protocollo_100x:
         return f"{base}\n\n{PROTOCOLLO_100X}"
     return base

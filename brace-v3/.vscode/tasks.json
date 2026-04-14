@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Web UI",
+			"type": "shell",
+			"command": "python3 -u /Users/padronavio/Projects/vio83-ai-orchestra/brace-v3/webui.py",
+			"isBackground": true,
+			"problemMatcher": [
+				"$python"
+			]
+		}
+	]
+}

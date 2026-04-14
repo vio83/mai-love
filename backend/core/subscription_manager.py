@@ -24,7 +24,6 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-
 # ─── Definizione piani ──────────────────────────────────────────────
 
 @dataclass(frozen=True)

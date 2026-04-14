@@ -38,7 +38,6 @@ from fastapi.responses import StreamingResponse
 
 from backend.core.ultra_engine import get_ultra_engine
 
-
 # ─────────────────────────────────────────────────────────────
 # CONNECTION MANAGER
 # ─────────────────────────────────────────────────────────────

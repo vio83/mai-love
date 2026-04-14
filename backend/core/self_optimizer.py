@@ -345,7 +345,7 @@ class SelfOptimizer:
             self._state.global_quality_trend = min(1.0, max(0.0, 0.5 + slope * 50))
 
         # 2. Gradient-based temperature tuning
-        for key, profile in self._profiles.items():
+        for _key, profile in self._profiles.items():
             if profile.total_calls < 10:
                 continue
             self._gradient_tune_temperature(profile)

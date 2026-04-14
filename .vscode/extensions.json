@@ -32,7 +32,16 @@
     "streetsidesoftware.code-spell-checker",
     "streetsidesoftware.code-spell-checker-italian",
     "continue.continue",
-    "ms-toolsai.jupyter"
+    "ms-toolsai.jupyter",
+    "pinecone.pinecone-mongolian-students",
+    "visualstudiotoolsforunity.vstuc",
+    "ms-vscode-remote.vscode-remote-extensionpack",
+    "ibm.codewind",
+    "ibm.microclimate-tools",
+    "ms-vscode.cpptools-extension-pack",
+    "vscjava.vscode-java-pack",
+    "ms-dotnettools.vscode-dotnet-pack",
+    "biomejs.biome"
   ],
   "unwantedRecommendations": []
 }

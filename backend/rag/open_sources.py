@@ -35,10 +35,10 @@ STRATEGIA DI DOWNLOAD:
 RATE LIMITING: rispetta i limiti di ogni API
 """
 
-import re
-import json
-import time
 import hashlib
+import json
+import re
+import time
 from typing import Optional
 
 # httpx per HTTP async-friendly
@@ -49,14 +49,13 @@ except ImportError:
     HTTPX_AVAILABLE = False
 
 # urllib come fallback
-import urllib.request
 import urllib.parse
+import urllib.request
 
 from backend.rag.knowledge_distiller import (
     Level1_Metadata,
     get_distilled_db,
 )
-
 
 # ============================================================
 # HTTP CLIENT con rate limiting
@@ -277,7 +276,7 @@ class OpenAlexConnector:
                 doi = doi[16:]
 
             meta = Level1_Metadata(
-                doc_id=hashlib.md5(str(work.get("id", "")).encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16],
+                doc_id=hashlib.md5(str(work.get("id", "")).encode(), usedforsecurity=False).hexdigest()[:16],
                 titolo=(work.get("title") or "")[:200],
                 autore=autore[:100],
                 anno=work.get("publication_year") or 0,
@@ -372,7 +371,7 @@ class CrossrefConnector:
             cat = classify_from_topics(subjects)
 
             meta = Level1_Metadata(
-                doc_id=hashlib.md5(item.get("DOI", "").encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16],
+                doc_id=hashlib.md5(item.get("DOI", "").encode(), usedforsecurity=False).hexdigest()[:16],
                 titolo=titolo[:200],
                 autore=autore[:100],
                 anno=anno,
@@ -428,7 +427,7 @@ class WikipediaConnector:
             re.sub(r'<[^>]+>', '', item.get("snippet", ""))
 
             meta = Level1_Metadata(
-                doc_id=hashlib.md5(f"wiki:{self.lang}:{title}".encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:16],
+                doc_id=hashlib.md5(f"wiki:{self.lang}:{title}".encode(), usedforsecurity=False).hexdigest()[:16],
                 titolo=title[:200],
                 autore="Wikipedia",
                 anno=int(item.get("timestamp", "2024")[:4]) if item.get("timestamp") else 2024,

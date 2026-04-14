@@ -40,9 +40,9 @@ BENCHMARK 1000x:
 from __future__ import annotations
 
 import hashlib
-import time
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -71,7 +71,8 @@ class SystemPromptCache:
         """Pre-compila tutti i prompt all'avvio."""
         try:
             from backend.orchestrator.system_prompt import (
-                build_system_prompt, build_local_system_prompt,
+                build_local_system_prompt,
+                build_system_prompt,
             )
             for req_type in [
                 "code", "math", "research", "analysis", "creative",
@@ -123,7 +124,7 @@ class RequestFingerprint:
     _STOPS = frozenset({
         "il","lo","la","i","gli","le","un","una","di","a","da","in","con",
         "su","per","tra","fra","e","o","ma","se","che","come","quando","non",
-        "the","a","an","of","in","to","for","and","or","but","is","are","it",
+        "the","an","of","to","for","and","or","but","is","are","it",
     })
 
     def fingerprint(self, message: str, model: str = "auto") -> Dict[str, str]:
@@ -388,8 +389,8 @@ class PipelineOrchestrator:
         start = time.monotonic()
 
         # Import engines (lazy, singleton)
-        from backend.core.jet_engine import get_jet_engine
         from backend.core.feather_memory import get_feather_memory
+        from backend.core.jet_engine import get_jet_engine
 
         jet = get_jet_engine()
         fm  = get_feather_memory()

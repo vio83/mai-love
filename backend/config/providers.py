@@ -16,7 +16,6 @@ ORDINE PRIORITÀ:
 import os
 from typing import Optional
 
-
 # ═══════════════════════════════════════════════════════════
 # PROVR LOCALI (Ollama) — PRIORITÀ 1: Gratis, sempre attivi
 # ═══════════════════════════════════════════════════════════

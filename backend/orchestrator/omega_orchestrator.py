@@ -129,8 +129,8 @@ class OmegaOrchestrator:
 
         # Import lazy per evitare problemi di import circolari
         try:
-            from backend.core.world_data_integrator import get_world_integrator
             from backend.core.reasoning_amplifier import get_reasoning_amplifier
+            from backend.core.world_data_integrator import get_world_integrator
             self._world_integrator = get_world_integrator(self.data_dir)
             self._reasoning_amplifier = get_reasoning_amplifier(self.data_dir)
         except ImportError as e:

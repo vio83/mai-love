@@ -11,8 +11,8 @@ Ogni migrazione viene eseguita una sola volta, tracking in schema_version.
 
 import sqlite3
 import time
-from backend.database.db import get_connection
 
+from backend.database.db import get_connection
 
 MIGRATIONS: list[tuple[int, str, str]] = [
     # (version, description, SQL)

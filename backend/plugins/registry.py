@@ -17,10 +17,11 @@ Built-in plugins:
   vio.memory      — note persistenti cross-session
 """
 from __future__ import annotations
+
+import datetime
 import ipaddress
 import json
 import math
-import datetime
 import os
 import shlex
 import socket
@@ -28,7 +29,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional

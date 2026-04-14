@@ -25,16 +25,16 @@ ARCHITETTURA:
 └──────────────────┘     └─────────────────┘
 """
 
+import hashlib
+import json
 import os
 import re
-import json
-import time
 import sqlite3
-import hashlib
+import time
 from typing import Optional
 
+from backend.rag.ingestion import IngestedDocument, IngestionEngine
 from backend.rag.preprocessing import ProcessedChunk
-from backend.rag.ingestion import IngestionEngine, IngestedDocument
 
 # ChromaDB (opzionale — fallback a SQLite FTS)
 try:
@@ -621,7 +621,7 @@ class KnowledgeBase:
     ) -> int:
         """Ingesci testo grezzo direttamente (senza file)."""
         pipeline = self.ingestion.pipeline
-        doc_id = hashlib.md5(text[:200].encode()).hexdigest(, usedforsecurity=False, usedforsecurity=False)[:12]
+        doc_id = hashlib.md5(text[:200].encode(), usedforsecurity=False).hexdigest()[:12]
 
         chunks = pipeline.process(
             text=text,

@@ -18,13 +18,12 @@ Architettura:
 from __future__ import annotations
 
 import hashlib
+import re
 import sqlite3
 import time
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-
 
 # ─── Dataclasses ─────────────────────────────────────────────────────
 

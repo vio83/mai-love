@@ -25,10 +25,10 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import math
-import time
-import re
 import logging
+import math
+import re
+import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
@@ -56,7 +56,7 @@ class TurboCache:
     _STOPS = frozenset({
         "il","lo","la","i","gli","le","un","una","di","a","da","in","con",
         "su","per","tra","fra","e","o","ma","se","che","come","quando",
-        "the","a","an","of","in","to","for","and","or","but","is","are",
+        "the","an","of","to","for","and","or","but","is","are",
         "was","were","be","been","have","has","had","do","does","did","it",
         "its","this","that","these","those","will","would","can","could",
     })
@@ -196,10 +196,14 @@ class ComplexityScorer:
         sc = 0.0
         sc += min(0.3, length / 1000)          # lunghezza
         sc += min(0.2, history_len * 0.04)     # contesto storico
-        if intent in ("code", "math"):         sc += 0.25
-        if intent in ("reasoning", "deep"):    sc += 0.35
-        if intent == "creative":               sc += 0.15
-        if word_count > 80:                    sc += 0.15
+        if intent in ("code", "math"):
+            sc += 0.25
+        if intent in ("reasoning", "deep"):
+            sc += 0.35
+        if intent == "creative":
+            sc += 0.15
+        if word_count > 80:
+            sc += 0.15
         sc = min(1.0, sc)
 
         # Routing flags
@@ -212,7 +216,8 @@ class ComplexityScorer:
             "simple": 128, "news": 512, "creative": 384,
             "code": 768, "math": 512, "reasoning": 768, "deep": 1024,
         }.get(intent, 256)
-        if word_count > 60: tokens_est = min(2048, int(tokens_est * 1.5))
+        if word_count > 60:
+            tokens_est = min(2048, int(tokens_est * 1.5))
 
         return ComplexityProfile(
             score=round(sc, 3),
@@ -316,8 +321,10 @@ class LocalFirstRouter:
         return self._cloud_decision(profile, ac)
 
     def _ollama_model(self, p: ComplexityProfile) -> str:
-        if p.score < 0.25:  return self._OLLAMA_FAST
-        if p.score < 0.50:  return self._OLLAMA_MEDIUM
+        if p.score < 0.25:
+            return self._OLLAMA_FAST
+        if p.score < 0.50:
+            return self._OLLAMA_MEDIUM
         return self._OLLAMA_SMART
 
     def _cloud_decision(self, p: ComplexityProfile, ac: List[str]) -> RoutingDecision:
