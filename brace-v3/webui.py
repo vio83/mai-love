@@ -11,6 +11,7 @@ Port 9443 (HTTP).
 from __future__ import annotations
 
 import json
+import os
 import socketserver
 import sys
 import urllib.error
@@ -29,7 +30,19 @@ if str(_HERE) not in sys.path:
 from brace_v3 import GIU_L_IA  # noqa: E402
 from scenarios_db import get_scenario, get_scenario_names, get_scenario_stage  # noqa: E402
 
-PORT = 9443
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    if value <= 0 or value > 65535:
+        return default
+    return value
+
+
+PORT = _env_int("PORT", 9443)
 ASSETS_DIR = _HERE / "assets"
 ALLOWED_EXTENSIONS = {
     ".jpg",

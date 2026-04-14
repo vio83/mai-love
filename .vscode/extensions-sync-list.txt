@@ -7,6 +7,7 @@ charliermarsh.ruff
 christian-kohler.npm-intellisense
 christian-kohler.path-intellisense
 continue.continue
+dbaneman.azure-mcp
 davidanson.vscode-markdownlint
 dbaeumer.vscode-eslint
 donjayamanne.githistory
