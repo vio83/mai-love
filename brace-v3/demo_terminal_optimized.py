@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BRACE v3.0 DEMO — Terminal Interattivo Potenziato
+GIU-L_IA v3.1 DEMO — Terminale Interattivo Potenziato
 Porta 9000 — Performance Massima su iMac Arch Linux
 Testing Interattivo con Ottimizzazioni Hardware
 """
@@ -10,15 +10,15 @@ import time
 
 sys.path.insert(0, '/opt/vioaiorchestra')
 
-from brace_v3 import BRACE_v30, ImplicitProfile, WindowState
+from brace_v3 import GIU_L_IA, ImplicitProfile, WindowState
 from scenarios_db import get_scenario, get_scenario_names
 
 
 class BraceTerminalDemo:
-    """Demo BRACE v3.0 con interfaccia terminal potenziata"""
+    """Demo GIU-L_IA v3.1 con interfaccia terminal potenziata"""
 
     def __init__(self):
-        self.engine = BRACE_v30()
+        self.engine = GIU_L_IA()
         self.scenario_cache = {}
         self.selected_scenario = None
 
@@ -26,7 +26,7 @@ class BraceTerminalDemo:
         """Banner iniziale"""
         print("\n" + "="*70)
         print("╔" + "═"*68 + "╗")
-        print("║  🎯 BRACE v3.0 — DEMO TERMINALE INTERATTIVO                       ║")
+        print("║  🎯 GIU-L_IA v3.1 — DEMO TERMINALE INTERATTIVO                    ║")
         print("║  Behavioral Reciprocity Engine — Performance Massima iMac        ║")
         print("║  Porta 9000 • Arch Linux • Multicore Optimized                   ║")
         print("╚" + "═"*68 + "╝")
@@ -51,7 +51,7 @@ class BraceTerminalDemo:
             print("❌ Scenario non trovato")
             return
 
-        engine = BRACE_v30()
+        engine = GIU_L_IA()
         state = {
             "phase": 1,
             "trust_score": 50.0,
@@ -78,7 +78,8 @@ class BraceTerminalDemo:
             }
 
             print(f"\n  📊 Analysis ({elapsed:.1f}ms):")
-            print(f"     Phase: {phase_map.get(output.relational_state['phase'])} Level {output.relational_state['phase']}")
+            phase = output.relational_state['phase']
+            print(f"     Phase: {phase_map.get(phase)} Level {phase}")
             print(f"     Trust Score: {output.relational_state['trust_score']:.1f}%")
             print(f"     Intimate Attachment Index: {output.iai_state['score']:.3f}")
             print(f"     Gaming Pattern Detected: {'⚠️  YES - ALERT' if output.pil_result['window_gaming'] else '✓ No'}")
@@ -106,7 +107,7 @@ class BraceTerminalDemo:
             choice = input("Seleziona scenario (0-5): ").strip()
 
             if choice == "0":
-                print("\n👋 Grazie per aver usato BRACE v3.0 DEMO\n")
+                print("\n👋 Grazie per aver usato GIU-L_IA v3.1 DEMO\n")
                 break
 
             if choice in ["1", "2", "3", "4", "5"]:

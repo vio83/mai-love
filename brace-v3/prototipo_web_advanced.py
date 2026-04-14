@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BRACE v3.0 PROTOTIPO — Web UI Avanzato
+GIU-L_IA v3.1 PROTOTIPO — Web UI Avanzato
 Porta 9001 — Interface Interattiva con Controllo Sviluppatore Remoto
 Backend + Frontend Integrati • Performance Massima iMac
 """
@@ -20,13 +20,13 @@ CERT_FILE = CERT_DIR / "proto_localhost.pem"
 KEY_FILE = CERT_DIR / "proto_localhost_key.pem"
 
 sys.path.insert(0, str(BRACE_DIR.parent))
-from brace_v3 import BRACE_v30
-from scenarios_db import SCENARIOS
+from brace_v3 import GIU_L_IA  # noqa: E402
+from scenarios_db import SCENARIOS  # noqa: E402
 
 
 class PrototypeState:
     def __init__(self):
-        self.engine = BRACE_v30()
+        self.engine = GIU_L_IA()
         self.current_scenario = None
         self.current_turns = []
         self.responses = []
@@ -80,7 +80,7 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
             if scenario_name in SCENARIOS:
                 proto_state.current_scenario = scenario_name
                 proto_state.current_turns = SCENARIOS[scenario_name]
-                proto_state.engine = BRACE_v30()
+                proto_state.engine = GIU_L_IA()
                 proto_state.responses = []
 
                 self.send_response(200)
@@ -139,7 +139,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRACE v3.0 PROTOTIPO — Web UI Avanzato</title>
+    <title>GIU-L_IA v3.1 PROTOTIPO — Web UI Avanzato</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -363,14 +363,14 @@ def create_cert():
         return True
     CERT_DIR.mkdir(exist_ok=True)
     try:
-        subprocess.run([
+        subprocess.run([  # noqa: S603, S607
             "openssl", "req", "-x509", "-newkey", "rsa:2048",
             "-keyout", str(KEY_FILE), "-out", str(CERT_FILE),
             "-days", "365", "-nodes",
             "-subj", "/CN=localhost"
         ], check=True, capture_output=True)
         return True
-    except:
+    except Exception:
         return False
 
 
