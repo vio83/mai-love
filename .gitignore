@@ -8,6 +8,10 @@ target/
 *.dmg
 .env
 .env.local
+
+# Private keys / certs (localhost self-signed)
+**/.security_certs/*_key.pem
+**/.security_certs_proto/*_key.pem
 .env.production
 .DS_Store
 *.log

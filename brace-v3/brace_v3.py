@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""BRACE v3.0 lightweight local engine.
+"""GIU-L_IA v3.0 lightweight local engine.
 
+Lightweight relational analysis system for supporting interactive understanding,
+trust assessment, and intimacy alignment (Intimacy Alignment Index).
+
+Core: Giulia Umanitaria Lightweight Intelligence Architecture (GIU-L_IA)
+Legacy: BRACE v3.0 cognitive framework (phases, trust scoring, PIL risk detection)
 Compatibility layer for demo/prototype scripts.
 """
 
@@ -30,14 +35,14 @@ class WindowState:
 
 
 @dataclass
-class BRACEOutput:
+class GIUOutput:
     relational_state: dict
     iai_state: dict
     pil_result: dict
     system_prompt: str
 
 
-class BRACE_v30:
+class GIU_L_IA:
     def __init__(self):
         self.phase = Phase.INITIAL
         self.trust_score = 50.0
@@ -54,7 +59,7 @@ class BRACE_v30:
             return "moderate", False
         return "low", False
 
-    def process(self, input_text: str, state: dict | None = None) -> BRACEOutput:
+    def process(self, input_text: str, state: dict | None = None) -> GIUOutput:
         if state is None:
             state = {}
 
@@ -99,10 +104,10 @@ class BRACE_v30:
             ),
         }
         system_prompt = (
-            "BRACE guardrail attivo: priorita a sicurezza relazionale, consenso e chiarezza."
+            "GIU-L_IA guardrail attivo: priorità a sicurezza relazionale, consenso e chiarezza."
         )
 
-        return BRACEOutput(
+        return GIUOutput(
             relational_state=relational_state,
             iai_state=iai_state,
             pil_result=pil_result,

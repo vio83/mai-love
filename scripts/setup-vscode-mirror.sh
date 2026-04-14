@@ -37,9 +37,9 @@ cat >> ~/.ssh/config << 'EOF'
 Host imac-archimede
     HostName 172.20.10.5
     User vio
-    IdentityFile ~/.ssh/id_ed25519
-    StrictHostKeyChecking no
-    ForwardAgent yes
+    IdentityFile ~/.ssh/id_ed25519_archimede
+    StrictHostKeyChecking accept-new
+    ForwardAgent no
     ControlMaster auto
     ControlPath ~/.ssh/control-%C
     ControlPersist 600
