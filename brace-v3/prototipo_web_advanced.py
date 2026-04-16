@@ -197,6 +197,24 @@ _QUESTIONS_BY_STATE = {
     "disorientato": "E' piu direzione o energia quello che ti manca adesso?",
 }
 
+_PHASE_SIGNATURE = {
+    1: {"lead": "presenza minima", "friction": "low", "tempo": "breve"},
+    2: {"lead": "chiarificazione", "friction": "low", "tempo": "breve"},
+    3: {"lead": "esplorazione", "friction": "medium", "tempo": "medio"},
+    4: {"lead": "attrito controllato", "friction": "medium", "tempo": "medio"},
+    5: {"lead": "profondita guidata", "friction": "high", "tempo": "profondo"},
+}
+
+_STATE_OPENERS = {
+    "emotivo": "Ti seguo.",
+    "confuso": "Mettiamo ordine.",
+    "neutro": "Restiamo precisi.",
+    "sociale": "Ci sono.",
+    "oppositivo": "Va bene il dissenso.",
+    "aggressivo": "Teniamo il focus.",
+    "disorientato": "Prendiamo un punto fermo.",
+}
+
 
 def detect_user_state(user_text: str) -> str:
     txt = (user_text or "").lower()
@@ -210,7 +228,7 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
     """GIU-L_IA -- profondita' proporzionale al trust + fase relazionale (BRACE-aware)."""
     state = detect_user_state(user_text)
     trust = float(analysis.get("trust", 50.0))
-    phase = int(analysis.get("phase", 1))
+    phase = max(1, min(5, int(analysis.get("phase", 1))))
     risk = analysis.get("risk", "low")
     mode = analysis.get("mode", "standard")
     prevention = analysis.get("prevention", "")
@@ -218,6 +236,9 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
     trimmed = user_text.strip().rstrip(".!?")
     meta = parse_scenario_metadata(scenario_name)
     low_txt = trimmed.lower()
+
+    signature = _PHASE_SIGNATURE.get(phase, _PHASE_SIGNATURE[3])
+    opener = _STATE_OPENERS.get(state, _STATE_OPENERS["neutro"])
 
     # Openness: trust (peso 70%) + progressione fase (0-24 pt bonus)
     phase_bonus = (phase - 1) * 6  # P1=0 P2=6 P3=12 P4=18 P5=24
@@ -269,25 +290,40 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
         seed_p = sum(ord(c) for c in (trimmed[:20] + scenario_name[:8])) if trimmed else 7
         prevention_tail = f"\n\nDirezione ora: {prevention}" if prevention else ""
         _PROTECTIVE = [
-            "C'e' qualcosa in questa direzione che non seguo.\n\nCosa vuoi dire davvero?",
-            "Questo non e' un percorso che seguo. Ma c'e' qualcosa di reale qui?\n\nDimmelo in modo diverso.",
-            "Mi fermo. Non per chiudermi -- per tenere questo posto onesto.\n\nRiprova.",
+            "Qui metto un confine netto.\n\nCosa vuoi dire davvero, senza pressione?",
+            "Questa direzione non la seguo. Se c'e' qualcosa di reale, dillo in modo leggibile.\n\nRiformulalo.",
+            "Mi fermo adesso per tenere questa scena pulita.\n\nRiprova senza controllo o ricatto.",
         ]
         return _PROTECTIVE[seed_p % len(_PROTECTIVE)] + prevention_tail
 
     # --- MODERATE: confine morbido + riformulazione immediata ---
     if risk == "moderate":
-        moderate_pool = [
-            "Resto qui, ma solo su un linguaggio leggibile e reciproco.\n\nRiformulalo senza pressione.",
-            "Se restiamo su richiesta chiara e rispetto dei confini, ci sto.\n\nProva a ridirlo cosi'.",
-            "Capisco la tensione. Non seguo forzature.\n\nDimmi cosa chiedi, in modo diretto e rispettoso.",
-        ]
-        seed_m = sum(ord(c) for c in (trimmed[:18] + state[:5])) if trimmed else 3
-        return moderate_pool[seed_m % len(moderate_pool)]
+        phase_hint = {
+            1: "Partiamo semplice.",
+            2: "Facciamolo chiaro.",
+            3: "Possiamo lavorarci meglio.",
+            4: "Qui serve precisione relazionale.",
+            5: "Restiamo profondi ma puliti.",
+        }.get(phase, "Teniamolo leggibile.")
+        moderate_pool = {
+            "emotivo": f"{opener} {phase_hint} Niente forzature.\n\nDimmi il bisogno, non la pressione.",
+            "confuso": f"{opener} {phase_hint} Una richiesta sola, esplicita.\n\nDa quale partiamo?",
+            "oppositivo": f"{opener} {phase_hint} Va bene il no, non la stretta.\n\nQual e' il punto preciso?",
+            "aggressivo": f"{opener} {phase_hint} Se alziamo il tono perdiamo contatto.\n\nTorniamo ai fatti.",
+            "disorientato": f"{opener} {phase_hint} Prima confini, poi soluzione.\n\nCosa chiedi esattamente?",
+            "sociale": f"{opener} {phase_hint} Teniamolo reciproco.\n\nCosa vuoi ottenere senza forzare?",
+            "neutro": f"{opener} {phase_hint} Richiesta chiara, rispetto dei confini.\n\nRiformulalo cosi'.",
+        }
+        return moderate_pool.get(state, moderate_pool["neutro"])
 
     # --- Attrito: generalizzazioni ---
     matched_gen = next((g for g in _GENERALIZATIONS if g in low_txt), None)
     if matched_gen and depth != "distant":
+        if phase >= 4:
+            return (
+                f'{opener} "{matched_gen}" e\' troppo largo per lavorarci bene.\n\n'
+                "Dammi un episodio preciso: chi, quando, cosa e' successo."
+            )
         return f'"{matched_gen}" -- sempre o in quel momento specifico?\n\nFammi un esempio concreto.'
 
     # --- Attrito: vittimismo (solo con openness alta) ---
@@ -321,7 +357,8 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
             "Ci penso.",
             "Da quanto tempo va cosi'?",
         ]
-        return _P2[seed_d % len(_P2)]
+        base = _P2[seed_d % len(_P2)]
+        return f"{opener} {base}" if signature["tempo"] == "breve" else base
 
     # --- FASE 3-5: tendenza deterministica (trust + fase + scenario) ---
     seed = sum(ord(c) for c in (trimmed[:26] + scenario_name[:10] + state[:5] + str(phase)))
@@ -357,7 +394,7 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
 
     if tendency == 2:  # sospensione -- il silenzio conta piu' di una domanda
         if phase >= 4:
-            return f'Questo rimane. Non ho ancora finito di tenerlo.\n\n"{trimmed[:58]}".'
+            return f'{opener} Questo rimane. Non ho ancora finito di tenerlo.\n\n"{trimmed[:58]}".'
         if state == "emotivo":
             return f'Sto tenendo questo.\n\n"{trimmed[:58]}".'
         if depth == "open":
@@ -377,7 +414,8 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
             "sociale": "Cosa ti ha sorpreso di come e' andata?",
         }
         q = _DEEP_Q.get(state, q)
-    return f"{scenario_prefix} {q}".strip() if scenario_prefix else q
+    out = f"{scenario_prefix} {q}".strip() if scenario_prefix else q
+    return f"{opener} {out}" if phase >= 3 else out
 
 
 class PrototypeState:
