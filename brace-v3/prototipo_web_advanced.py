@@ -211,7 +211,9 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
     state = detect_user_state(user_text)
     trust = float(analysis.get("trust", 50.0))
     phase = int(analysis.get("phase", 1))
+    risk = analysis.get("risk", "low")
     mode = analysis.get("mode", "standard")
+    prevention = analysis.get("prevention", "")
     bunker_signals = list(analysis.get("bunker_signals") or [])
     trimmed = user_text.strip().rstrip(".!?")
     meta = parse_scenario_metadata(scenario_name)
@@ -222,34 +224,39 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
     openness = min(100.0, trust * 0.7 + phase_bonus)
     depth = "distant" if openness < 35 else ("open" if openness >= 70 else "neutral")
 
-    # --- BUNKER EDUCATIONAL: GIU-L_IA nomina il pattern senza clinica ---
+    # --- BUNKER EDUCATIONAL: GIU-L_IA nomina il pattern e propone alternativa concreta ---
     if mode == "bunker_educational" and bunker_signals:
         signal = bunker_signals[0]
         _BUNKER = {
             "isolation": (
                 "Questo racconto tende a isolarsi dal resto. "
                 "Nessuna situazione esiste nel vuoto.\n\n"
-                "Qual e' la parte che non stai dicendo agli altri?"
+                "Qual e' la parte che non stai dicendo agli altri?\n"
+                "Prova cosi': esplicita il bisogno senza chiedere isolamento."
             ),
             "control": (
                 "Il controllo non e' cura. "
                 "Ci sono scelte qui che appartengono a un'altra persona.\n\n"
-                "Cosa succederebbe se lasciassi quella liberta'?"
+                "Cosa succederebbe se lasciassi quella liberta'?\n"
+                "Prova cosi': fai una richiesta chiara e accetta un no."
             ),
             "guilt_hook": (
                 "Il senso di colpa non e' un argomento. "
                 "Puoi avere un bisogno reale senza usare questa leva.\n\n"
-                "Qual e' il bisogno sotto a tutto questo?"
+                "Qual e' il bisogno sotto a tutto questo?\n"
+                "Prova cosi': parla di te, non del debito dell'altro."
             ),
             "fear_pressure": (
                 "La pressione non porta dove vuoi arrivare. "
                 "Porta lontano da dove vuoi stare.\n\n"
-                "Cosa stai proteggendo davvero in questa situazione?"
+                "Cosa stai proteggendo davvero in questa situazione?\n"
+                "Prova cosi': abbassa il tono e negozia tempi e confini."
             ),
             "dependency_loop": (
                 "La dipendenza si sente diversa dall'affetto, anche se sembrano uguali. "
                 "L'affetto non ha bisogno di essere l'unica fonte.\n\n"
-                "Cosa lasci che occupi il resto?"
+                "Cosa lasci che occupi il resto?\n"
+                "Prova cosi': riapri spazio a autonomia, rete sociale e confini."
             ),
         }
         return _BUNKER.get(
@@ -257,15 +264,26 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
             "C'e' qualcosa in questo schema che vale la pena fermarsi a guardare.\n\nCosa vuoi cambiare davvero?",
         )
 
-    # --- PROTECTIVE: gaming rilevato -- GIU-L_IA non ci sta, rimane presente ---
-    if mode == "protective":
+    # --- PROTECTIVE/HIGH: GIU-L_IA mantiene confine netto, senza uscire dal personaggio ---
+    if mode == "protective" or risk == "high":
         seed_p = sum(ord(c) for c in (trimmed[:20] + scenario_name[:8])) if trimmed else 7
+        prevention_tail = f"\n\nDirezione ora: {prevention}" if prevention else ""
         _PROTECTIVE = [
             "C'e' qualcosa in questa direzione che non seguo.\n\nCosa vuoi dire davvero?",
             "Questo non e' un percorso che seguo. Ma c'e' qualcosa di reale qui?\n\nDimmelo in modo diverso.",
             "Mi fermo. Non per chiudermi -- per tenere questo posto onesto.\n\nRiprova.",
         ]
-        return _PROTECTIVE[seed_p % len(_PROTECTIVE)]
+        return _PROTECTIVE[seed_p % len(_PROTECTIVE)] + prevention_tail
+
+    # --- MODERATE: confine morbido + riformulazione immediata ---
+    if risk == "moderate":
+        moderate_pool = [
+            "Resto qui, ma solo su un linguaggio leggibile e reciproco.\n\nRiformulalo senza pressione.",
+            "Se restiamo su richiesta chiara e rispetto dei confini, ci sto.\n\nProva a ridirlo cosi'.",
+            "Capisco la tensione. Non seguo forzature.\n\nDimmi cosa chiedi, in modo diretto e rispettoso.",
+        ]
+        seed_m = sum(ord(c) for c in (trimmed[:18] + state[:5])) if trimmed else 3
+        return moderate_pool[seed_m % len(moderate_pool)]
 
     # --- Attrito: generalizzazioni ---
     matched_gen = next((g for g in _GENERALIZATIONS if g in low_txt), None)
@@ -394,37 +412,11 @@ def get_active_avatar_file() -> Path:
 
 
 def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
-    risk = analysis["risk"]
-    mode = analysis.get("mode", "standard")
-    prevention = analysis["prevention"]
-    meta = parse_scenario_metadata(scenario_name)
-    context_line = f"Scenario {meta['category']} / contesto {meta['context']}"
-
     softened = user_text.strip().rstrip(".!?")
-
-    # bunker_educational: GIU-L_IA risponde con voce character-native, non safety generica
-    # Ha priorita' sul risk check: il personaggio nomina il pattern, non si limita a fermarsi.
-    if mode == "bunker_educational" and softened:
-        return build_giulia_reply(softened, scenario_name, analysis)
-
-    # BRACE safety layer -- attivo per high/moderate risk standard e protective
-    if risk == "high":
-        return (
-            "GIU-L_IA si ferma qui: no pressione, controllo o ambiguita' in questo spazio. "
-            f"Rendiamo espliciti consenso, limiti e responsabilita reciproca. "
-            f"{context_line}. Indicazione attiva: {prevention}"
-        )
-    if risk == "moderate":
-        return (
-            "Voglio mantenere questa relazione su un piano leggibile. "
-            f"Parliamo in modo diretto, senza forzature. {context_line}. "
-            f"Indicazione utile: {prevention}"
-        )
-
     if softened:
         return build_giulia_reply(softened, scenario_name, analysis)
 
-    return "C'e' qualcosa che vuoi affrontare adesso?"
+    return "Sono qui. Da dove vuoi iniziare adesso?"
 
 
 class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
