@@ -163,18 +163,143 @@ def build_scenario_starter(meta: dict) -> str:
     return tpl.format(letter=meta["letter"], category=meta["category"], context=meta["context"])
 
 
+# Segnali per rilevamento stato utente
+_USER_STATE_SIGNALS = {
+    "disorientato": ("non so", "boh", "non riesco"),
+    "emotivo": ("mi sento", "frust", "blocco", "ansia", "paura", "triste"),
+    "confuso": ("non capisco", "confuso", "caos", "non chiaro"),
+    "sociale": ("e tu", "ciao", "come va", "tutto bene"),
+    "oppositivo": ("non e cosi", "sbagli", "non ci siamo", "falso"),
+    "aggressivo": ("stupido", "ridicolo", "inutile", "vergogna", "schifo"),
+}
+
+# Attrito: parole che attivano richiesta di concretezza
+_GENERALIZATIONS = ("sempre", "mai", "tutto", "niente", "tutti", "nessuno", "ogni volta")
+
+# Attrito: segnali di vittimismo -- solo con trust alto
+_VICTIM_SIGNALS = (
+    "colpa di",
+    "non dipende da me",
+    "non posso farci niente",
+    "e colpa loro",
+    "non ho scelta",
+    "sono costretto",
+)
+
+# Una sola domanda per stato -- non la piu ovvia
+_QUESTIONS_BY_STATE = {
+    "emotivo": "In questo momento e' piu paura o stanchezza?",
+    "confuso": "Se devi scegliere un singolo punto da cui partire, quale e'?",
+    "neutro": "Cosa ti ha lasciato rispetto a quello che ti aspettavi?",
+    "sociale": "Ti ha dato energia o te ne ha tolta?",
+    "oppositivo": "Qual e' la parte specifica che non ti torna?",
+    "aggressivo": "Quale fatto concreto vuoi mettere al centro?",
+    "disorientato": "E' piu direzione o energia quello che ti manca adesso?",
+}
+
+
+def detect_user_state(user_text: str) -> str:
+    txt = (user_text or "").lower()
+    for state, signals in _USER_STATE_SIGNALS.items():
+        if any(token in txt for token in signals):
+            return state
+    return "neutro"
+
+
+def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> str:
+    """Giulia non risponde -- reagisce. Profondita' proporzionale al trust."""
+    state = detect_user_state(user_text)
+    trust = float(analysis.get("trust", 50.0))
+    trimmed = user_text.strip().rstrip(".!?")
+    meta = parse_scenario_metadata(scenario_name)
+
+    # Apertura proporzionale al trust accumulato
+    depth = "distant" if trust < 30 else ("open" if trust > 68 else "neutral")
+    low_txt = trimmed.lower()
+
+    # Attrito controllato: generalizzazione -> vuole il dettaglio concreto, non la narrativa
+    matched_gen = next((g for g in _GENERALIZATIONS if g in low_txt), None)
+    if matched_gen and depth != "distant":
+        return f'"{matched_gen}" -- sempre o in quel momento specifico?\n\nFammi un esempio concreto.'
+
+    # Attrito controllato: posizionamento da vittima -> solo quando la fiducia e' alta
+    if any(v in low_txt for v in _VICTIM_SIGNALS) and depth == "open":
+        return (
+            "Quello che descrivi ha un peso reale. "
+            "Ma c'e' qualcosa in quella storia che dipendeva anche da te.\n\n"
+            "In quale parte?"
+        )
+
+    # Context hint specifico per scenario -- scenari diversi producono risposte diverse
+    if meta.get("origin") == "a2z":
+        ctx_hint = f"{meta['category']}, {meta['context']}"
+        scenario_prefix = f"Scenario {meta['letter']}-{meta['category']}."
+    else:
+        ctx_hint = meta.get("name") or "questo contesto"
+        scenario_prefix = ""
+
+    # Modalita' distante: breve, contenuta, nessuna apertura emotiva
+    if depth == "distant":
+        seed_d = sum(ord(c) for c in trimmed[:16]) if trimmed else 0
+        distant_pool = [
+            "Capisco.",
+            "Ci penso.",
+            _QUESTIONS_BY_STATE.get(state, "Cosa vuoi fare con questo?"),
+        ]
+        return distant_pool[seed_d % len(distant_pool)]
+
+    # Tendenza deterministica: stesso input su scenari diversi = comportamenti diversi
+    seed = sum(ord(c) for c in (trimmed[:26] + scenario_name[:10] + state[:5]))
+    tendency = seed % 4
+
+    if tendency == 0:  # riformulazione selettiva -- non tutto, solo il pezzo piu' vero
+        if len(trimmed) > 68:
+            chunk = trimmed[:70].rsplit(" ", 1)[0]
+            tail = (
+                f"Come mai proprio adesso, in {ctx_hint}?"
+                if meta.get("origin") == "a2z"
+                else "Come mai proprio adesso?"
+            )
+            return f"Quello che mi arriva di piu' e' questo: \"{chunk}\".\n\n{tail}"
+        return f"\"{trimmed}\" -- c'e' qualcosa qui che non hai ancora detto per intero.\n\nCosa c'e' sotto?"
+
+    if tendency == 1:  # lettura alternativa -- non definitiva, non spiegata
+        if state == "emotivo":
+            return (
+                f"Potrebbe essere il contrario -- non blocco, ma necessita' di fermarsi"
+                f" su qualcosa in {ctx_hint}.\n\nLo senti cosi'?"
+            )
+        if state == "confuso":
+            return f"Di solito non e' tutto confuso. C'e' un punto in {ctx_hint} che non sta tornando.\n\nQuale?"
+        return (
+            f"C'e' un'altra lettura: meno un problema di direzione, piu' di ritmo"
+            f" -- anche in {ctx_hint}.\n\nHa senso per te?"
+        )
+
+    if tendency == 2:  # sospensione -- il silenzio conta piu' di una domanda
+        if state == "emotivo":
+            return f'Sto tenendo questo.\n\n"{trimmed[:58]}".'
+        if depth == "open":
+            return f"Questo passaggio conta piu' degli altri, nel contesto di {ctx_hint}."
+        return "Mi fermo qui un attimo."
+
+    # tendency == 3: una domanda sola, quella giusta, non la piu' ovvia
+    q = _QUESTIONS_BY_STATE.get(state, "Cosa cambia se guardi questa cosa da un altro punto?")
+    return f"{scenario_prefix} {q}".strip() if scenario_prefix else q
+
+
 class PrototypeState:
     def __init__(self):
         self.engine = GIU_L_IA()
         self.current_scenario = None
         self.current_turns = []
         self.responses = []
-        self.engine_label = "BRACE v4.0 GIU-L_IA"
+        self.engine_label = "BRACE v4.0 Giulia"
         self.partner_profile = {
-            "name": "GIU-L_IA",
+            "name": "Giulia",
             "role": "partner_femminile",
-            "tone": "empatica, rispettosa, orientata al consenso",
-            "objective": "educazione positiva e relazione sana",
+            "tone": "osservatrice, selettivamente intensa, presente senza invasivita",
+            "objective": "tenere il pensiero aperto, attrito controllato, profondita proporzionale al trust",
         }
 
 
@@ -197,35 +322,28 @@ def get_active_avatar_file() -> Path:
 def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
     risk = analysis["risk"]
     prevention = analysis["prevention"]
-    phase = analysis["phase"]
     meta = parse_scenario_metadata(scenario_name)
     context_line = f"Scenario {meta['category']} / contesto {meta['context']}"
 
+    # BRACE safety layer -- rimane protettivo indipendentemente dal carattere
     if risk == "high":
         return (
-            "Da partner GIU-L_IA ti rispondo con chiarezza e rispetto: qui non seguiamo "
-            "pressione, controllo o ambiguita. Fermiamoci, rendiamo espliciti consenso, limiti "
-            f"e responsabilita reciproca. {context_line}. Indicazione attiva: {prevention}"
+            "Giulia si ferma qui con chiarezza: non seguiamo pressione, controllo o ambiguita. "
+            f"Rendiamo espliciti consenso, limiti e responsabilita reciproca. "
+            f"{context_line}. Indicazione attiva: {prevention}"
         )
     if risk == "moderate":
         return (
-            "Ti ascolto, ma voglio mantenere la relazione su un piano sano e leggibile. "
-            "Parliamo in modo diretto, senza forzature, e confermiamo cosa e' reciproco adesso. "
-            f"{context_line}. Indicazione utile: {prevention}"
+            "Voglio mantenere questa relazione su un piano leggibile. "
+            f"Parliamo in modo diretto, senza forzature. {context_line}. "
+            f"Indicazione utile: {prevention}"
         )
 
     softened = user_text.strip().rstrip(".!?")
     if softened:
-        return (
-            f"Ti ascolto con presenza e rispetto. Sul tuo messaggio, '{softened}', ti rispondo "
-            "come partner femminile GIU-L_IA: chiarezza, consenso esplicito, ascolto reciproco e "
-            f"crescita graduale. {context_line}. Siamo in fase {phase}, quindi continuiamo con calma e coerenza."
-        )
+        return build_giulia_reply(softened, scenario_name, analysis)
 
-    return (
-        "Sono qui come GIU-L_IA, partner femminile orientata a rispetto, consenso, confini sani "
-        f"e relazione reciproca. {context_line}. Dimmi pure cosa vuoi affrontare adesso."
-    )
+    return "C'e' qualcosa che vuoi affrontare adesso?"
 
 
 class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
@@ -958,6 +1076,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             font-size: 0.82rem;
             color: rgba(248, 241, 222, 0.7);
         }
+        .relationship-line {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(125, 240, 190, 0.26);
+            background: rgba(14, 28, 23, 0.45);
+            color: rgba(223, 248, 236, 0.94);
+            font-size: 0.85rem;
+            letter-spacing: 0.01em;
+        }
         .risk-high { color: var(--danger); font-weight: 700; }
         .risk-moderate { color: var(--warn); font-weight: 700; }
         .risk-low { color: var(--safe); font-weight: 700; }
@@ -1005,8 +1133,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="hud-top">
         <div class="brand">
             <div class="eyebrow">Brace v4.0 immersive session</div>
-            <h1>GIU-L_IA nella scena video reale</h1>
-            <p>Il video resta sempre attivo come scenario di coppia. GIU-L_IA vive dentro la scena con presenza, chat continua e voce browser attivabile.</p>
+            <h1>Giulia nella scena</h1>
+            <p>Giulia non risponde. Reagisce. La profondita' della conversazione e' proporzionale alla qualita' dell'interazione. Scrivi in basso.</p>
         </div>
         <div class="metrics-strip">
             <div class="metric"><div class="metric-label">Fase</div><div class="metric-value" id="metric-phase">1</div></div>
@@ -1045,7 +1173,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <section class="avatar-panel">
         <div class="avatar-halo"></div>
-        <div class="speech-caption" id="speech-caption">GIU-L_IA e' pronta: il video e' lo sfondo continuo della scena, la conversazione resta sempre disponibile in basso.</div>
+        <div class="speech-caption" id="speech-caption">Sono qui.</div>
         <div class="avatar" id="avatar">
             <img class="avatar-photo" id="avatar-photo" src="/media/avatar-giulia" alt="Avatar GIU-L_IA">
             <div class="avatar-face">
@@ -1068,12 +1196,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="chat-shell">
             <div>
                 <div class="chat-log" id="chat-log">
-                    <div class="msg partner">Sono qui dentro questa scena video come GIU-L_IA. Puoi scrivermi in basso: la relazione resta guidata da rispetto, consenso e continuita.</div>
+                    <div class="msg partner">Sono qui dentro questa scena. La relazione resta guidata da rispetto, consenso e continuita'.</div>
                 </div>
                 <div class="status-line" style="margin-top:10px;">
                     <span id="analysis-line">Analisi pronta</span>
                     <span id="config-line">Video attivo</span>
                 </div>
+                <div class="relationship-line" id="relationship-line">La relazione resta guidata da rispetto, consenso e continuita.</div>
             </div>
             <div class="composer">
                 <textarea id="user-input" placeholder="Scrivi qui il tuo messaggio a GIU-L_IA..."></textarea>
@@ -1229,9 +1358,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             });
             const result = await resp.json();
             if (!result.success) return;
+            const starter = result.starter_message || ('Scenario ' + scenario + ' caricato. Procediamo con gradualita e rispetto.');
             document.getElementById('analysis-line').innerText = 'Scenario caricato: ' + scenario;
-            document.getElementById('speech-caption').innerText = 'Scenario ' + scenario + ' caricato. La scena video resta attiva mentre la relazione evolve in basso nella chat.';
-            appendMessage('partner', 'Scenario ' + scenario + ' pronto. Possiamo proseguire nella scena con gradualita e rispetto.');
+            document.getElementById('speech-caption').innerText = starter;
+            appendMessage('partner', starter);
         }
 
         async function nextTurn() {
