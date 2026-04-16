@@ -7,6 +7,8 @@ Backend + Frontend Integrati • Performance Massima iMac
 
 import http.server
 import json
+import os
+import shutil
 import socketserver
 import ssl
 import subprocess
@@ -21,6 +23,11 @@ KEY_FILE = CERT_DIR / "proto_localhost_key.pem"
 VIDEO_FILE = BRACE_DIR / "media" / "progetto-giulia.m4v"
 DOWNLOAD_VIDEO_FILE = Path.home() / "Downloads" / "progetto giulia.m4v"
 VIDEO_ROUTE = "/media/progetto-giulia.m4v"
+TTS_VOICE_HINT = os.getenv("GIULIA_TTS_VOICE_HINT", "it-IT").strip() or "it-IT"
+TTS_VOICE_NAME = os.getenv("GIULIA_TTS_VOICE_NAME", "").strip()
+TTS_RATE = float(os.getenv("GIULIA_TTS_RATE", "0.96").strip() or "0.96")
+TTS_PITCH = float(os.getenv("GIULIA_TTS_PITCH", "1.05").strip() or "1.05")
+OPENSSL_BIN = shutil.which("openssl") or "/usr/bin/openssl"
 
 sys.path.insert(0, str(BRACE_DIR.parent))
 from brace_v3 import GIU_L_IA  # noqa: E402
@@ -190,6 +197,12 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 "video_file": str(active_video),
                 "video_filename": active_video.name,
                 "partner_profile": proto_state.partner_profile,
+                "tts": {
+                    "voice_hint": TTS_VOICE_HINT,
+                    "voice_name": TTS_VOICE_NAME,
+                    "rate": TTS_RATE,
+                    "pitch": TTS_PITCH,
+                },
             }
             self.send_json(200, cfg)
 
@@ -859,6 +872,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script>
         let voiceEnabled = true;
         let selectedVoice = null;
+        let ttsConfig = {
+            voice_hint: 'it-IT',
+            voice_name: '',
+            rate: 0.96,
+            pitch: 1.05,
+        };
 
         function pickVoice() {
             const synth = window.speechSynthesis;
@@ -867,7 +886,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 return null;
             }
             const voices = synth.getVoices();
-            selectedVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('it')) || voices[0] || null;
+            const wantedName = (ttsConfig.voice_name || '').toLowerCase();
+            const wantedHint = (ttsConfig.voice_hint || 'it-IT').toLowerCase();
+            selectedVoice = null;
+            if (wantedName) {
+                selectedVoice = voices.find(v => (v.name || '').toLowerCase() === wantedName) || null;
+            }
+            if (!selectedVoice) {
+                selectedVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith(wantedHint.slice(0, 2))) || null;
+            }
+            if (!selectedVoice) {
+                selectedVoice = voices[0] || null;
+            }
             document.getElementById('voice-status').innerText = selectedVoice ? 'voce pronta' : 'nessuna voce trovata';
             return selectedVoice;
         }
@@ -896,9 +926,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
             synth.cancel();
             const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'it-IT';
-            utter.rate = 0.96;
-            utter.pitch = 1.05;
+            utter.lang = ttsConfig.voice_hint || 'it-IT';
+            utter.rate = Number(ttsConfig.rate || 0.96);
+            utter.pitch = Number(ttsConfig.pitch || 1.05);
             utter.volume = 1;
             const voice = selectedVoice || pickVoice();
             if (voice) {
@@ -1033,6 +1063,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         fetch('/api/config')
             .then(resp => resp.json())
             .then(cfg => {
+                if (cfg.tts) {
+                    ttsConfig = {
+                        voice_hint: cfg.tts.voice_hint || 'it-IT',
+                        voice_name: cfg.tts.voice_name || '',
+                        rate: cfg.tts.rate || 0.96,
+                        pitch: cfg.tts.pitch || 1.05,
+                    };
+                }
                 document.getElementById('profile-summary').innerHTML =
                     '<div>Partner: ' + cfg.partner_profile.name + '</div>' +
                     '<div>Ruolo: ' + cfg.partner_profile.role + '</div>' +
@@ -1063,7 +1101,7 @@ def create_cert():
     try:
         subprocess.run(  # noqa: S603, S607
             [
-                "openssl",
+                OPENSSL_BIN,
                 "req",
                 "-x509",
                 "-newkey",
