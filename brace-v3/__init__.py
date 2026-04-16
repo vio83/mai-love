@@ -20,5 +20,5 @@ __all__ = [
     "SCENARIOS",
     "get_scenario",
     "get_scenario_names",
-    "get_scenario_turns"
+    "get_scenario_turns",
 ]

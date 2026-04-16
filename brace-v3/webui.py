@@ -42,7 +42,20 @@ def _env_int(name: str, default: int) -> int:
     return value
 
 
+def _env_positive_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    if value < minimum or value > maximum:
+        return default
+    return value
+
+
 PORT = _env_int("PORT", 9443)
+ENGINE_VERSION = "4.0.0"
+API_VERSION = "v4"
 ASSETS_DIR = _HERE / "assets"
 ALLOWED_EXTENSIONS = {
     ".jpg",
@@ -58,11 +71,12 @@ ALLOWED_EXTENSIONS = {
     ".m4v",
 }
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-OLLAMA_MODEL = "smollm2:1.7b"
-OLLAMA_TIMEOUT = 120
+OLLAMA_URL = os.getenv("GIULIA_OLLAMA_URL", "http://127.0.0.1:11434/api/chat").strip()
+OLLAMA_MODEL = os.getenv("GIULIA_OLLAMA_MODEL", "smollm2:1.7b").strip() or "smollm2:1.7b"
+OLLAMA_TIMEOUT = _env_positive_int("GIULIA_OLLAMA_TIMEOUT", 120, 5, 300)
+MAX_BODY_BYTES = _env_positive_int("GIULIA_MAX_BODY_BYTES", 32768, 512, 1_048_576)
 ENGINE_NAME = "GIU-L_IA"
-DEFAULT_VIDEO_ASSET = "progetto_giulia.m4v"
+DEFAULT_VIDEO_ASSET = os.getenv("GIULIA_VIDEO_ASSET", "progetto_giulia.m4v").strip() or "progetto_giulia.m4v"
 VIDEO_SCENE_CONTEXT = (
     "Scenario attivo: video 3D realistico di relazione di coppia in evoluzione. "
     "Ambientazione premium 5 stelle ultra-realistica. "
@@ -195,6 +209,29 @@ def _ollama_chat(user_text: str, engine_system_prompt: str, risk_level: str, sce
         return f"[Ollama errore: {exc}]"
 
 
+def _ollama_health() -> dict:
+    tags_url = OLLAMA_URL.rsplit("/api/chat", 1)[0] + "/api/tags"
+    req = urllib.request.Request(tags_url, method="GET")  # noqa: S310
+    try:
+        with urllib.request.urlopen(req, timeout=2) as resp:  # noqa: S310
+            body = json.loads(resp.read())
+            names = [m.get("name", "") for m in body.get("models", [])]
+            return {
+                "reachable": True,
+                "status": int(resp.status),
+                "model_count": len(names),
+                "target_model_available": any(n.startswith(OLLAMA_MODEL) for n in names),
+            }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "reachable": False,
+            "status": 0,
+            "model_count": 0,
+            "target_model_available": False,
+        "error": str(exc),
+      }
+
+
 # ===================================================================
 # HTML PAGE — built as concatenation to avoid heredoc issues
 # ===================================================================
@@ -308,7 +345,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GIU-L_IA — AI Relational Safety</title>
+<title>GIU-L_IA v4.0 — AI Relational Safety</title>
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self'; media-src 'self';">
 <style>
@@ -922,6 +959,8 @@ draw();
 </body>
 </html>"""
 
+HTML_PAGE = HTML_PAGE.replace("/assets/progetto_giulia.m4v", f"/assets/{DEFAULT_VIDEO_ASSET}")
+
 
 # ===================================================================
 # Server
@@ -946,9 +985,36 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
         elif path == "/api/state":
             self._json_out(
                 {
+            "engine": ENGINE_NAME,
+            "version": ENGINE_VERSION,
                     "phase": int(_engine.phase),
                     "trust_score": round(_engine.trust_score, 2),
                     "turn_count": _engine.turn_count,
+                }
+            )
+        elif path == "/api/health":
+            self._json_out(
+                {
+                    "engine": ENGINE_NAME,
+                    "version": ENGINE_VERSION,
+                    "api": API_VERSION,
+                    "status": "ok",
+                    "port": PORT,
+                    "scenario": _session_profile.get("scenario", "giu_first_contact"),
+                    "ollama": _ollama_health(),
+                }
+            )
+        elif path == "/api/config":
+            self._json_out(
+                {
+                    "engine": ENGINE_NAME,
+                    "version": ENGINE_VERSION,
+                    "port": PORT,
+                    "ollama_url": OLLAMA_URL,
+                    "ollama_model": OLLAMA_MODEL,
+                    "ollama_timeout": OLLAMA_TIMEOUT,
+                    "max_body_bytes": MAX_BODY_BYTES,
+                    "default_video_asset": DEFAULT_VIDEO_ASSET,
                 }
             )
         elif path == "/api/scenarios":
@@ -956,9 +1022,20 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
         else:
             self._json_out({"error": "not found"}, 404)
 
+    def do_OPTIONS(self) -> None:
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.end_headers()
+
     def do_POST(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
         body = self._body()
+        if "__error__" in body:
+            self._json_out({"error": body["__error__"]}, 413)
+            return
         if path == "/api/input":
             self._api_input(body)
         elif path == "/api/load_scenario":
@@ -1068,6 +1145,8 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             return {}
+        if length > MAX_BODY_BYTES:
+            return {"__error__": f"payload too large: max {MAX_BODY_BYTES} bytes"}
         try:
             return json.loads(self.rfile.read(length))
         except (json.JSONDecodeError, ValueError):
@@ -1079,6 +1158,8 @@ class GIULIAHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(c)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(c)
 
@@ -1087,8 +1168,10 @@ def main() -> None:
     try:
         with ReusableTCPServer(("", PORT), GIULIAHandler) as httpd:
             print(f"[{ENGINE_NAME}] Server avviato su http://127.0.0.1:{PORT}/")
+            print(f"[{ENGINE_NAME}] Versione: {ENGINE_VERSION} ({API_VERSION})")
             print(f"[{ENGINE_NAME}] Assets: {ASSETS_DIR}")
             print(f"[{ENGINE_NAME}] Ollama model: {OLLAMA_MODEL}")
+            print(f"[{ENGINE_NAME}] Max body bytes: {MAX_BODY_BYTES}")
             print(f"[{ENGINE_NAME}] Engine GIU-L_IA pronto")
             try:
                 httpd.serve_forever()

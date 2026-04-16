@@ -7,6 +7,7 @@ Backend + Frontend Integrati • Performance Massima iMac
 
 import http.server
 import json
+import os
 import socketserver
 import ssl
 import subprocess
@@ -14,7 +15,7 @@ import sys
 from pathlib import Path
 
 BRACE_DIR = Path(__file__).resolve().parent
-PORT = 9001
+PORT = int(os.getenv("GIULIA_PROTO_PORT", "9001"))
 CERT_DIR = BRACE_DIR / ".security_certs_proto"
 CERT_FILE = CERT_DIR / "proto_localhost.pem"
 KEY_FILE = CERT_DIR / "proto_localhost_key.pem"
@@ -377,7 +378,7 @@ def create_cert():
 if __name__ == '__main__':
     print("\n╔════════════════════════════════════════════════════════════╗")
     print("║  🎯 BRACE v3.0 PROTOTIPO — Web UI Avanzato               ║")
-    print("║  Performance Massima • iMac Arch Linux • Porta 9001      ║")
+    print(f"║  Performance Massima • iMac Arch Linux • Porta {PORT:<9}║")
     print("╚════════════════════════════════════════════════════════════╝")
 
     if create_cert():

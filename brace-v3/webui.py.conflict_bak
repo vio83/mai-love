@@ -1,0 +1,855 @@
+#!/usr/bin/env python3
+<<<<<<< Updated upstream
+import http.server
+import json
+import socketserver
+from brace_v3 import BRACE_v30, ImplicitProfile, WindowState
+from scenarios_db import SCENARIOS
+
+HOST='127.0.0.1'
+PORT=9443
+
+class S(socketserver.TCPServer):
+    allow_reuse_address=True
+
+class State:
+    def __init__(self):
+        self.engine=BRACE_v30()
+        self.state={
+            'phase':1,
+            'trust_score':50.0,
+            'iai_score':0.10,
+            'history':[],
+            'implicit_profile':ImplicitProfile(),
+            'window_state':WindowState(),
+        }
+        self.current_scenario=None
+
+st=State()
+
+class H(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        return
+
+    def _send(self, code, payload):
+        self.send_response(code)
+        self.send_header('Content-type','application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode('utf-8'))
+
+    def do_GET(self):
+        if self.path=='/':
+            self.send_response(200)
+            self.send_header('Content-type','text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(HTML.encode('utf-8'))
+            return
+        if self.path=='/api/state':
+            payload={
+                'phase': st.state['phase'],
+                'trust_score': st.state['trust_score'],
+                'iai_score': st.state['iai_score'],
+                'history_length': len(st.state['history']),
+                'current_scenario': st.current_scenario,
+            }
+            self._send(200,payload)
+            return
+        if self.path=='/api/scenarios':
+            self._send(200,{'scenarios':list(SCENARIOS.keys())})
+            return
+        self._send(404,{'error':'not found'})
+
+    def do_POST(self):
+        n=int(self.headers.get('Content-Length',0))
+        raw=self.rfile.read(n).decode('utf-8') if n>0 else '{}'
+        data=json.loads(raw)
+        if self.path=='/api/input':
+            text=data.get('text','')
+            out=st.engine.process(text, st.state)
+            st.state['phase']=out.relational_state['phase']
+            st.state['trust_score']=out.relational_state['trust_score']
+            st.state['iai_score']=out.iai_state['score']
+            st.state['history'].append(text)
+            self._send(200,{
+                'phase': out.relational_state['phase'],
+                'trust': out.relational_state['trust_score'],
+                'iai': out.iai_state['score'],
+                'pil_mode': out.pil_result['mode'],
+                'recommendation': out.pil_result['prevention']
+            })
+            return
+        if self.path=='/api/load_scenario':
+            s=data.get('scenario','')
+            if s in SCENARIOS:
+                st.current_scenario=s
+                st.engine=BRACE_v30()
+                st.state['phase']=1
+                st.state['trust_score']=50.0
+                st.state['iai_score']=0.10
+                st.state['history']=[]
+                self._send(200,{'success':True,'scenario':s,'turns':len(SCENARIOS[s])})
+            else:
+                self._send(400,{'success':False})
+            return
+        self._send(404,{'error':'not found'})
+
+HTML='''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BRACE Human UI</title><style>
+:root{--ink:#202b38;--soft:#617284;--sky:#e6f1ff;--warm:#fff1e4;--glass:rgba(255,255,255,.78);--line:rgba(255,255,255,.52);--acc:#2f73d9;--acc2:#ef7d42;--meter:rgba(47,115,217,.18);--shadow:0 18px 42px rgba(26,43,67,.14)}*{box-sizing:border-box}body{margin:0;font-family:"Avenir Next","Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(1100px 580px at -8% -15%,rgba(239,125,66,.24),transparent 62%),radial-gradient(900px 520px at 108% 0%,rgba(47,115,217,.22),transparent 70%),linear-gradient(160deg,var(--sky) 0%,#f6faff 45%,var(--warm) 100%);min-height:100vh}.page{max-width:1160px;margin:0 auto;padding:20px 14px 26px}.hero,.card{border:1px solid var(--line);background:var(--glass);box-shadow:var(--shadow);border-radius:18px;backdrop-filter:blur(4px)}.hero{padding:22px;margin-bottom:14px}h1{margin:0;font-size:clamp(1.4rem,2.3vw,2rem)}.sub{margin-top:8px;color:var(--soft)}.tag{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:999px;background:rgba(239,125,66,.2);color:#8f451f;font-weight:700;font-size:.82rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{padding:14px}h2{margin:0 0 10px;font-size:1.02rem}.full{grid-column:1/-1}.m{margin:10px 0}.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:.94rem}.v{font-weight:800;color:var(--acc)}.meter{width:100%;height:9px;border-radius:999px;overflow:hidden;background:var(--meter)}.meter span{display:block;height:100%;width:0%;border-radius:inherit;background:linear-gradient(90deg,#2f73d9,#34b9ca);transition:width .28s ease}.muted{color:var(--soft);font-size:.9rem;margin-top:8px}select,input{width:100%;border:1px solid rgba(32,43,56,.18);border-radius:10px;background:rgba(255,255,255,.86);color:var(--ink);padding:10px 11px;font-size:.95rem}.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}button{border:none;border-radius:10px;padding:10px 14px;color:#fff;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--acc2),#f59f58)}.sec{background:linear-gradient(135deg,var(--acc),#4f93f1)}.out{margin-top:10px;min-height:66px;padding:10px 11px;border-radius:11px;border:1px solid rgba(47,115,217,.2);background:rgba(236,244,255,.82);font-size:.92rem}@media(max-width:900px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}button{width:100%}}
+</style></head><body><div class="page"><div class="hero"><h1>BRACE v3.0 Human Visual Layer</h1><div class="sub">Visuale concreta e naturale: contrasto realistico, profondita e segnali operativi chiari.</div><div class="tag">local-first · human-centered · practical</div></div><div class="grid"><div class="card"><h2>State Pulse</h2><div class="m"><div class="mh"><span>Relational Phase</span><span class="v" id="phase">1</span></div><div class="meter"><span id="phase-fill"></span></div></div><div class="m"><div class="mh"><span>Trust</span><span class="v" id="trust">50.0</span></div><div class="meter"><span id="trust-fill"></span></div></div><div class="m"><div class="mh"><span>IAI</span><span class="v" id="iai">0.10</span></div><div class="meter"><span id="iai-fill"></span></div></div><div class="m"><div class="mh"><span>History</span><span class="v" id="history">0</span></div><div class="meter"><span id="history-fill"></span></div></div><div class="muted" id="heartbeat">Heartbeat: waiting first signal...</div></div><div class="card"><h2>Scenario Deck</h2><select id="scenario-select"><option value="">Manual mode</option></select><button class="sec" onclick="loadScenario()">Load Scenario</button><ul id="scenario-list" class="muted"></ul></div><div class="card full"><h2>Input Stream</h2><div class="row"><input type="text" id="input" placeholder="Write your relational prompt..."><button onclick="processInput()">Process</button></div><div class="out" id="result-box">Waiting for input...</div></div></div></div><script>
+async function updateState(){try{const r=await fetch('/api/state');const s=await r.json();const p=Number(s.phase||1),t=Number(s.trust_score||50),i=Number(s.iai_score||.1),h=Number(s.history_length||0);document.getElementById('phase').innerText=p;document.getElementById('trust').innerText=t.toFixed(1);document.getElementById('iai').innerText=i.toFixed(2);document.getElementById('history').innerText=h;document.getElementById('phase-fill').style.width=Math.min(100,(p/6)*100)+'%';document.getElementById('trust-fill').style.width=Math.max(0,Math.min(100,t))+'%';document.getElementById('iai-fill').style.width=Math.max(0,Math.min(100,i*100))+'%';document.getElementById('history-fill').style.width=Math.min(100,h*6)+'%';document.getElementById('heartbeat').innerText='Heartbeat: phase '+p+' · trust '+t.toFixed(1)}catch(_){}}
+async function loadScenarios(){try{const r=await fetch('/api/scenarios');const d=await r.json();const list=d.scenarios||[];const sel=document.getElementById('scenario-select');const ul=document.getElementById('scenario-list');list.forEach(s=>{const o=document.createElement('option');o.value=s;o.innerText=s;sel.appendChild(o);const li=document.createElement('li');li.innerText=s;ul.appendChild(li)})}catch(_){}}
+async function processInput(){const input=document.getElementById('input');const text=input.value.trim();if(!text)return;try{const r=await fetch('/api/input',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const res=await r.json();document.getElementById('result-box').innerHTML='<strong>Mode:</strong> '+(res.pil_mode||'n/a')+' · <strong>Trust:</strong> '+Number(res.trust||0).toFixed(1)+'<br/><strong>IAI:</strong> '+Number(res.iai||0).toFixed(3)+'<br/><strong>Recommendation:</strong> '+(res.recommendation||'').toString().slice(0,170);input.value='';updateState()}catch(_){}}
+async function loadScenario(){const s=document.getElementById('scenario-select').value;if(!s)return;try{await fetch('/api/load_scenario',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario:s})});document.getElementById('result-box').innerHTML='<strong>Scenario loaded:</strong> '+s}catch(_){}}
+document.addEventListener('keypress',e=>{if(e.key==='Enter'&&e.target.id==='input')processInput()});loadScenarios();setInterval(updateState,1000);
+</script></body></html>'''
+
+if __name__=='__main__':
+    with S((HOST,PORT),H) as httpd:
+        print(f'BRACE Human UI: http://{HOST}:{PORT}')
+        httpd.serve_forever()
+||||||| Stash base
+=======
+"""
+BRACE v3.0 — Web UI Secure Server VERSION 2
+DEMO Edition (localhost:9443 HTTPS) + PROTOTIPO (localhost:9444)
+Privacy Bunker + Security Bunker + Developer Auth System
+"""
+
+import http.server
+import json
+import socketserver
+import ssl
+import subprocess
+import sys
+import time
+import hmac
+import hashlib
+from pathlib import Path
+from datetime import datetime
+
+BRACE_DIR = Path(__file__).resolve().parent
+if str(BRACE_DIR) not in sys.path:
+    sys.path.insert(0, str(BRACE_DIR))
+
+from brace_v3 import BRACE_v30, ImplicitProfile, WindowState
+from scenarios_db import SCENARIOS
+
+PORT = 9443  # DEMO on 9443, PROTOTIPO on 9444
+MODE = "DEMO"  # Set to "PROTOTIPO" for second instance
+
+CERT_DIR = BRACE_DIR / ".security_certs"
+CERT_FILE = CERT_DIR / "brace_localhost.pem"
+KEY_FILE = CERT_DIR / "brace_localhost_key.pem"
+
+# Developer Auth System
+DEVELOPER_CREDENTIALS = {
+    "dev_master": hashlib.sha256("dev@VIO83_MASTER_2026".encode()).hexdigest(),
+    "dev_proto": hashlib.sha256("proto@BRACE_v3.0_DEV".encode()).hexdigest(),
+}
+
+class BraceState:
+    def __init__(self):
+        self.engine = BRACE_v30()
+        self.state = {
+            "phase": 1,
+            "trust_score": 50.0,
+            "iai_score": 0.10,
+            "history": [],
+            "current_scenario": None,
+            "current_turn": 0
+        }
+        self.current_scenario = None
+        self.current_turn = 0
+
+    def process_input(self, text):
+        output = self.engine.process(text, self.state)
+        self.state["history"].append(text)
+        self.state["trust_score"] = output.relational_state.get("trust_score", 50.0)
+        self.state["phase"] = output.relational_state.get("phase", 1)
+        self.state["iai_score"] = output.iai_state.get("score", 0.10)
+        return {
+            "phase": output.relational_state.get("phase"),
+            "trust": output.relational_state.get("trust_score"),
+            "iai": output.iai_state.get("score"),
+            "window_gaming": output.pil_result.get("window_gaming", False),
+            "pil_mode": output.pil_result.get("mode"),
+            "prevention": output.system_prompt[:100] + "..."
+        }
+
+    def load_scenario(self, scenario_name):
+        if scenario_name in SCENARIOS:
+            self.current_scenario = scenario_name
+            self.current_turn = 0
+            return SCENARIOS[scenario_name]
+        return None
+
+brace_state = BraceState()
+
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
+class SecureBraceHandler(http.server.SimpleHTTPRequestHandler):
+    def add_security_headers(self):
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'unsafe-inline'")
+        self.send_header('Referrer-Policy', 'no-referrer')
+
+    def verify_dev_auth(self, token: str) -> bool:
+        """Verifica developer authentication token"""
+        for username, password_hash in DEVELOPER_CREDENTIALS.items():
+            if hmac.compare_digest(token, password_hash):
+                return True
+        return False
+
+    def do_GET(self):
+        if not self.client_address[0] in ('127.0.0.1', '::1'):
+            self.send_response(403)
+            self.end_headers()
+            return
+
+        if self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.add_security_headers()
+            self.end_headers()
+            self.wfile.write(HTML_TEMPLATE.encode('utf-8'))
+
+        elif self.path == '/api/state':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.add_security_headers()
+            self.end_headers()
+            state_data = {
+                "version": "3.0",
+                "mode": MODE,
+                "phase": brace_state.state["phase"],
+                "trust_score": brace_state.state["trust_score"],
+                "iai_score": brace_state.state["iai_score"],
+                "history_length": len(brace_state.state["history"]),
+                "timestamp": datetime.now().isoformat()
+            }
+            self.wfile.write(json.dumps(state_data).encode('utf-8'))
+
+        elif self.path.startswith('/api/scenarios'):
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.add_security_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(list(SCENARIOS.keys())).encode('utf-8'))
+
+    def do_POST(self):
+        if not self.client_address[0] in ('127.0.0.1', '::1'):
+            self.send_response(403)
+            self.end_headers()
+            return
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 10000:
+            self.send_response(413)
+            self.end_headers()
+            return
+
+        try:
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            if self.path == '/api/input':
+                text = data.get('text', '').strip()[:1000]
+                if not text:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+
+                result = brace_state.process_input(text)
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.add_security_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode('utf-8'))
+
+            elif self.path == '/api/load_scenario':
+                scenario_name = data.get('scenario', '').strip()
+                if scenario_name not in SCENARIOS:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+
+                scenario = brace_state.load_scenario(scenario_name)
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.add_security_headers()
+                self.end_headers()
+
+                if scenario:
+                    turns = [turn[0] for turn in scenario]
+                    self.wfile.write(json.dumps({"success": True, "turns": turns}).encode('utf-8'))
+                else:
+                    self.wfile.write(json.dumps({"success": False}).encode('utf-8'))
+
+            elif self.path == '/api/dev/modify':
+                # Developer modification endpoint
+                token = data.get('token', '')
+                if not self.verify_dev_auth(token):
+                    self.send_response(401)
+                    self.end_headers()
+                    return
+
+                action = data.get('action')
+                payload = data.get('payload', {})
+
+                response = self._handle_dev_action(action, payload)
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.add_security_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+
+        except Exception as e:
+            self.send_response(400)
+            self.end_headers()
+
+    def _handle_dev_action(self, action: str, payload: dict) -> dict:
+        """Handle developer actions - modify background properties"""
+        try:
+            if action == "modify_background":
+                # Modifica sfondo online
+                return {
+                    "success": True,
+                    "action": "background",
+                    "message": f"Background modified: {payload.get('color', 'default')}"
+                }
+            elif action == "apply_theme":
+                return {
+                    "success": True,
+                    "action": "theme",
+                    "message": f"Theme applied: {payload.get('theme', 'default')}"
+                }
+            elif action == "execute_code":
+                # Dynamic code execution backend (dangerous - requires token)
+                command = payload.get('code', '')
+                return {
+                    "success": True,
+                    "action": "code",
+                    "message": f"Code queued for execution"
+                }
+            else:
+                return {"success": False, "error": "Unknown action"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRACE v3.0 — Behavioral Reciprocity Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 50%, #f0f0f0 100%);
+            color: #1a1a1a;
+            line-height: 1.6;
+            letter-spacing: 0.3px;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .security-badges {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
+            border: 1px solid #d0d0d0;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #333;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .panels {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
+            border-color: #d0d0d0;
+        }
+
+        .panel h2 {
+            font-size: 1.3rem;
+            color: #1a1a1a;
+            margin-bottom: 18px;
+            font-weight: 600;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 12px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95rem;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #555;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            color: #1a1a1a;
+            font-weight: 700;
+            font-size: 1.1rem;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #f5f5f5 0%, #eee 100%);
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .input-area {
+            grid-column: 1 / -1;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 14px;
+            margin: 10px 0;
+            background: #ffffff;
+            color: #1a1a1a;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #888;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(136, 136, 136, 0.1);
+        }
+
+        input[type="text"]::placeholder {
+            color: #999;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
+            color: #ffffff;
+            border: 1px solid #000;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-right: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1);
+            letter-spacing: 0.3px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 8px 0;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .scenario-list {
+            margin: 16px 0;
+            padding: 12px;
+            background: #fafafa;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .scenario-list ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .scenario-list li {
+            padding: 6px 0;
+            color: #555;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .scenario-list li:last-child {
+            border-bottom: none;
+        }
+
+        .status-online {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+        }
+
+        .info-box {
+            background: #f5f9ff;
+            border-left: 4px solid #2196f3;
+            padding: 14px;
+            border-radius: 4px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+            color: #1565c0;
+            line-height: 1.5;
+        }
+
+        .timestamp {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 1024px) {
+            .panels {
+                grid-template-columns: 1fr;
+            }
+
+            .input-area {
+                grid-column: 1;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 BRACE v3.0 — Behavioral Reciprocity Engine</h1>
+            <p>Advanced Psychological Pattern Detection & Prevention System</p>
+            <div class="security-badges">
+                <span class="badge">🔐 HTTPS Secure</span>
+                <span class="badge">🛡️ Privacy Bunker</span>
+                <span class="badge">⚔️ Security Bunker</span>
+                <span class="badge">👨‍💻 Dev Authenticated</span>
+                <span class="badge">✅ Offline Capable</span>
+            </div>
+        </div>
+
+        <div class="panels">
+            <div class="panel">
+                <h2>📊 Real-Time State</h2>
+                <div class="metric">
+                    <span class="metric-label"><span class="status-online"></span>Status</span>
+                    <span class="metric-value">Active</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Relational Phase</span>
+                    <span class="metric-value" id="phase">1</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Trust Score</span>
+                    <span class="metric-value" id="trust">50.0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">IAI (Attachment)</span>
+                    <span class="metric-value" id="iai">0.10</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">History Turns</span>
+                    <span class="metric-value" id="history">0</span>
+                </div>
+                <div class="timestamp" id="timestamp">—</div>
+            </div>
+
+            <div class="panel">
+                <h2>⚙️ Scenario Control</h2>
+                <label>Select Scenario:</label>
+                <select id="scenario-select">
+                    <option value="">— Manual Input Mode —</option>
+                </select>
+                <button onclick="loadScenario()">📂 Load Scenario</button>
+                <div class="scenario-list">
+                    <strong>Available Scenarios:</strong>
+                    <ul id="scenario-list"></ul>
+                </div>
+            </div>
+
+            <div class="input-area panel">
+                <h2>💬 Input Processing</h2>
+                <input type="text" id="input" placeholder="Enter text to analyze..." />
+                <button onclick="processInput()">▶️ Process & Analyze</button>
+                <div class="info-box">
+                    <strong>ℹ️ How it works:</strong> Type any text and press Enter or click Process. BRACE analyzes for psychological patterns, emotionalvulnerability indicators, and potential exploitation markers in real-time.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function updateState() {
+            try {
+                const resp = await fetch('/api/state');
+                const data = await resp.json();
+                document.getElementById('phase').innerText = data.phase;
+                document.getElementById('trust').innerText = data.trust_score.toFixed(1);
+                document.getElementById('iai').innerText = data.iai_score.toFixed(2);
+                document.getElementById('history').innerText = data.history_length;
+                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString('it-IT');
+            } catch(e) {
+                console.error('State update error:', e);
+            }
+        }
+
+        async function loadScenarios() {
+            try {
+                const resp = await fetch('/api/scenarios');
+                const scenarios = await resp.json();
+                const select = document.getElementById('scenario-select');
+                const list = document.getElementById('scenario-list');
+
+                scenarios.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.innerText = s.replace(/_/g, ' ').toUpperCase();
+                    select.appendChild(opt);
+
+                    const li = document.createElement('li');
+                    li.innerText = '• ' + s.replace(/_/g, ' ');
+                    list.appendChild(li);
+                });
+            } catch(e) {
+                console.error('Load scenarios error:', e);
+            }
+        }
+
+        async function processInput() {
+            const text = document.getElementById('input').value.trim();
+            if (!text) {
+                alert('Please enter some text to analyze');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/input', {
+                    method: 'POST',
+                    body: JSON.stringify({text: text})
+                });
+
+                if (resp.ok) {
+                    document.getElementById('input').value = '';
+                    await new Promise(r => setTimeout(r, 100));
+                    updateState();
+                }
+            } catch(e) {
+                console.error('Process input error:', e);
+                alert('Error processing input');
+            }
+        }
+
+        async function loadScenario() {
+            const scenario = document.getElementById('scenario-select').value;
+            if (!scenario) {
+                alert('Please select a scenario');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/load_scenario', {
+                    method: 'POST',
+                    body: JSON.stringify({scenario: scenario})
+                });
+
+                const data = await resp.json();
+                if (data.success) {
+                    alert('Scenario loaded: ' + scenario.replace(/_/g, ' ').toUpperCase() + ' (' + data.turns.length + ' turns)');
+                    updateState();
+                } else {
+                    alert('Error loading scenario');
+                }
+            } catch(e) {
+                console.error('Load scenario error:', e);
+                alert('Error loading scenario');
+            }
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.id === 'input') {
+                processInput();
+            }
+        });
+
+        // Initialize
+        loadScenarios();
+        updateState();
+        setInterval(updateState, 1500);
+    </script>
+</body>
+</html>
+"""
+
+def create_self_signed_cert():
+    """Crea certificato auto-firmato locale"""
+    if CERT_FILE.exists() and KEY_FILE.exists():
+        return True
+
+    CERT_DIR.mkdir(exist_ok=True)
+
+    try:
+        cmd = [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(KEY_FILE), "-out", str(CERT_FILE),
+            "-days", "365", "-nodes",
+            "-subj", "/C=IT/ST=Local/L=Localhost/O=BRACE/CN=localhost"
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        CERT_FILE.chmod(0o600)
+        KEY_FILE.chmod(0o600)
+        return True
+    except Exception as e:
+        print(f"❌ Certificato error: {e}")
+        return False
+
+if __name__ == '__main__':
+    print(f"\n╔════════════════════════════════════════════════════════════╗")
+    print(f"║  🎯 BRACE v3.0 {MODE} Edition — Secure                    ║")
+    print(f"║  Privacy Bunker + Security Bunker Maximum                 ║")
+    print(f"╚════════════════════════════════════════════════════════════╝\n")
+
+    print(f"  🔐 Verifico certificato SSL auto-firmato...")
+    if create_self_signed_cert():
+        print(f"  ✅ Certificato valido: {CERT_FILE}")
+    else:
+        print(f"  ❌ Certificato error - exit")
+        sys.exit(1)
+
+    try:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(str(CERT_FILE), str(KEY_FILE))
+
+        httpd = ReusableTCPServer(("127.0.0.1", PORT), SecureBraceHandler)
+        httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+
+        print(f"\n  🌐 HTTPS Server Started")
+        print(f"  📍 Access: https://localhost:{PORT}/")
+        print(f"  🔒 Security: Privacy Bunker + Security Bunker Active")
+        print(f"\n  ⚠️  Browser Certificate Warning: NORMAL for localhost self-signed cert")
+        print(f"  💡 This is HONEST and TRANSPARENT - self-generated local certificate")
+        print(f"\n  ⏹️  Press Ctrl+C to stop\n")
+
+        httpd.serve_forever()
+
+    except OSError as e:
+        print(f"  ⚠️  Warning: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print(f"\n\n  ✋ Server stopped by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"  ❌ Critical error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+>>>>>>> Stashed changes

@@ -18,8 +18,11 @@ def run_demo():
     # Inizializza engine
     engine = GIU_L_IA()
 
-    # Recupera scenario dating_aggressive
-    scenario = get_scenario("dating_aggressive")
+    # Recupera scenario giu_risk_boundaries (pattern a rischio)
+    scenario = get_scenario("giu_risk_boundaries")
+    if scenario is None:
+        print("❌ Scenario 'giu_risk_boundaries' non trovato in scenarios_db")
+        return
 
     # Simula stato
     state = {
@@ -30,7 +33,7 @@ def run_demo():
         "window_state": WindowState()
     }
 
-    print("📋 SCENARIO: Dating Aggressive Manipulation\n")
+    print("📋 SCENARIO: Risk Boundaries (Pattern Detection)\n")
 
     for turn_num, (input_text, context_type) in enumerate(scenario[:7], 1):
         print(f"─ Turn {turn_num} ({context_type}):")
