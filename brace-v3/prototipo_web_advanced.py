@@ -37,13 +37,33 @@ sys.path.insert(0, str(BRACE_DIR.parent))
 from brace_v3 import GIU_L_IA  # noqa: E402
 from scenarios_db import SCENARIOS  # noqa: E402
 
-
 WORLD_CATEGORY_A2Z = {
-    "A": "Affetti", "B": "Business", "C": "Creativita", "D": "Didattica", "E": "Empatia",
-    "F": "Famiglia", "G": "Governance", "H": "Health", "I": "Innovazione", "J": "Journal",
-    "K": "Knowledge", "L": "Leadership", "M": "Mindfulness", "N": "Negotiation", "O": "Organizzazione",
-    "P": "Psicologia", "Q": "Qualita", "R": "Relazioni", "S": "Sicurezza", "T": "Teamwork",
-    "U": "Umanita", "V": "Viaggi", "W": "Wellbeing", "X": "eXperience", "Y": "Youth", "Z": "Zen",
+    "A": "Affetti",
+    "B": "Business",
+    "C": "Creativita",
+    "D": "Didattica",
+    "E": "Empatia",
+    "F": "Famiglia",
+    "G": "Governance",
+    "H": "Health",
+    "I": "Innovazione",
+    "J": "Journal",
+    "K": "Knowledge",
+    "L": "Leadership",
+    "M": "Mindfulness",
+    "N": "Negotiation",
+    "O": "Organizzazione",
+    "P": "Psicologia",
+    "Q": "Qualita",
+    "R": "Relazioni",
+    "S": "Sicurezza",
+    "T": "Teamwork",
+    "U": "Umanita",
+    "V": "Viaggi",
+    "W": "Wellbeing",
+    "X": "eXperience",
+    "Y": "Youth",
+    "Z": "Zen",
 }
 
 WORLD_CONTEXTS = [
@@ -169,16 +189,8 @@ def get_active_video_file() -> Path:
 
 
 def get_active_avatar_file() -> Path:
-    downloads = Path.home() / "Downloads"
-    candidates = [
-        AVATAR_FILE,
-        downloads / "584bb2e3-dfc3-4dd3-9758-c14073a77617.jpg",
-        downloads / "IMG_0917.JPG",
-        downloads / "PHOTO-2026-03-24-18-48-25-1.jpg",
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
+    if AVATAR_FILE.exists():
+        return AVATAR_FILE
     return AVATAR_FILE
 
 
@@ -450,7 +462,7 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/api/load_scenario":
             data = self.read_json_body()
-            scenario_name = data.get("scenario")
+            scenario_name = str(data.get("scenario") or "")
 
             if scenario_name in ALL_SCENARIOS:
                 proto_state.current_scenario = scenario_name
