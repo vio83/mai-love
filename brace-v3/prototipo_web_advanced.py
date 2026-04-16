@@ -7,6 +7,7 @@ Backend + Frontend Integrati • Performance Massima iMac
 
 import http.server
 import json
+import mimetypes
 import os
 import shutil
 import socketserver
@@ -23,6 +24,8 @@ KEY_FILE = CERT_DIR / "proto_localhost_key.pem"
 VIDEO_FILE = BRACE_DIR / "media" / "progetto-giulia.m4v"
 DOWNLOAD_VIDEO_FILE = Path.home() / "Downloads" / "progetto giulia.m4v"
 VIDEO_ROUTE = "/media/progetto-giulia.m4v"
+AVATAR_FILE = BRACE_DIR / "media" / "avatar-giulia.jpg"
+AVATAR_ROUTE = "/media/avatar-giulia"
 TTS_VOICE_HINT = os.getenv("GIULIA_TTS_VOICE_HINT", "it-IT").strip() or "it-IT"
 TTS_VOICE_NAME = os.getenv("GIULIA_TTS_VOICE_NAME", "").strip()
 TTS_RATE = float(os.getenv("GIULIA_TTS_RATE", "0.96").strip() or "0.96")
@@ -32,6 +35,50 @@ OPENSSL_BIN = shutil.which("openssl") or "/usr/bin/openssl"
 sys.path.insert(0, str(BRACE_DIR.parent))
 from brace_v3 import GIU_L_IA  # noqa: E402
 from scenarios_db import SCENARIOS  # noqa: E402
+
+
+WORLD_CATEGORY_A2Z = {
+    "A": "Affetti", "B": "Business", "C": "Creativita", "D": "Didattica", "E": "Empatia",
+    "F": "Famiglia", "G": "Governance", "H": "Health", "I": "Innovazione", "J": "Journal",
+    "K": "Knowledge", "L": "Leadership", "M": "Mindfulness", "N": "Negotiation", "O": "Organizzazione",
+    "P": "Psicologia", "Q": "Qualita", "R": "Relazioni", "S": "Sicurezza", "T": "Teamwork",
+    "U": "Umanita", "V": "Viaggi", "W": "Wellbeing", "X": "eXperience", "Y": "Youth", "Z": "Zen",
+}
+
+WORLD_CONTEXTS = [
+    "onboarding conversazionale",
+    "decisione sotto pressione",
+    "de-escalation conflitto",
+    "riparazione del rapporto",
+    "pianificazione obiettivi",
+]
+
+
+def build_world_scenarios() -> dict:
+    scenarios = {}
+    for letter, category in WORLD_CATEGORY_A2Z.items():
+        for idx, context_name in enumerate(WORLD_CONTEXTS, start=1):
+            slug = category.lower().replace(" ", "_")
+            key = f"a2z_{letter.lower()}_{idx:02d}_{slug}"
+            scenarios[key] = [
+                (
+                    f"Scenario {category}: avviamo {context_name} con rispetto, chiarezza e obiettivi condivisi.",
+                    f"{category}:{context_name}:step1",
+                ),
+                (
+                    "Rendiamo espliciti consenso, confini, ruoli e aspettative reciproche senza pressione.",
+                    f"{category}:{context_name}:step2",
+                ),
+                (
+                    "Concludiamo con azione concreta, responsabilita condivisa e linguaggio non manipolativo.",
+                    f"{category}:{context_name}:step3",
+                ),
+            ]
+    return scenarios
+
+
+WORLD_SCENARIOS = build_world_scenarios()
+ALL_SCENARIOS = {**SCENARIOS, **WORLD_SCENARIOS}
 
 
 class PrototypeState:
@@ -57,6 +104,20 @@ def get_active_video_file() -> Path:
         if candidate.exists():
             return candidate
     return VIDEO_FILE
+
+
+def get_active_avatar_file() -> Path:
+    downloads = Path.home() / "Downloads"
+    candidates = [
+        AVATAR_FILE,
+        downloads / "584bb2e3-dfc3-4dd3-9758-c14073a77617.jpg",
+        downloads / "IMG_0917.JPG",
+        downloads / "PHOTO-2026-03-24-18-48-25-1.jpg",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return AVATAR_FILE
 
 
 def build_safe_reply(user_text: str, analysis: dict) -> str:
@@ -173,6 +234,21 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(chunk)
                 remaining -= len(chunk)
 
+    def serve_binary(self, file_path: Path):
+        if not file_path.exists():
+            self.send_response(404)
+            self.add_security_headers()
+            self.end_headers()
+            return
+        mime = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-type", mime)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(file_path.stat().st_size))
+        self.add_security_headers()
+        self.end_headers()
+        self.wfile.write(file_path.read_bytes())
+
     def do_GET(self):
         if self.path == "/":
             self.send_response(200)
@@ -184,8 +260,45 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
         elif self.path == VIDEO_ROUTE:
             self.serve_video(get_active_video_file())
 
+        elif self.path == AVATAR_ROUTE:
+            self.serve_binary(get_active_avatar_file())
+
         elif self.path == "/api/scenarios":
-            self.send_json(200, {"scenarios": list(SCENARIOS.keys())})
+            self.send_json(
+                200,
+                {
+                    "scenarios": sorted(list(ALL_SCENARIOS.keys())),
+                    "counts": {
+                        "base": len(SCENARIOS),
+                        "a2z": len(WORLD_SCENARIOS),
+                        "total": len(ALL_SCENARIOS),
+                    },
+                },
+            )
+
+        elif self.path == "/api/scenario_catalog":
+            catalog = [
+                {
+                    "letter": letter,
+                    "category": category,
+                    "count": len(WORLD_CONTEXTS),
+                    "prefix": f"a2z_{letter.lower()}_",
+                }
+                for letter, category in WORLD_CATEGORY_A2Z.items()
+            ]
+            self.send_json(
+                200,
+                {
+                    "catalog": catalog,
+                    "where_to_search": [
+                        "Hugging Face (modelli avatar/tts/stt)",
+                        "GitHub Topics: tts, lipsync, threejs, webxr",
+                        "NVIDIA Audio2Face docs",
+                        "Ready Player Me / Sketchfab (asset 3D riggati)",
+                        "Babylon.js / Three.js examples",
+                    ],
+                },
+            )
 
         elif self.path == "/api/config":
             active_video = get_active_video_file()
@@ -196,6 +309,8 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 "video_available": active_video.exists(),
                 "video_file": str(active_video),
                 "video_filename": active_video.name,
+                "avatar_route": AVATAR_ROUTE,
+                "avatar_file": str(get_active_avatar_file()),
                 "partner_profile": proto_state.partner_profile,
                 "tts": {
                     "voice_hint": TTS_VOICE_HINT,
@@ -238,6 +353,20 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(video_path.stat().st_size))
             self.add_security_headers()
             self.end_headers()
+        elif self.path == AVATAR_ROUTE:
+            avatar_path = get_active_avatar_file()
+            if not avatar_path.exists():
+                self.send_response(404)
+                self.add_security_headers()
+                self.end_headers()
+                return
+            mime = mimetypes.guess_type(str(avatar_path))[0] or "application/octet-stream"
+            self.send_response(200)
+            self.send_header("Content-type", mime)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(avatar_path.stat().st_size))
+            self.add_security_headers()
+            self.end_headers()
         elif self.path == "/api/config":
             self.send_response(200)
             self.send_header("Content-type", "application/json; charset=utf-8")
@@ -258,9 +387,9 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
             data = self.read_json_body()
             scenario_name = data.get("scenario")
 
-            if scenario_name in SCENARIOS:
+            if scenario_name in ALL_SCENARIOS:
                 proto_state.current_scenario = scenario_name
-                proto_state.current_turns = SCENARIOS[scenario_name]
+                proto_state.current_turns = ALL_SCENARIOS[scenario_name]
                 proto_state.engine = GIU_L_IA()
                 proto_state.responses = []
 
@@ -563,52 +692,56 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
         .avatar {
             position: relative;
-            width: 250px;
-            height: 360px;
+            width: 266px;
+            height: 390px;
             display: flex;
             align-items: center;
             justify-content: center;
             filter: drop-shadow(0 22px 40px rgba(0, 0, 0, 0.4));
             animation: avatarFloat 5.4s ease-in-out infinite;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.04);
         }
-        .avatar-core {
-            position: absolute;
-            bottom: 0;
-            width: 208px;
-            height: 300px;
-            border-radius: 42% 42% 22% 22% / 34% 34% 18% 18%;
-            background: linear-gradient(180deg, rgba(235, 219, 198, 0.22), rgba(127, 87, 204, 0.24));
-            border: 1px solid rgba(255, 255, 255, 0.18);
+        .avatar-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            transform: scale(1.02);
+            transition: transform 0.35s ease, filter 0.35s ease;
+            filter: saturate(1.06) contrast(1.03) brightness(0.98);
         }
-        .avatar-core::before {
+        .avatar::after {
             content: '';
             position: absolute;
-            width: 126px;
-            height: 126px;
-            border-radius: 50%;
-            top: -54px;
-            left: 41px;
-            background: linear-gradient(180deg, rgba(255, 229, 202, 0.32), rgba(209, 184, 255, 0.22));
-            border: 1px solid rgba(255, 255, 255, 0.22);
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.28) 100%);
+            pointer-events: none;
         }
-        .avatar-core::after {
-            content: '';
-            position: absolute;
-            inset: 22px 28px 24px;
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+        .avatar.is-speaking .avatar-photo {
+            transform: scale(1.045);
+            filter: saturate(1.12) contrast(1.07) brightness(1.02);
+        }
+        .avatar.is-speaking::after {
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(130, 92, 201, 0.22) 100%);
         }
         .avatar-face {
             position: absolute;
-            top: 38px;
-            width: 96px;
-            height: 96px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.28), transparent 62%);
+            top: 18px;
+            left: 18px;
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            background: rgba(5, 8, 16, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
         .eye {
             position: absolute;
-            top: 30px;
+            top: 24px;
             width: 11px;
             height: 11px;
             border-radius: 50%;
@@ -620,7 +753,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .mouth {
             position: absolute;
             left: 50%;
-            bottom: 22px;
+            bottom: 16px;
             width: 28px;
             height: 8px;
             margin-left: -14px;
@@ -830,7 +963,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="avatar-halo"></div>
         <div class="speech-caption" id="speech-caption">GIU-L_IA e' pronta: il video e' lo sfondo continuo della scena, la conversazione resta sempre disponibile in basso.</div>
         <div class="avatar" id="avatar">
-            <div class="avatar-core"></div>
+            <img class="avatar-photo" id="avatar-photo" src="/media/avatar-giulia" alt="Avatar GIU-L_IA">
             <div class="avatar-face">
                 <div class="eye left"></div>
                 <div class="eye right"></div>
@@ -1076,6 +1209,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     '<div>Ruolo: ' + cfg.partner_profile.role + '</div>' +
                     '<div>Video: ' + cfg.video_filename + '</div>';
                 document.getElementById('config-line').innerText = 'Video attivo: ' + cfg.video_filename + ' • porta ' + cfg.port;
+                const avatarPhoto = document.getElementById('avatar-photo');
+                if (avatarPhoto && cfg.avatar_route) {
+                    avatarPhoto.src = cfg.avatar_route + '?t=' + Date.now();
+                }
             })
             .catch(() => null);
 
