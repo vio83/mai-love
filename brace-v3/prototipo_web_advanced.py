@@ -207,22 +207,72 @@ def detect_user_state(user_text: str) -> str:
 
 
 def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> str:
-    """Giulia non risponde -- reagisce. Profondita' proporzionale al trust."""
+    """GIU-L_IA -- profondita' proporzionale al trust + fase relazionale (BRACE-aware)."""
     state = detect_user_state(user_text)
     trust = float(analysis.get("trust", 50.0))
+    phase = int(analysis.get("phase", 1))
+    mode = analysis.get("mode", "standard")
+    bunker_signals = list(analysis.get("bunker_signals") or [])
     trimmed = user_text.strip().rstrip(".!?")
     meta = parse_scenario_metadata(scenario_name)
-
-    # Apertura proporzionale al trust accumulato
-    depth = "distant" if trust < 30 else ("open" if trust > 68 else "neutral")
     low_txt = trimmed.lower()
 
-    # Attrito controllato: generalizzazione -> vuole il dettaglio concreto, non la narrativa
+    # Openness: trust (peso 70%) + progressione fase (0-24 pt bonus)
+    phase_bonus = (phase - 1) * 6  # P1=0 P2=6 P3=12 P4=18 P5=24
+    openness = min(100.0, trust * 0.7 + phase_bonus)
+    depth = "distant" if openness < 35 else ("open" if openness >= 70 else "neutral")
+
+    # --- BUNKER EDUCATIONAL: GIU-L_IA nomina il pattern senza clinica ---
+    if mode == "bunker_educational" and bunker_signals:
+        signal = bunker_signals[0]
+        _BUNKER = {
+            "isolation": (
+                "Questo racconto tende a isolarsi dal resto. "
+                "Nessuna situazione esiste nel vuoto.\n\n"
+                "Qual e' la parte che non stai dicendo agli altri?"
+            ),
+            "control": (
+                "Il controllo non e' cura. "
+                "Ci sono scelte qui che appartengono a un'altra persona.\n\n"
+                "Cosa succederebbe se lasciassi quella liberta'?"
+            ),
+            "guilt_hook": (
+                "Il senso di colpa non e' un argomento. "
+                "Puoi avere un bisogno reale senza usare questa leva.\n\n"
+                "Qual e' il bisogno sotto a tutto questo?"
+            ),
+            "fear_pressure": (
+                "La pressione non porta dove vuoi arrivare. "
+                "Porta lontano da dove vuoi stare.\n\n"
+                "Cosa stai proteggendo davvero in questa situazione?"
+            ),
+            "dependency_loop": (
+                "La dipendenza si sente diversa dall'affetto, anche se sembrano uguali. "
+                "L'affetto non ha bisogno di essere l'unica fonte.\n\n"
+                "Cosa lasci che occupi il resto?"
+            ),
+        }
+        return _BUNKER.get(
+            signal,
+            "C'e' qualcosa in questo schema che vale la pena fermarsi a guardare.\n\nCosa vuoi cambiare davvero?",
+        )
+
+    # --- PROTECTIVE: gaming rilevato -- GIU-L_IA non ci sta, rimane presente ---
+    if mode == "protective":
+        seed_p = sum(ord(c) for c in (trimmed[:20] + scenario_name[:8])) if trimmed else 7
+        _PROTECTIVE = [
+            "C'e' qualcosa in questa direzione che non seguo.\n\nCosa vuoi dire davvero?",
+            "Questo non e' un percorso che seguo. Ma c'e' qualcosa di reale qui?\n\nDimmelo in modo diverso.",
+            "Mi fermo. Non per chiudermi -- per tenere questo posto onesto.\n\nRiprova.",
+        ]
+        return _PROTECTIVE[seed_p % len(_PROTECTIVE)]
+
+    # --- Attrito: generalizzazioni ---
     matched_gen = next((g for g in _GENERALIZATIONS if g in low_txt), None)
     if matched_gen and depth != "distant":
         return f'"{matched_gen}" -- sempre o in quel momento specifico?\n\nFammi un esempio concreto.'
 
-    # Attrito controllato: posizionamento da vittima -> solo quando la fiducia e' alta
+    # --- Attrito: vittimismo (solo con openness alta) ---
     if any(v in low_txt for v in _VICTIM_SIGNALS) and depth == "open":
         return (
             "Quello che descrivi ha un peso reale. "
@@ -230,7 +280,7 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
             "In quale parte?"
         )
 
-    # Context hint specifico per scenario -- scenari diversi producono risposte diverse
+    # Context hint
     if meta.get("origin") == "a2z":
         ctx_hint = f"{meta['category']}, {meta['context']}"
         scenario_prefix = f"Scenario {meta['letter']}-{meta['category']}."
@@ -238,21 +288,32 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
         ctx_hint = meta.get("name") or "questo contesto"
         scenario_prefix = ""
 
-    # Modalita' distante: breve, contenuta, nessuna apertura emotiva
-    if depth == "distant":
+    # --- FASE 1-2: distanza naturale -> breve, contenuta ---
+    if depth == "distant" or phase <= 2:
         seed_d = sum(ord(c) for c in trimmed[:16]) if trimmed else 0
-        distant_pool = [
-            "Capisco.",
+        if phase == 1:
+            _P1 = [
+                _QUESTIONS_BY_STATE.get(state, "Cosa vuoi fare con questo?"),
+                "Capisco.",
+                "Continua.",
+            ]
+            return _P1[seed_d % len(_P1)]
+        _P2 = [
+            _QUESTIONS_BY_STATE.get(state, "Cosa ti aspettavi?"),
             "Ci penso.",
-            _QUESTIONS_BY_STATE.get(state, "Cosa vuoi fare con questo?"),
+            "Da quanto tempo va cosi'?",
         ]
-        return distant_pool[seed_d % len(distant_pool)]
+        return _P2[seed_d % len(_P2)]
 
-    # Tendenza deterministica: stesso input su scenari diversi = comportamenti diversi
-    seed = sum(ord(c) for c in (trimmed[:26] + scenario_name[:10] + state[:5]))
+    # --- FASE 3-5: tendenza deterministica (trust + fase + scenario) ---
+    seed = sum(ord(c) for c in (trimmed[:26] + scenario_name[:10] + state[:5] + str(phase)))
     tendency = seed % 4
 
-    if tendency == 0:  # riformulazione selettiva -- non tutto, solo il pezzo piu' vero
+    # Fase 5 open: peso verso sospensione e domanda profonda
+    if phase >= 5 and depth == "open" and tendency < 2:
+        tendency += 2
+
+    if tendency == 0:  # riformulazione selettiva -- solo il pezzo piu' vero
         if len(trimmed) > 68:
             chunk = trimmed[:70].rsplit(" ", 1)[0]
             tail = (
@@ -277,14 +338,27 @@ def build_giulia_reply(user_text: str, scenario_name: str, analysis: dict) -> st
         )
 
     if tendency == 2:  # sospensione -- il silenzio conta piu' di una domanda
+        if phase >= 4:
+            return f'Questo rimane. Non ho ancora finito di tenerlo.\n\n"{trimmed[:58]}".'
         if state == "emotivo":
             return f'Sto tenendo questo.\n\n"{trimmed[:58]}".'
         if depth == "open":
             return f"Questo passaggio conta piu' degli altri, nel contesto di {ctx_hint}."
         return "Mi fermo qui un attimo."
 
-    # tendency == 3: una domanda sola, quella giusta, non la piu' ovvia
+    # tendency == 3: una domanda -- piu' profonda in fase avanzata (4+)
     q = _QUESTIONS_BY_STATE.get(state, "Cosa cambia se guardi questa cosa da un altro punto?")
+    if phase >= 4:
+        _DEEP_Q = {
+            "emotivo": "Di cosa hai bisogno adesso -- non di quello che stai chiedendo, ma di quello vero?",
+            "confuso": "Se risolvi solo una cosa da tutta questa confusione, quale sarebbe?",
+            "neutro": "C'e' qualcosa qui che non vuoi ancora vedere?",
+            "oppositivo": "Cosa stai proteggendo in questa resistenza?",
+            "aggressivo": "Cosa ti farebbe sentire ascoltato davvero?",
+            "disorientato": "Quale sarebbe il tuo prossimo passo, se togli la paura dal conto?",
+            "sociale": "Cosa ti ha sorpreso di come e' andata?",
+        }
+        q = _DEEP_Q.get(state, q)
     return f"{scenario_prefix} {q}".strip() if scenario_prefix else q
 
 
@@ -294,9 +368,9 @@ class PrototypeState:
         self.current_scenario = None
         self.current_turns = []
         self.responses = []
-        self.engine_label = "BRACE v4.0 Giulia"
+        self.engine_label = "BRACE v4.0 GIU-L_IA"
         self.partner_profile = {
-            "name": "Giulia",
+            "name": "GIU-L_IA",
             "role": "partner_femminile",
             "tone": "osservatrice, selettivamente intensa, presente senza invasivita",
             "objective": "tenere il pensiero aperto, attrito controllato, profondita proporzionale al trust",
@@ -328,7 +402,7 @@ def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
     # BRACE safety layer -- rimane protettivo indipendentemente dal carattere
     if risk == "high":
         return (
-            "Giulia si ferma qui con chiarezza: non seguiamo pressione, controllo o ambiguita. "
+            "GIU-L_IA si ferma qui: no pressione, controllo o ambiguita' in questo spazio. "
             f"Rendiamo espliciti consenso, limiti e responsabilita reciproca. "
             f"{context_line}. Indicazione attiva: {prevention}"
         )
@@ -1133,8 +1207,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="hud-top">
         <div class="brand">
             <div class="eyebrow">Brace v4.0 immersive session</div>
-            <h1>Giulia nella scena</h1>
-            <p>Giulia non risponde. Reagisce. La profondita' della conversazione e' proporzionale alla qualita' dell'interazione. Scrivi in basso.</p>
+            <h1>GIU-L_IA nella scena</h1>
+            <p>GIU-L_IA non risponde. Reagisce. La profondita' della conversazione e' proporzionale alla qualita' dell'interazione. Scrivi in basso.</p>
         </div>
         <div class="metrics-strip">
             <div class="metric"><div class="metric-label">Fase</div><div class="metric-value" id="metric-phase">1</div></div>
@@ -1162,7 +1236,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <button class="primary" onclick="loadScenario()">Carica scenario</button>
         <div class="actions-grid">
             <button class="secondary" onclick="nextTurn()">Turno demo</button>
-            <button class="secondary" onclick="toggleVoice()" id="voice-btn">Voce ON</button>
+            <button class="secondary" onclick="toggleVoice()" id="voice-btn">GIU-L_IA Scena ON</button>
         </div>
         <button class="secondary" onclick="resetAll()">Reset sessione</button>
         <div class="status-line" style="margin-top:14px;">
@@ -1318,7 +1392,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         function toggleVoice() {
             voiceEnabled = !voiceEnabled;
-            const label = voiceEnabled ? 'Voce ON' : 'Voce OFF';
+            const label = voiceEnabled ? 'GIU-L_IA Scena ON' : 'GIU-L_IA Scena OFF';
             document.getElementById('voice-btn').innerText = label;
             document.getElementById('voice-status').innerText = voiceEnabled ? 'voce attiva' : 'voce disattivata';
             if (!voiceEnabled && window.speechSynthesis) {
@@ -1328,10 +1402,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         function reactivateVoice() {
             voiceEnabled = true;
-            document.getElementById('voice-btn').innerText = 'Voce ON';
+            document.getElementById('voice-btn').innerText = 'GIU-L_IA Scena ON';
             document.getElementById('voice-status').innerText = 'voce attiva';
             pickVoice();
-            const sample = 'Voce riattivata. Presenza vocale attiva con profilo caldo e naturale.';
+            const sample = 'GIU-L_IA Scena attiva. Presenza vocale pronta con profilo caldo e naturale.';
             speakReply(sample);
         }
 
