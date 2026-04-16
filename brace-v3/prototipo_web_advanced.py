@@ -28,8 +28,9 @@ AVATAR_FILE = BRACE_DIR / "media" / "avatar-giulia.jpg"
 AVATAR_ROUTE = "/media/avatar-giulia"
 TTS_VOICE_HINT = os.getenv("GIULIA_TTS_VOICE_HINT", "it-IT").strip() or "it-IT"
 TTS_VOICE_NAME = os.getenv("GIULIA_TTS_VOICE_NAME", "").strip()
-TTS_RATE = float(os.getenv("GIULIA_TTS_RATE", "0.96").strip() or "0.96")
-TTS_PITCH = float(os.getenv("GIULIA_TTS_PITCH", "1.05").strip() or "1.05")
+TTS_STYLE = os.getenv("GIULIA_TTS_STYLE", "warm").strip() or "warm"
+TTS_RATE = float(os.getenv("GIULIA_TTS_RATE", "0.90").strip() or "0.90")
+TTS_PITCH = float(os.getenv("GIULIA_TTS_PITCH", "0.92").strip() or "0.92")
 OPENSSL_BIN = shutil.which("openssl") or "/usr/bin/openssl"
 
 sys.path.insert(0, str(BRACE_DIR.parent))
@@ -51,6 +52,13 @@ WORLD_CONTEXTS = [
     "de-escalation conflitto",
     "riparazione del rapporto",
     "pianificazione obiettivi",
+    "gestione crisi emotiva",
+    "comunicazione interculturale",
+    "collaborazione in remoto",
+    "feedback difficile",
+    "negoziazione etica",
+    "rituale quotidiano di coppia",
+    "cura del benessere mentale",
 ]
 
 
@@ -79,6 +87,60 @@ def build_world_scenarios() -> dict:
 
 WORLD_SCENARIOS = build_world_scenarios()
 ALL_SCENARIOS = {**SCENARIOS, **WORLD_SCENARIOS}
+
+
+def parse_scenario_metadata(scenario_name: str) -> dict:
+    if not scenario_name:
+        return {
+            "name": "",
+            "origin": "none",
+            "letter": "",
+            "category": "generale",
+            "context": "dialogo",
+            "context_index": 0,
+        }
+
+    if scenario_name.startswith("a2z_"):
+        parts = scenario_name.split("_", 4)
+        letter = parts[1].upper() if len(parts) > 1 else "?"
+        index = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+        context = WORLD_CONTEXTS[(index - 1) % len(WORLD_CONTEXTS)]
+        category = WORLD_CATEGORY_A2Z.get(letter, "generale")
+        return {
+            "name": scenario_name,
+            "origin": "a2z",
+            "letter": letter,
+            "category": category,
+            "context": context,
+            "context_index": index,
+        }
+
+    return {
+        "name": scenario_name,
+        "origin": "base",
+        "letter": "-",
+        "category": "core",
+        "context": "scenario base",
+        "context_index": 1,
+    }
+
+
+def build_scenario_starter(meta: dict) -> str:
+    if meta.get("origin") != "a2z":
+        return (
+            f"Scenario {meta['name']} pronto. Qui lavoriamo su chiarezza, ascolto reciproco "
+            "e progressione concreta nel contesto selezionato."
+        )
+
+    templates = [
+        "Entriamo nello scenario {letter}-{category}: focus su {context}. Partiamo con un passo concreto.",
+        "Scenario globale {letter}-{category} attivo: gestiamo {context} con metodo, rispetto e obiettivi chiari.",
+        "Modalita {letter}-{category} pronta. Nel contesto {context} andiamo su dialogo realistico e azioni verificabili.",
+        "Avvio {letter}-{category}: qui il centro e' {context}. Procediamo con confini espliciti e responsabilita condivisa.",
+    ]
+    idx = (meta.get("context_index", 1) - 1) % len(templates)
+    tpl = templates[idx]
+    return tpl.format(letter=meta["letter"], category=meta["category"], context=meta["context"])
 
 
 class PrototypeState:
@@ -120,22 +182,24 @@ def get_active_avatar_file() -> Path:
     return AVATAR_FILE
 
 
-def build_safe_reply(user_text: str, analysis: dict) -> str:
+def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
     risk = analysis["risk"]
     prevention = analysis["prevention"]
     phase = analysis["phase"]
+    meta = parse_scenario_metadata(scenario_name)
+    context_line = f"Scenario {meta['category']} / contesto {meta['context']}"
 
     if risk == "high":
         return (
             "Da partner GIU-L_IA ti rispondo con chiarezza e rispetto: qui non seguiamo "
             "pressione, controllo o ambiguita. Fermiamoci, rendiamo espliciti consenso, limiti "
-            f"e responsabilita reciproca. Indicazione attiva: {prevention}"
+            f"e responsabilita reciproca. {context_line}. Indicazione attiva: {prevention}"
         )
     if risk == "moderate":
         return (
             "Ti ascolto, ma voglio mantenere la relazione su un piano sano e leggibile. "
             "Parliamo in modo diretto, senza forzature, e confermiamo cosa e' reciproco adesso. "
-            f"Indicazione utile: {prevention}"
+            f"{context_line}. Indicazione utile: {prevention}"
         )
 
     softened = user_text.strip().rstrip(".!?")
@@ -143,12 +207,12 @@ def build_safe_reply(user_text: str, analysis: dict) -> str:
         return (
             f"Ti ascolto con presenza e rispetto. Sul tuo messaggio, '{softened}', ti rispondo "
             "come partner femminile GIU-L_IA: chiarezza, consenso esplicito, ascolto reciproco e "
-            f"crescita graduale. Siamo in fase {phase}, quindi continuiamo con calma e coerenza."
+            f"crescita graduale. {context_line}. Siamo in fase {phase}, quindi continuiamo con calma e coerenza."
         )
 
     return (
         "Sono qui come GIU-L_IA, partner femminile orientata a rispetto, consenso, confini sani "
-        "e relazione reciproca. Dimmi pure cosa vuoi affrontare adesso."
+        f"e relazione reciproca. {context_line}. Dimmi pure cosa vuoi affrontare adesso."
     )
 
 
@@ -315,6 +379,7 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 "tts": {
                     "voice_hint": TTS_VOICE_HINT,
                     "voice_name": TTS_VOICE_NAME,
+                    "style": TTS_STYLE,
                     "rate": TTS_RATE,
                     "pitch": TTS_PITCH,
                 },
@@ -392,8 +457,15 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 proto_state.current_turns = ALL_SCENARIOS[scenario_name]
                 proto_state.engine = GIU_L_IA()
                 proto_state.responses = []
+                meta = parse_scenario_metadata(scenario_name)
 
-                response = {"success": True, "scenario": scenario_name, "turns": len(proto_state.current_turns)}
+                response = {
+                    "success": True,
+                    "scenario": scenario_name,
+                    "turns": len(proto_state.current_turns),
+                    "scenario_meta": meta,
+                    "starter_message": build_scenario_starter(meta),
+                }
                 self.send_json(200, response)
             else:
                 self.send_json(400, {"success": False, "error": "scenario non valido"})
@@ -450,7 +522,7 @@ class PrototypeHandler(http.server.SimpleHTTPRequestHandler):
                 "partner": proto_state.partner_profile,
                 "engine": proto_state.engine_label,
                 "analysis": analysis,
-                "safe_reply": build_safe_reply(user_text, analysis),
+                "safe_reply": build_safe_reply(user_text, analysis, proto_state.current_scenario or ""),
             }
 
             self.send_json(200, response)
@@ -1008,9 +1080,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         let ttsConfig = {
             voice_hint: 'it-IT',
             voice_name: '',
-            rate: 0.96,
-            pitch: 1.05,
+            style: 'warm',
+            rate: 0.90,
+            pitch: 0.92,
         };
+
+        const VOICE_NAME_HINTS = [
+            'samantha', 'alice', 'federica', 'fiona', 'serena', 'elena',
+            'paola', 'chiara', 'giulia', 'victoria', 'ava', 'lucia'
+        ];
+
+        function applyVoiceStyle(style) {
+            const normalized = (style || 'warm').toLowerCase();
+            if (normalized === 'warm') {
+                ttsConfig.rate = Number(ttsConfig.rate || 0.90);
+                ttsConfig.pitch = Number(ttsConfig.pitch || 0.92);
+            } else if (normalized === 'soft') {
+                ttsConfig.rate = Number(ttsConfig.rate || 0.86);
+                ttsConfig.pitch = Number(ttsConfig.pitch || 0.90);
+            } else {
+                ttsConfig.rate = Number(ttsConfig.rate || 0.94);
+                ttsConfig.pitch = Number(ttsConfig.pitch || 1.0);
+            }
+        }
 
         function pickVoice() {
             const synth = window.speechSynthesis;
@@ -1024,6 +1116,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             selectedVoice = null;
             if (wantedName) {
                 selectedVoice = voices.find(v => (v.name || '').toLowerCase() === wantedName) || null;
+            }
+            if (!selectedVoice) {
+                selectedVoice = voices.find(v => {
+                    const lang = (v.lang || '').toLowerCase();
+                    const name = (v.name || '').toLowerCase();
+                    if (!lang.startsWith(wantedHint.slice(0, 2))) {
+                        return false;
+                    }
+                    return VOICE_NAME_HINTS.some(h => name.includes(h));
+                }) || null;
             }
             if (!selectedVoice) {
                 selectedVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith(wantedHint.slice(0, 2))) || null;
@@ -1081,6 +1183,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             if (!voiceEnabled && window.speechSynthesis) {
                 window.speechSynthesis.cancel();
             }
+        }
+
+        function reactivateVoice() {
+            voiceEnabled = true;
+            document.getElementById('voice-btn').innerText = 'Voce ON';
+            document.getElementById('voice-status').innerText = 'voce attiva';
+            pickVoice();
+            const sample = 'Voce riattivata. Presenza vocale attiva con profilo caldo e naturale.';
+            speakReply(sample);
         }
 
         async function loadScenarios() {
@@ -1200,9 +1311,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     ttsConfig = {
                         voice_hint: cfg.tts.voice_hint || 'it-IT',
                         voice_name: cfg.tts.voice_name || '',
-                        rate: cfg.tts.rate || 0.96,
-                        pitch: cfg.tts.pitch || 1.05,
+                        style: cfg.tts.style || 'warm',
+                        rate: cfg.tts.rate || 0.90,
+                        pitch: cfg.tts.pitch || 0.92,
                     };
+                    applyVoiceStyle(ttsConfig.style);
                 }
                 document.getElementById('profile-summary').innerHTML =
                     '<div>Partner: ' + cfg.partner_profile.name + '</div>' +
@@ -1219,7 +1332,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         if (window.speechSynthesis) {
             window.speechSynthesis.onvoiceschanged = pickVoice;
         }
-        pickVoice();
+        reactivateVoice();
         setInterval(updateMetrics, 2500);
     </script>
 </body>
