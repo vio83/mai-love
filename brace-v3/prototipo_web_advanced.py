@@ -395,11 +395,19 @@ def get_active_avatar_file() -> Path:
 
 def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
     risk = analysis["risk"]
+    mode = analysis.get("mode", "standard")
     prevention = analysis["prevention"]
     meta = parse_scenario_metadata(scenario_name)
     context_line = f"Scenario {meta['category']} / contesto {meta['context']}"
 
-    # BRACE safety layer -- rimane protettivo indipendentemente dal carattere
+    softened = user_text.strip().rstrip(".!?")
+
+    # bunker_educational: GIU-L_IA risponde con voce character-native, non safety generica
+    # Ha priorita' sul risk check: il personaggio nomina il pattern, non si limita a fermarsi.
+    if mode == "bunker_educational" and softened:
+        return build_giulia_reply(softened, scenario_name, analysis)
+
+    # BRACE safety layer -- attivo per high/moderate risk standard e protective
     if risk == "high":
         return (
             "GIU-L_IA si ferma qui: no pressione, controllo o ambiguita' in questo spazio. "
@@ -413,7 +421,6 @@ def build_safe_reply(user_text: str, analysis: dict, scenario_name: str) -> str:
             f"Indicazione utile: {prevention}"
         )
 
-    softened = user_text.strip().rstrip(".!?")
     if softened:
         return build_giulia_reply(softened, scenario_name, analysis)
 
