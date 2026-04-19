@@ -330,6 +330,42 @@
         "panel": "shared",
         "group": "maintenance"
       }
+    },
+    {
+      "label": "🛡️ Install iMac Permanent Stack",
+      "type": "shell",
+      "command": "bash scripts/runtime/install_imac_permanent_stack.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}",
+          "VIO_NO_HYBRID": "true"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "maintenance"
+      }
+    },
+    {
+      "label": "📜 Certify iMac Runtime 99.9",
+      "type": "shell",
+      "command": "bash scripts/runtime/certify_imac_runtime_99_9.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}",
+          "VIO_NO_HYBRID": "true"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "maintenance"
+      }
     }
   ]
 }
