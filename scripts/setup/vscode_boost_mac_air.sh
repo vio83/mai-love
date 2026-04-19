@@ -55,7 +55,34 @@ safe_merge_json() {
   fi
 }
 
-# ----- helper: merge keybindings (array) ------------------------------------
+# ----- helper: strip commenti JSONC (node → python3 → fallback) -------------
+strip_jsonc() {
+  local infile="$1"
+  if command -v node &>/dev/null; then
+    node -e '
+      const fs=require("fs");
+      let t=fs.readFileSync(process.argv[1],"utf8");
+      t=t.replace(/\/\*[\s\S]*?\*\//g,"");
+      t=t.replace(/^\s*\/\/[^\n]*$/gm,"");
+      t=t.replace(/([^:"])\/\/[^\n]*$/gm,"$1");
+      t=t.replace(/,(\s*[}\]])/g,"$1");
+      process.stdout.write(t);
+    ' "$infile"
+  elif command -v python3 &>/dev/null; then
+    python3 -c "
+import sys,re
+t=open(sys.argv[1]).read()
+t=re.sub(r'/\*.*?\*/','',t,flags=re.S)
+t=re.sub(r'^\s*//[^\n]*$','',t,flags=re.M)
+t=re.sub(r'([^:\"])//[^\n]*$',r'\1',t,flags=re.M)
+t=re.sub(r',(\s*[}\]])',r'\1',t)
+sys.stdout.write(t)" "$infile"
+  else
+    cat "$infile"
+  fi
+}
+
+# ----- helper: merge keybindings (array, JSONC-aware) -----------------------
 safe_merge_keybindings() {
   local target="$1" defaults_file="$2"
   if [[ ! -f "$target" ]]; then
@@ -65,29 +92,46 @@ safe_merge_keybindings() {
     return
   fi
   cp -a "$target" "$BKROOT/keybindings.json.bak"
-  if jq empty <"$target" 2>/dev/null; then
+  local cleaned=$(mktemp)
+  strip_jsonc "$target" > "$cleaned"
+  if jq empty <"$cleaned" 2>/dev/null; then
     local tmp="$target.merged.$$"
-    # Tieni tutti i tuoi + aggiungi SOLO i nuovi la cui .key non è già usata
     if jq -s '.[1] + [.[0][] | select(.key as $k | .[1] | map(.key) | index($k) | not)]' \
-        "$defaults_file" "$target" > "$tmp" 2>/dev/null; then
+        "$defaults_file" "$cleaned" > "$tmp" 2>/dev/null; then
       mv "$tmp" "$target"
-      ok "keybindings estesi (tuoi shortcut intatti)"
+      ok "keybindings estesi (tuoi shortcut intatti; eventuali commenti JSONC rimossi)"
     else
       rm -f "$tmp"
-      warn "merge keybindings fallito → lasciato invariato"
+      warn "merge keybindings fallito → invariato (backup in $BKROOT)"
     fi
   else
-    warn "keybindings.json ha commenti → NON toccato"
+    warn "keybindings.json non parsabile anche dopo strip → invariato"
   fi
+  rm -f "$cleaned"
 }
 
+# ----- helper: install estensione con retry 3x ------------------------------
+install_ext_with_retry() {
+  local e="$1"
+  for i in 1 2 3; do
+    if code --install-extension "$e" --force >/dev/null 2>&1; then
+      echo "  ✓ install: $e"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "  ✗ skip: $e (3 tentativi falliti)"
+  return 1
+}
+export -f install_ext_with_retry
+
 # -----------------------------------------------------------------------------
-step "[1/6] Estensioni (additive — nessuna rimozione possibile)"
+step "[1/6] Estensioni (additive, parallele -P6, retry 3x)"
 EXT=(
   anthropic.claude-code github.copilot github.copilot-chat
   continue.continue codeium.codeium rjmacarthy.twinny
   saoudrizwan.claude-dev sourcegraph.amp
-  google.gemini-cli-vscode openai.chatgpt
+  google.geminicodeassist
   ms-vscode-remote.remote-ssh ms-vscode-remote.remote-ssh-edit
   ms-vscode-remote.remote-containers ms-vsliveshare.vsliveshare
   eamodio.gitlens github.vscode-pull-request-github
@@ -103,12 +147,16 @@ EXT=(
   wayou.vscode-todo-highlight ritwickdey.liveserver
 )
 INSTALLED="$(code --list-extensions 2>/dev/null || true)"
+MISSING=(); ALREADY=0
 for e in "${EXT[@]}"; do
-  if grep -qix "$e" <<<"$INSTALLED"; then ok "già: $e"
-  else code --install-extension "$e" --force >/dev/null 2>&1 && ok "install: $e" \
-       || warn "skip: $e (marketplace/licensing)"
+  if grep -qix "$e" <<<"$INSTALLED"; then ((ALREADY++))
+  else MISSING+=("$e")
   fi
 done
+ok "già presenti: $ALREADY — da installare: ${#MISSING[@]}"
+if ((${#MISSING[@]} > 0)); then
+  printf '%s\n' "${MISSING[@]}" | xargs -P 6 -I {} bash -c 'install_ext_with_retry "$@"' _ {}
+fi
 
 # -----------------------------------------------------------------------------
 step "[2/6] settings.json (MERGE — tuoi valori intatti)"
