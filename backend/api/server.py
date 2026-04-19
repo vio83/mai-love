@@ -213,7 +213,7 @@ RUNTIME_ENV_DEFAULTS = {
     "AUTONOMOUS_RUNTIME_BACKGROUND_ISOLATION": "true",
     "AUTONOMOUS_RUNTIME_MAX_FILES_PER_TICK": "20",
     "VIO_EXECUTION_PROFILE": "real-max-local",
-    "VIO_NO_HYBRID": "false",
+    "VIO_NO_HYBRID": "true",
     "VIO_LOCAL_MODEL_PREFERENCE": "qwen2.5-coder:3b",
     "VIO_AUTOPILOT_INTERVAL_SEC": "1",
     "VIO_AUTOPILOT_MIN_FREE_GB": "45",
@@ -381,9 +381,20 @@ def _get_orchestration_policy() -> dict:
 
 
 def _cap_request_tokens(requested: int) -> int:
-    soft_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS", "512") or 512)
-    hard_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS_HARD", "1024") or 1024)
-    upper = max(soft_cap, hard_cap)
+    try:
+        soft_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS", "512") or 512)
+    except (TypeError, ValueError):
+        soft_cap = 512
+
+    try:
+        hard_cap = int(os.environ.get("VIO_SERVER_MAX_TOKENS_HARD", "1024") or 1024)
+    except (TypeError, ValueError):
+        hard_cap = 1024
+
+    # Safety ceiling: environment tuning may lower the cap, but never disable it.
+    safe_soft_cap = max(64, min(soft_cap, 1024))
+    safe_hard_cap = max(64, min(hard_cap, 1024))
+    upper = max(safe_soft_cap, safe_hard_cap)
     return max(64, min(int(requested), upper))
 
 

@@ -38,7 +38,7 @@ if [ "$backend_ok" = false ]; then
     kill "$PID" 2>/dev/null || true
     sleep 2
   fi
-  PYTHONPATH="$PROJECT" VIO_NO_HYBRID="${VIO_NO_HYBRID:-false}" nohup python3 -m uvicorn backend.api.server:app --port 4000 --log-level warning >> "$LOG_DIR/backend-autorestart.log" 2>&1 &
+  PYTHONPATH="$PROJECT" VIO_NO_HYBRID="${VIO_NO_HYBRID:-true}" nohup python3 -m uvicorn backend.api.server:app --port 4000 --log-level warning >> "$LOG_DIR/backend-autorestart.log" 2>&1 &
   sleep 4
   if curl -sS --max-time 5 "$BACKEND/health" >/dev/null 2>&1; then
     backend_ok=true

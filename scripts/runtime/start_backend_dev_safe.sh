@@ -15,7 +15,7 @@ fi
 
 export PYTHONPATH="$ROOT_DIR"
 export VIO_EXECUTION_PROFILE="real-max-local"
-export VIO_NO_HYBRID="${VIO_NO_HYBRID:-false}"
+export VIO_NO_HYBRID="${VIO_NO_HYBRID:-true}"
 export VIO_SPEED_MODE="true"
 export VIO_SERVER_MAX_TOKENS="512"
 export VIO_SERVER_MAX_TOKENS_HARD="768"
