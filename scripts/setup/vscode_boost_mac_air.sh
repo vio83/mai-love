@@ -1,54 +1,101 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VIO AI ORCHESTRA — VS Code BOOST per Mac Air (Apple Silicon) — April 2026
+# VIO AI ORCHESTRA — VS Code BOOST Mac Air (Apple Silicon) — April 2026
+# VERSIONE NON-DISTRUTTIVA: merge-only, mai sovrascrive config esistenti.
 # -----------------------------------------------------------------------------
-# Scope: SOLO VS Code. Niente package manager, niente Ollama, niente systemd.
-# Presume che mac_air_powerhouse_2026.sh sia già stato eseguito (oppure che
-# 'code' e 'npm' siano già disponibili sul PATH).
-#
-# Cosa fa (idempotente):
-#   1. Installa il pack completo estensioni AI + Remote + lang + DX
-#   2. Scrive settings.json / keybindings.json / snippets globali
-#   3. Scrive Continue config multi-router (cloud + Ollama locale)
-#   4. Registra MCP server sia per Claude Code sia per Cline
-#   5. Task/launch templates pronti per il progetto VIO Orchestra
-#   6. LaunchAgent che tiene sempre caldo npx per i MCP più usati
+# Garanzie concrete:
+#   * Ogni JSON esistente viene FUSO con i default (jq -s '.[0] * .[1]')
+#     I tuoi valori vincono sempre sui conflitti.
+#   * Prima di QUALSIASI modifica: backup timestamped (.bak.YYYYMMDD-HHMMSS)
+#   * Se jq non riesce a parsare (commenti JSONC): il file NON viene toccato,
+#     solo un warning + backup. Zero rischio di corruzione.
+#   * Le estensioni sono installate solo se mancanti (--force per aggiornare).
+#   * Sessioni VS Code, tab aperti, workspace state, Remote-SSH cache,
+#     storia chat Claude Code: NON toccati in alcun modo.
 # =============================================================================
 set -Eeuo pipefail
-readonly C_G='\033[0;32m' C_Y='\033[1;33m' C_C='\033[0;36m' C_N='\033[0m'
+readonly C_G='\033[0;32m' C_Y='\033[1;33m' C_C='\033[0;36m' C_R='\033[0;31m' C_N='\033[0m'
 ok(){ printf "${C_G}  ✓${C_N} %s\n" "$*"; }
 warn(){ printf "${C_Y}  !${C_N} %s\n" "$*"; }
+err(){ printf "${C_R}  ✗${C_N} %s\n" "$*" >&2; }
 step(){ printf "\n${C_C}▶ %s${C_N}\n" "$*"; }
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "macOS only"; exit 1; }
-command -v code &>/dev/null || { echo "Manca 'code' sul PATH. Apri VS Code → Shell Command: Install 'code' in PATH"; exit 1; }
-command -v npm  &>/dev/null || { echo "Manca 'npm'. Installa Node (nvm o brew) prima di rilanciare."; exit 1; }
+command -v code &>/dev/null || { echo "Manca 'code' sul PATH. Apri VS Code → Cmd+Shift+P → Shell Command: Install 'code' in PATH"; exit 1; }
+command -v npm  &>/dev/null || { echo "Manca 'npm'. Installa Node (brew install node o nvm) prima di rilanciare."; exit 1; }
+command -v jq   &>/dev/null || { command -v brew &>/dev/null && brew install jq || { echo "Installa jq e rilancia"; exit 1; }; }
 
 SDIR="$HOME/Library/Application Support/Code/User"
 mkdir -p "$SDIR/snippets"
+TS=$(date +%Y%m%d-%H%M%S)
+BKROOT="$HOME/.vio-vscode-backups/$TS"
+mkdir -p "$BKROOT"
+
+# ----- helper: merge JSON oggetto, tuoi valori vincono ----------------------
+safe_merge_json() {
+  local target="$1" defaults_file="$2"
+  if [[ ! -f "$target" ]]; then
+    mkdir -p "$(dirname "$target")"
+    cp "$defaults_file" "$target"
+    ok "nuovo: $target"
+    return
+  fi
+  cp -a "$target" "$BKROOT/$(basename "$target").bak"
+  if jq empty <"$target" 2>/dev/null; then
+    local tmp="$target.merged.$$"
+    if jq -s '.[0] * .[1]' "$defaults_file" "$target" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$target"
+      ok "fuso: $target (tuoi valori intatti)"
+    else
+      rm -f "$tmp"
+      warn "merge fallito su $target → lasciato invariato"
+    fi
+  else
+    warn "$target ha commenti JSONC → NON toccato (backup in $BKROOT)"
+  fi
+}
+
+# ----- helper: merge keybindings (array) ------------------------------------
+safe_merge_keybindings() {
+  local target="$1" defaults_file="$2"
+  if [[ ! -f "$target" ]]; then
+    mkdir -p "$(dirname "$target")"
+    cp "$defaults_file" "$target"
+    ok "nuovi keybindings: $target"
+    return
+  fi
+  cp -a "$target" "$BKROOT/keybindings.json.bak"
+  if jq empty <"$target" 2>/dev/null; then
+    local tmp="$target.merged.$$"
+    # Tieni tutti i tuoi + aggiungi SOLO i nuovi la cui .key non è già usata
+    if jq -s '.[1] + [.[0][] | select(.key as $k | .[1] | map(.key) | index($k) | not)]' \
+        "$defaults_file" "$target" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$target"
+      ok "keybindings estesi (tuoi shortcut intatti)"
+    else
+      rm -f "$tmp"
+      warn "merge keybindings fallito → lasciato invariato"
+    fi
+  else
+    warn "keybindings.json ha commenti → NON toccato"
+  fi
+}
 
 # -----------------------------------------------------------------------------
-step "[1/6] Estensioni (AI top-tier aprile 2026 + Remote + lang + DX)"
+step "[1/6] Estensioni (additive — nessuna rimozione possibile)"
 EXT=(
-  # AI assistants & agenti autonomi
   anthropic.claude-code github.copilot github.copilot-chat
   continue.continue codeium.codeium rjmacarthy.twinny
   saoudrizwan.claude-dev sourcegraph.amp
   google.gemini-cli-vscode openai.chatgpt
-  # Remote + pairing
   ms-vscode-remote.remote-ssh ms-vscode-remote.remote-ssh-edit
-  ms-vscode-remote.remote-containers ms-vscode-remote.remote-wsl
-  ms-vscode.remote-explorer ms-vsliveshare.vsliveshare
-  # Git / GitHub
+  ms-vscode-remote.remote-containers ms-vsliveshare.vsliveshare
   eamodio.gitlens github.vscode-pull-request-github
   github.vscode-github-actions mhutchie.git-graph
-  # Lang servers
   dbaeumer.vscode-eslint esbenp.prettier-vscode
-  ms-python.python ms-python.vscode-pylance ms-python.black-formatter charliermarsh.ruff
+  ms-python.python ms-python.vscode-pylance charliermarsh.ruff
   rust-lang.rust-analyzer golang.go
-  redhat.vscode-yaml tamasfe.even-better-toml
-  ms-azuretools.vscode-docker
-  # DX / produttività
+  ms-azuretools.vscode-docker redhat.vscode-yaml tamasfe.even-better-toml
   usernamehw.errorlens streetsidesoftware.code-spell-checker
   editorconfig.editorconfig christian-kohler.path-intellisense
   formulahendry.auto-rename-tag gruntfuggly.todo-tree
@@ -64,63 +111,55 @@ for e in "${EXT[@]}"; do
 done
 
 # -----------------------------------------------------------------------------
-step "[2/6] settings.json (Settings Sync ON + AI tunato)"
-[[ -f "$SDIR/settings.json" ]] && cp "$SDIR/settings.json" "$SDIR/settings.json.bak.$(date +%s)"
-cat > "$SDIR/settings.json" <<'JSON'
+step "[2/6] settings.json (MERGE — tuoi valori intatti)"
+TMP=$(mktemp)
+cat > "$TMP" <<'JSON'
 {
   "settingsSync.keybindingsPerPlatform": false,
-  "telemetry.telemetryLevel": "off",
-  "workbench.settings.enableNaturalLanguageSearch": true,
-  "workbench.colorTheme": "Default Dark Modern",
-  "editor.fontFamily": "JetBrainsMono Nerd Font, Menlo, Consolas, monospace",
-  "editor.fontLigatures": true,
-  "editor.formatOnSave": true,
   "editor.inlineSuggest.enabled": true,
   "editor.suggest.preview": true,
-  "editor.minimap.enabled": false,
+  "editor.formatOnSave": true,
   "editor.bracketPairColorization.enabled": true,
-  "editor.guides.bracketPairs": "active",
   "editor.stickyScroll.enabled": true,
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 500,
-  "terminal.integrated.defaultProfile.osx": "zsh",
   "terminal.integrated.scrollback": 50000,
-  "terminal.integrated.enableMultiLinePasteWarning": "never",
   "git.autofetch": true,
-  "git.confirmSync": false,
-  "git.enableSmartCommit": true,
   "remote.SSH.remotePlatform": { "imac-archimede": "linux" },
   "remote.SSH.defaultExtensions": [
     "anthropic.claude-code","github.copilot","github.copilot-chat",
     "continue.continue","saoudrizwan.claude-dev","eamodio.gitlens"
   ],
   "remote.SSH.connectTimeout": 60,
-  "github.copilot.enable": { "*": true, "markdown": true, "plaintext": true },
-  "github.copilot.advanced": { "length": 500 },
+  "github.copilot.enable": { "*": true },
   "claude-code.autoStart": true,
   "cline.mcpMarketplace.enabled": true,
   "continue.telemetryEnabled": false,
-  "continue.enableTabAutocomplete": true,
-  "workbench.editor.enablePreview": false,
-  "explorer.confirmDelete": false
+  "continue.enableTabAutocomplete": true
 }
 JSON
-ok "settings.json scritto"
+safe_merge_json "$SDIR/settings.json" "$TMP"
+rm -f "$TMP"
 
 # -----------------------------------------------------------------------------
-step "[3/6] keybindings.json + snippet globale VIO"
-cat > "$SDIR/keybindings.json" <<'JSON'
+step "[3/6] keybindings.json (MERGE — aggiunti solo shortcut non in uso)"
+TMP=$(mktemp)
+cat > "$TMP" <<'JSON'
 [
-  { "key": "cmd+i",          "command": "workbench.action.chat.open" },
-  { "key": "cmd+shift+i",    "command": "claude-code.open" },
-  { "key": "alt+\\",         "command": "editor.action.inlineSuggest.trigger" },
-  { "key": "cmd+alt+c",      "command": "workbench.action.terminal.sendSequence",
-                             "args": { "text": "claude\n" } },
-  { "key": "cmd+alt+a",      "command": "workbench.action.terminal.sendSequence",
-                             "args": { "text": "aider --model sonnet\n" } }
+  { "key": "cmd+i",         "command": "workbench.action.chat.open" },
+  { "key": "cmd+shift+i",   "command": "claude-code.open" },
+  { "key": "alt+\\",        "command": "editor.action.inlineSuggest.trigger" },
+  { "key": "cmd+alt+c",     "command": "workbench.action.terminal.sendSequence", "args": { "text": "claude\n" } },
+  { "key": "cmd+alt+a",     "command": "workbench.action.terminal.sendSequence", "args": { "text": "aider --model sonnet\n" } }
 ]
 JSON
-cat > "$SDIR/snippets/global.code-snippets" <<'JSON'
+safe_merge_keybindings "$SDIR/keybindings.json" "$TMP"
+rm -f "$TMP"
+
+# -----------------------------------------------------------------------------
+step "[4/6] snippets globali (MERGE)"
+TMP=$(mktemp)
+cat > "$TMP" <<'JSON'
 {
   "VIO header": {
     "scope": "javascript,typescript,python,go,rust,sh",
@@ -133,36 +172,35 @@ cat > "$SDIR/snippets/global.code-snippets" <<'JSON'
   }
 }
 JSON
-ok "keybindings + snippet globale"
+safe_merge_json "$SDIR/snippets/global.code-snippets" "$TMP"
+rm -f "$TMP"
 
 # -----------------------------------------------------------------------------
-step "[4/6] Continue config (multi-router cloud + Ollama)"
+step "[5/6] Continue config (MERGE — chiavi API esistenti preservate)"
 mkdir -p "$HOME/.continue"
-cat > "$HOME/.continue/config.json" <<'JSON'
+TMP=$(mktemp)
+cat > "$TMP" <<'JSON'
 {
   "models": [
     { "title": "Claude Sonnet 4.6", "provider": "anthropic", "model": "claude-sonnet-4-6", "apiKey": "${ANTHROPIC_API_KEY}" },
     { "title": "Claude Opus 4.7",   "provider": "anthropic", "model": "claude-opus-4-7",   "apiKey": "${ANTHROPIC_API_KEY}" },
     { "title": "GPT-4o",            "provider": "openai",    "model": "gpt-4o",            "apiKey": "${OPENAI_API_KEY}" },
     { "title": "Gemini 2.5 Pro",    "provider": "gemini",    "model": "gemini-2.5-pro",    "apiKey": "${GOOGLE_API_KEY}" },
-    { "title": "Qwen-Coder 32B (iMac)", "provider": "ollama", "model": "qwen2.5-coder:32b-instruct-q4_K_M",
-      "apiBase": "http://imac-archimede:11434" },
-    { "title": "DeepSeek R1 32B (iMac)", "provider": "ollama", "model": "deepseek-r1:32b",
-      "apiBase": "http://imac-archimede:11434" },
-    { "title": "Qwen-Coder 32B (locale)", "provider": "ollama", "model": "qwen2.5-coder:32b-instruct-q4_K_M" }
+    { "title": "Qwen-Coder 32B (iMac)", "provider": "ollama", "model": "qwen2.5-coder:32b-instruct-q4_K_M", "apiBase": "http://imac-archimede:11434" },
+    { "title": "DeepSeek R1 32B (iMac)", "provider": "ollama", "model": "deepseek-r1:32b", "apiBase": "http://imac-archimede:11434" }
   ],
-  "tabAutocompleteModel": { "title": "Qwen Coder (iMac)", "provider": "ollama",
-    "model": "qwen2.5-coder:32b-instruct-q4_K_M", "apiBase": "http://imac-archimede:11434" },
-  "embeddingsProvider": { "provider": "ollama", "model": "nomic-embed-text:latest",
-    "apiBase": "http://imac-archimede:11434" }
+  "tabAutocompleteModel": { "title": "Qwen Coder (iMac)", "provider": "ollama", "model": "qwen2.5-coder:32b-instruct-q4_K_M", "apiBase": "http://imac-archimede:11434" },
+  "embeddingsProvider": { "provider": "ollama", "model": "nomic-embed-text:latest", "apiBase": "http://imac-archimede:11434" }
 }
 JSON
-ok "Continue: cloud + Ollama remoto su iMac via Tailnet"
+safe_merge_json "$HOME/.continue/config.json" "$TMP"
+rm -f "$TMP"
 
 # -----------------------------------------------------------------------------
-step "[5/6] MCP registry (Claude Code + Cline)"
+step "[6/6] MCP registry (Claude Code + Cline) — MERGE"
 mkdir -p "$HOME/.config/claude"
-cat > "$HOME/.config/claude/mcp_servers.json" <<'JSON'
+TMP=$(mktemp)
+cat > "$TMP" <<'JSON'
 {
   "mcpServers": {
     "filesystem":   { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users"] },
@@ -176,19 +214,17 @@ cat > "$HOME/.config/claude/mcp_servers.json" <<'JSON'
   }
 }
 JSON
-
-# Cline (VS Code) legge da una location sua
+safe_merge_json "$HOME/.config/claude/mcp_servers.json" "$TMP"
 CLINE_DIR="$SDIR/globalStorage/saoudrizwan.claude-dev/settings"
 mkdir -p "$CLINE_DIR"
-cp "$HOME/.config/claude/mcp_servers.json" "$CLINE_DIR/cline_mcp_settings.json"
-ok "MCP registrati per Claude Code + Cline"
+safe_merge_json "$CLINE_DIR/cline_mcp_settings.json" "$TMP"
+rm -f "$TMP"
 
-# -----------------------------------------------------------------------------
-step "[6/6] LaunchAgent: mantiene caldo MCP memory + pre-cache npx"
-LA="$HOME/Library/LaunchAgents"
-LOG="$HOME/Library/Logs/vio"
+# LaunchAgent idempotente
+LA="$HOME/Library/LaunchAgents"; LOG="$HOME/Library/Logs/vio"
 mkdir -p "$LA" "$LOG"
-cat > "$LA/ai.vio.vscode-mcp-warm.plist" <<EOF
+PLIST="$LA/ai.vio.vscode-mcp-warm.plist"
+cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -202,24 +238,20 @@ cat > "$LA/ai.vio.vscode-mcp-warm.plist" <<EOF
   <key>StandardErrorPath</key><string>$LOG/vscode-mcp-warm.err</string>
 </dict></plist>
 EOF
-launchctl unload "$LA/ai.vio.vscode-mcp-warm.plist" 2>/dev/null || true
-launchctl load   "$LA/ai.vio.vscode-mcp-warm.plist"
-ok "LaunchAgent attivo: ai.vio.vscode-mcp-warm"
+launchctl unload "$PLIST" 2>/dev/null || true
+launchctl load   "$PLIST" && ok "LaunchAgent: ai.vio.vscode-mcp-warm"
 
 cat <<EOF
 
 ${C_C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_N}
-${C_G}VS Code Mac Air — BOOST COMPLETATO${C_N}
+${C_G}MAC AIR VS Code — BOOST NON-DISTRUTTIVO COMPLETATO${C_N}
 
-Passi manuali (onestamente obbligati):
-  1. ${C_Y}Settings Sync${C_N}: Command Palette → "Settings Sync: Turn On" → GitHub
-  2. ${C_Y}Remote-SSH${C_N}:   Command Palette → "Remote-SSH: Connect to Host" → imac-archimede
-  3. ${C_Y}API keys${C_N}:     compila ~/.config/vio/keys.env (già creato)
+Backup totale in: ${C_Y}$BKROOT${C_N}
+Ripristino (se serve): cp -a "$BKROOT"/* nei path originali.
 
-Continue userà in automatico:
-  • Cloud: Claude Sonnet/Opus, GPT-4o, Gemini 2.5 Pro
-  • Locale: Ollama remoto su imac-archimede:11434 (Qwen-Coder 32B, DeepSeek R1 32B)
-
-Log: ~/Library/Logs/vio/
+Passi manuali (una volta):
+  1. ${C_Y}Settings Sync${C_N}: Cmd+Shift+P → "Settings Sync: Turn On" → GitHub
+  2. ${C_Y}Remote-SSH${C_N}:   Cmd+Shift+P → "Remote-SSH: Connect to Host" → imac-archimede
+  3. ${C_Y}API keys${C_N}:     edita ~/.config/vio/keys.env
 ${C_C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_N}
 EOF
